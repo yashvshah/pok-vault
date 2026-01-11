@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { subgraphClient, DEPOSITS_QUERY } from '../config/subgraph';
-import type { SubgraphDeposit } from '../types/vault';
+import { subgraphClient, DEPOSITS_QUERY } from '../../config/subgraph';
+import type { SubgraphDeposit } from '../../types/vault';
 
 interface DepositsResponse {
   deposits: SubgraphDeposit[];

@@ -32,7 +32,7 @@ function VaultActivitiesTable({ limit = 20 }: VaultActivitiesTableProps) {
           Vault Activities ({activities.length})
         </h2>
         <p className="text-sm text-gray-600 mt-1">
-          Recent deposits, withdrawals, and new outcome token pairs
+          Recent deposits, withdrawals, and outcome token activities
         </p>
       </div>
 
@@ -72,9 +72,21 @@ function VaultActivitiesTable({ limit = 20 }: VaultActivitiesTableProps) {
                       ? 'bg-green-100 text-green-800'
                       : activity.type === 'withdrawal'
                       ? 'bg-red-100 text-red-800'
-                      : 'bg-blue-100 text-blue-800'
+                      : activity.type === 'new-outcome-pair'
+                      ? 'bg-blue-100 text-blue-800'
+                      : activity.type === 'removed-outcome-pair'
+                      ? 'bg-orange-100 text-orange-800'
+                      : activity.type === 'paused-outcome-pair'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : activity.type === 'profit-loss-reported'
+                      ? 'bg-purple-100 text-purple-800'
+                      : activity.type === 'early-exit'
+                      ? 'bg-indigo-100 text-indigo-800'
+                      : activity.type === 'split-outcome-tokens'
+                      ? 'bg-pink-100 text-pink-800'
+                      : 'bg-gray-100 text-gray-800'
                   }`}>
-                    {activity.type}
+                    {activity.type.replace(/-/g, ' ')}
                   </span>
                 </td>
                 <td className="px-6 py-4">

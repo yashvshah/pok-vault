@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { subgraphClient, WITHDRAWALS_QUERY } from '../config/subgraph';
-import type { SubgraphWithdrawal } from '../types/vault';
+import { subgraphClient, WITHDRAWALS_QUERY } from '../../config/subgraph';
+import type { SubgraphWithdrawal } from '../../types/vault';
 
 interface WithdrawalsResponse {
   withdraws: SubgraphWithdrawal[];

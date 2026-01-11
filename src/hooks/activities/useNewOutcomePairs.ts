@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { subgraphClient, NEW_OUTCOME_PAIR_QUERY } from '../config/subgraph';
-import type { SubgraphNewOppositeOutcomeTokenPairAdded } from '../types/vault';
+import { subgraphClient, NEW_OUTCOME_PAIR_QUERY } from '../../config/subgraph';
+import type { SubgraphNewOppositeOutcomeTokenPairAdded } from '../../types/vault';
 
 interface NewOutcomePairsResponse {
   newOppositeOutcomeTokenPairAddeds: SubgraphNewOppositeOutcomeTokenPairAdded[];

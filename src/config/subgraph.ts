@@ -52,3 +52,82 @@ export const NEW_OUTCOME_PAIR_QUERY = `
     }
   }
 `;
+
+export const REMOVED_OUTCOME_PAIR_QUERY = `
+  query GetRemovedOutcomePairs($first: Int = 100, $orderBy: OppositeOutcomeTokenPairRemoved_orderBy = timestamp_, $orderDirection: OrderDirection = desc) {
+    oppositeOutcomeTokenPairRemoveds(first: $first, orderBy: $orderBy, orderDirection: $orderDirection) {
+      id
+      outcomeIdA
+      outcomeIdB
+      outcomeTokenA
+      outcomeTokenB
+      block_number
+      timestamp_
+      transactionHash_
+    }
+  }
+`;
+
+export const PAUSED_OUTCOME_PAIR_QUERY = `
+  query GetPausedOutcomePairs($first: Int = 100, $orderBy: OppositeOutcomeTokenPairPaused_orderBy = timestamp_, $orderDirection: OrderDirection = desc) {
+    oppositeOutcomeTokenPairPauseds(first: $first, orderBy: $orderBy, orderDirection: $orderDirection) {
+      id
+      outcomeIdA
+      outcomeIdB
+      outcomeTokenA
+      outcomeTokenB
+      block_number
+      timestamp_
+      transactionHash_
+    }
+  }
+`;
+
+export const PROFIT_LOSS_REPORTED_QUERY = `
+  query GetProfitLossReported($first: Int = 100, $orderBy: ProfitOrLossReporteds_orderBy = timestamp_, $orderDirection: OrderDirection = desc) {
+    profitOrLossReporteds(first: $first, orderBy: $orderBy, orderDirection: $orderDirection) {
+      id
+      outcomeIdA
+      outcomeIdB
+      outcomeTokenA
+      outcomeTokenB
+      profitOrLoss
+      block_number
+      timestamp_
+      transactionHash_
+    }
+  }
+`;
+
+export const EARLY_EXIT_QUERY = `
+  query GetEarlyExits($first: Int = 100, $orderBy: EarlyExit_orderBy = timestamp_, $orderDirection: OrderDirection = desc) {
+    earlyExits(first: $first, orderBy: $orderBy, orderDirection: $orderDirection) {
+      id
+      outcomeIdA
+      outcomeIdB
+      outcomeTokenA
+      outcomeTokenB
+      amount
+      exitAmount
+      block_number
+      timestamp_
+      transactionHash_
+    }
+  }
+`;
+
+export const SPLIT_OUTCOME_TOKENS_QUERY = `
+  query GetSplitOutcomeTokens($first: Int = 100, $orderBy: SplitOppositeOutcomeToken_orderBy = timestamp_, $orderDirection: OrderDirection = desc) {
+    splitOppositeOutcomeTokens(first: $first, orderBy: $orderBy, orderDirection: $orderDirection) {
+      id
+      outcomeIdA
+      outcomeIdB
+      outcomeTokenA
+      outcomeTokenB
+      amount
+      block_number
+      timestamp_
+      transactionHash_
+    }
+  }
+`;

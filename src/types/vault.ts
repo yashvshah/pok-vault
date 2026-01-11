@@ -35,14 +35,73 @@ export interface SubgraphNewOppositeOutcomeTokenPairAdded {
   transactionHash_: string;
 }
 
+export interface SubgraphOppositeOutcomeTokenPairRemoved {
+  id: string;
+  outcomeIdA: string;
+  outcomeIdB: string;
+  outcomeTokenA: string;
+  outcomeTokenB: string;
+  block_number: string;
+  timestamp_: string;
+  transactionHash_: string;
+}
+
+export interface SubgraphOppositeOutcomeTokenPairPaused {
+  id: string;
+  outcomeIdA: string;
+  outcomeIdB: string;
+  outcomeTokenA: string;
+  outcomeTokenB: string;
+  block_number: string;
+  timestamp_: string;
+  transactionHash_: string;
+}
+
+export interface SubgraphProfitOrLossReported {
+  id: string;
+  outcomeIdA: string;
+  outcomeIdB: string;
+  outcomeTokenA: string;
+  outcomeTokenB: string;
+  profitOrLoss: string;
+  block_number: string;
+  timestamp_: string;
+  transactionHash_: string;
+}
+
+export interface SubgraphEarlyExit {
+  id: string;
+  outcomeIdA: string;
+  outcomeIdB: string;
+  outcomeTokenA: string;
+  outcomeTokenB: string;
+  amount: string;
+  exitAmount: string;
+  block_number: string;
+  timestamp_: string;
+  transactionHash_: string;
+}
+
+export interface SubgraphSplitOppositeOutcomeTokens {
+  id: string;
+  outcomeIdA: string;
+  outcomeIdB: string;
+  outcomeTokenA: string;
+  outcomeTokenB: string;
+  amount: string;
+  block_number: string;
+  timestamp_: string;
+  transactionHash_: string;
+}
+
 // Types for table display
 export interface VaultActivity {
   id: string;
-  type: 'deposit' | 'withdrawal' | 'new-outcome-pair';
-  market: string; // market info for new-outcome-pair, blank for deposits/withdrawals
-  outcomeTokensAmount: string; // blank for deposits/withdrawals and new-outcome-pair
-  usdCAmount: string; // blank for new-outcome-pair
-  user: string; // blank for new-outcome-pair (not available in subgraph)
+  type: 'deposit' | 'withdrawal' | 'new-outcome-pair' | 'removed-outcome-pair' | 'paused-outcome-pair' | 'profit-loss-reported' | 'early-exit' | 'split-outcome-tokens';
+  market: string; // market info for outcome-related activities, blank for deposits/withdrawals
+  outcomeTokensAmount: string; // amount for outcome token activities
+  usdCAmount: string; // USDC amount for deposits/withdrawals and profit-loss activities
+  user: string; // blank for outcome-related activities (not available in subgraph)
   transactionHash: string;
   timestamp: number;
 }
