@@ -84,7 +84,7 @@ export const PAUSED_OUTCOME_PAIR_QUERY = `
 `;
 
 export const PROFIT_LOSS_REPORTED_QUERY = `
-  query GetProfitLossReported($first: Int = 100, $orderBy: ProfitOrLossReporteds_orderBy = timestamp_, $orderDirection: OrderDirection = desc) {
+  query GetProfitLossReported($first: Int = 100, $orderBy: ProfitOrLossReported_orderBy = timestamp_, $orderDirection: OrderDirection = desc) {
     profitOrLossReporteds(first: $first, orderBy: $orderBy, orderDirection: $orderDirection) {
       id
       outcomeIdA
