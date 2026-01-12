@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Tab from "./Tabcomponent";
 
 interface TabsProps {
@@ -15,8 +15,6 @@ const TabsComponent: React.FC<TabsProps> = ({
   xClassName,
 }) => {
   const [active, setActive] = useState(initialIndex);
-
-  useEffect(() => setActive(initialIndex), [initialIndex]);
 
   return (
     <>

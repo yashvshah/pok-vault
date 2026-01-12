@@ -2,8 +2,11 @@ import { MdKeyboardDoubleArrowRight } from "react-icons/md";
 import Tabs from "../components/Tabs/TabsComponent";
 import { FaPercent, FaRegArrowAltCircleDown } from "react-icons/fa";
 import { GrMoney } from "react-icons/gr";
+import { useVaultActivities } from "../hooks/useVaultActivities";
 
 const VaultPage = () => {
+  const { activities, isLoading, error } = useVaultActivities();
+
   const points = [
     "Automated strategies rebalance capital across markets in real time.",
     "Funds remain non-custodial and fully transparent on-chain.",
@@ -15,40 +18,28 @@ const VaultPage = () => {
   const shorten = (val: string, start = 6, end = 4) =>
     `${val.slice(0, start)}...${val.slice(-end)}`;
 
-  const data = [
-    {
-      type: "Withdrawal",
-      market: "N/A",
-      amount: "9 USDC",
-      user: "0x8a7f538b6f6bdab69edd0e311aeda9214bc5384a",
-      tx: "0x2dbf8b52d3b3ab370e96f14083116259868b5c9c9ad4946fd477e9aa2ea067b",
-      time: "11/01/2026 11:40:52",
-    },
-    {
-      type: "New Outcome Pair",
-      market: "Will NVIDIA be the largest company by market cap on Jan 31?",
-      amount: "—",
-      user: "—",
-      tx: "0xbc5d10fc203c77b0864e6e363fadbdd42fb2b32624d0a8156d190bf27893c965",
-      time: "11/01/2026 00:06:18",
-    },
-    {
-      type: "Withdrawal",
-      market: "N/A",
-      amount: "9 USDC",
-      user: "0x8a7f538b6f6bdab69edd0e311aeda9214bc5384a",
-      tx: "0x2dbf8b52d3b3ab370e96f14083116259868b5c9c9ad4946fd477e9aa2ea067b",
-      time: "11/01/2026 11:40:52",
-    },
-    {
-      type: "New Outcome Pair",
-      market: "Will NVIDIA be the largest company by market cap on Jan 31?",
-      amount: "—",
-      user: "—",
-      tx: "0xbc5d10fc203c77b0864e6e363fadbdd42fb2b32624d0a8156d190bf27893c965",
-      time: "11/01/2026 00:06:18",
-    },
-  ];
+  const formatTimestamp = (timestamp: number) => {
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  };
+
+  const formatAmount = (activity: { usdCAmount: string; outcomeTokensAmount: string }) => {
+    if (activity.usdCAmount) {
+      return `${activity.usdCAmount} USDC`;
+    }
+    if (activity.outcomeTokensAmount) {
+      return activity.outcomeTokensAmount;
+    }
+    return "—";
+  };
   return (
     <main className="px-24 mt-14">
       <div className="flex justify-around items-center gap-10">
@@ -260,36 +251,60 @@ const VaultPage = () => {
                 </thead>
 
                 <tbody>
-                  {data.map((row, i) => (
-                    <tr
-                      key={i}
-                      className="border-t border-white/5 hover:bg-white/5 transition"
-                    >
-                      <td className="px-4 py-3">{row.type}</td>
-
-                      <td className="px-4 py-3 max-w-[320px] truncate">
-                        {row.market}
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                        Loading activities...
                       </td>
-
-                      <td className="px-4 py-3">{row.amount}</td>
-
-                      <td
-                        className="px-4 py-3 font-mono text-primary"
-                        title={row.user}
-                      >
-                        {row.user !== "—" ? shorten(row.user) : "—"}
-                      </td>
-
-                      <td
-                        className="px-4 py-3 font-mono text-primary"
-                        title={row.tx}
-                      >
-                        {shorten(row.tx)}
-                      </td>
-
-                      <td className="px-4 py-3 text-gray-400">{row.time}</td>
                     </tr>
-                  ))}
+                  ) : error ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-red-400">
+                        Error loading activities: {error.message}
+                      </td>
+                    </tr>
+                  ) : activities.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                        No activities found
+                      </td>
+                    </tr>
+                  ) : (
+                    activities.map((activity) => (
+                      <tr
+                        key={activity.id}
+                        className="border-t border-white/5 hover:bg-white/5 transition"
+                      >
+                        <td className="px-4 py-3 capitalize">
+                          {activity.type.replace(/-/g, ' ')}
+                        </td>
+
+                        <td className="px-4 py-3 max-w-[320px] truncate">
+                          {activity.market || "N/A"}
+                        </td>
+
+                        <td className="px-4 py-3">{formatAmount(activity)}</td>
+
+                        <td
+                          className="px-4 py-3 font-mono text-primary"
+                          title={activity.user}
+                        >
+                          {activity.user ? shorten(activity.user) : "—"}
+                        </td>
+
+                        <td
+                          className="px-4 py-3 font-mono text-primary"
+                          title={activity.transactionHash}
+                        >
+                          {shorten(activity.transactionHash)}
+                        </td>
+
+                        <td className="px-4 py-3 text-gray-400">
+                          {formatTimestamp(activity.timestamp)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
