@@ -10,6 +10,7 @@ import { useSplitOutcomeTokens } from './activities/useSplitOutcomeTokens';
 import { useMarketInfos } from './useMarketInfos';
 import type { VaultActivity, SubgraphDeposit, SubgraphWithdrawal, SubgraphNewOppositeOutcomeTokenPairAdded, SubgraphOppositeOutcomeTokenPairRemoved, SubgraphOppositeOutcomeTokenPairPaused, SubgraphProfitOrLossReported, SubgraphEarlyExit, SubgraphSplitOppositeOutcomeTokens } from '../types/vault';
 import type { PolymarketMarket } from '../services/polymarket';
+import { formatUnits } from 'viem';
 
 export function useVaultActivities(limit = 100) {
   const { data: deposits = [], isLoading: depositsLoading, error: depositsError } = useDeposits(limit);
@@ -86,18 +87,17 @@ export function useVaultActivities(limit = 100) {
       type: 'deposit' as const,
       market: '', // blank for deposits
       outcomeTokensAmount: '', // blank for deposits
-      usdCAmount: deposit.assets, // USDC amount from assets field
+      usdCAmount: formatUnits(BigInt(deposit.assets), 6), // USDC amount from assets field
       user: deposit.sender, // use sender as the user who initiated the deposit
       transactionHash: deposit.transactionHash_,
       timestamp: parseInt(deposit.timestamp_),
     }));
-
     const withdrawalActivities: VaultActivity[] = withdrawals.map((withdrawal: SubgraphWithdrawal) => ({
       id: withdrawal.id,
       type: 'withdrawal' as const,
       market: '', // blank for withdrawals
       outcomeTokensAmount: '', // blank for withdrawals
-      usdCAmount: withdrawal.assets, // USDC amount from assets field
+      usdCAmount: formatUnits(BigInt(withdrawal.assets), 6), // USDC amount from assets field
       user: withdrawal.sender, // use sender as the user who initiated the withdrawal
       transactionHash: withdrawal.transactionHash_,
       timestamp: parseInt(withdrawal.timestamp_),

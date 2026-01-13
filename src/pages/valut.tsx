@@ -268,7 +268,7 @@ const VaultPage = () => {
                       </div>
                       {isConnected && chainId === polygon.id && (
                         <p className="text-xs text-gray-400 mt-1">
-                          Balance: {formatUnits(usdcBalance?.value, 6)} USDC
+                          Balance: {formatUnits(usdcBalance?.value || 0n , 6)} USDC
                         </p>
                       )}
                     </span>
