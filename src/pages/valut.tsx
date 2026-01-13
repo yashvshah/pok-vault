@@ -13,17 +13,16 @@ import {
   useChainId,
   useSwitchChain,
 } from "wagmi";
-import { erc20Abi, erc4626Abi, parseUnits } from "viem";
+import { erc20Abi, erc4626Abi, formatUnits, parseUnits } from "viem";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { polygon } from "viem/chains";
-import { config } from "../../wagmi.config";
 
 const VaultPage = () => {
   const { activities, isLoading, error } = useVaultActivities();
   const { address, isConnected } = useAccount();
   const { openConnectModal } = useConnectModal();
   const chainId = useChainId();
-  const { switchChain } = useSwitchChain({ config });
+  const { switchChain } = useSwitchChain();
   const [depositAmount, setDepositAmount] = useState("");
 
   // Contract addresses
@@ -63,6 +62,14 @@ const VaultPage = () => {
   // Transaction receipts
   useWaitForTransactionReceipt({ hash: approveHash });
   useWaitForTransactionReceipt({ hash: depositHash });
+
+
+  const handleMaxClick = () => {
+    if (usdcBalance?.value) {
+      const maxAmount = Number(formatUnits(usdcBalance.value!, 6)); // Convert from wei to USDC
+      setDepositAmount(maxAmount.toString());
+    }
+  };
 
   // Helper functions
   const getDepositButtonState = () => {
@@ -242,14 +249,28 @@ const VaultPage = () => {
                         Amount
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          type="number"
-                          placeholder="0"
-                          value={depositAmount}
-                          onChange={(e) => setDepositAmount(e.target.value)}
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border flex items-center">
+                          <input
+                            type="number"
+                            placeholder="0"
+                            value={depositAmount}
+                            onChange={(e) => setDepositAmount(e.target.value)}
+                            className="flex-1 focus:outline-none"
+                          />
+                          <button
+                            onClick={handleMaxClick}
+                            className="px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded text-xs font-semibold transition-colors"
+                            disabled={!isConnected || chainId !== polygon.id}
+                          >
+                            MAX
+                          </button>
+                        </div>
                       </div>
+                      {isConnected && chainId === polygon.id && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          Balance: {formatUnits(usdcBalance?.value, 6)} USDC
+                        </p>
+                      )}
                     </span>
                   </div>
                   <span className="flex items-center justify-center text-primary/60">

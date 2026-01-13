@@ -4,11 +4,11 @@ import { RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import "@rainbow-me/rainbowkit/styles.css";
 import { http } from "viem";
 import { createConfig } from "wagmi";
-import { mainnet } from "wagmi/chains"; // Add more chains as needed
+import { polygon, bsc } from "wagmi/chains"; // Add more chains as needed
 import { createClient } from "viem";
 
 const config = createConfig({
-  chains: [mainnet],
+  chains: [polygon, bsc],
   client({ chain }) {
     return createClient({ chain, transport: http() });
   },
