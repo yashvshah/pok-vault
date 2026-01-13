@@ -57,13 +57,13 @@ const VaultPage = () => {
   }) as { data: bigint | undefined };
 
   // Get max withdrawable amount
-  const { data: maxWithdraw } = useReadContract({
+  const { data: previewRedeemAmount } = useReadContract({
     address: VAULT_ADDRESS,
     abi: erc4626Abi,
-    functionName: "maxWithdraw",
-    args: address && [address],
+    functionName: "previewRedeem",
+    args: [withdrawAmount ? parseUnits(withdrawAmount, 6) : 0n],
     chainId: polygon.id,
-    query: { enabled: isConnected },
+    query: { enabled: isConnected && Number(withdrawAmount) > 0 },
   }) as { data: bigint | undefined };
 
   // Contract write hooks for deposit
@@ -98,8 +98,8 @@ const VaultPage = () => {
   };
 
   const handleMaxWithdrawClick = () => {
-    if (maxWithdraw) {
-      const maxAmount = Number(formatUnits(maxWithdraw, 6));
+    if (vaultBalance?.value) {
+      const maxAmount = Number(formatUnits(vaultBalance.value, 6));
       setWithdrawAmount(maxAmount.toString());
     }
   };
@@ -145,13 +145,10 @@ const VaultPage = () => {
 
     const amount = parseUnits(withdrawAmount, 6);
     const balance = vaultBalance?.value || 0n;
-    const maxWithdrawable = maxWithdraw || 0n;
 
     if (amount > balance)
       return { text: "Insufficient Balance", disabled: true, action: null };
-    
-    if (amount > maxWithdrawable)
-      return { text: "Amount Exceeds Max", disabled: true, action: null };
+  
 
     return { text: "Withdraw", disabled: false, action: "withdraw" };
   };
@@ -186,7 +183,7 @@ const VaultPage = () => {
     writeWithdraw({
       address: VAULT_ADDRESS,
       abi: erc4626Abi,
-      functionName: "withdraw",
+      functionName: "redeem",
       chain: polygon,
       args: [amount, address!, address!],
     });
@@ -464,7 +461,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border text-gray-400">
-                          {withdrawAmount || "0"} USDC
+                          {previewRedeemAmount ? formatUnits(previewRedeemAmount, 6) : "0"} USDC
                         </div>
                       </div>
                     </span>
