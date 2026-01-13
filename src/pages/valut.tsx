@@ -24,6 +24,7 @@ const VaultPage = () => {
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
   const [depositAmount, setDepositAmount] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
 
   // Contract addresses
   const VAULT_ADDRESS = "0x69362094D0C2D8Be0818c0006e09B82c5CA59Af9" as const;
@@ -33,6 +34,14 @@ const VaultPage = () => {
   const { data: usdcBalance } = useBalance({
     address,
     token: USDC_ADDRESS,
+    chainId: polygon.id,
+    query: { enabled: isConnected },
+  });
+
+  // Vault token (POK-USDC) balance
+  const { data: vaultBalance } = useBalance({
+    address,
+    token: VAULT_ADDRESS,
     chainId: polygon.id,
     query: { enabled: isConnected },
   });
@@ -47,7 +56,17 @@ const VaultPage = () => {
     query: { enabled: isConnected },
   }) as { data: bigint | undefined };
 
-  // Contract write hooks
+  // Get max withdrawable amount
+  const { data: maxWithdraw } = useReadContract({
+    address: VAULT_ADDRESS,
+    abi: erc4626Abi,
+    functionName: "maxWithdraw",
+    args: address && [address],
+    chainId: polygon.id,
+    query: { enabled: isConnected },
+  }) as { data: bigint | undefined };
+
+  // Contract write hooks for deposit
   const {
     writeContract: writeApprove,
     isPending: isApprovePending,
@@ -59,19 +78,33 @@ const VaultPage = () => {
     data: depositHash,
   } = useWriteContract();
 
+  // Contract write hooks for withdraw
+  const {
+    writeContract: writeWithdraw,
+    isPending: isWithdrawPending,
+    data: withdrawHash,
+  } = useWriteContract();
+
   // Transaction receipts
   useWaitForTransactionReceipt({ hash: approveHash });
   useWaitForTransactionReceipt({ hash: depositHash });
-
+  useWaitForTransactionReceipt({ hash: withdrawHash });
 
   const handleMaxClick = () => {
     if (usdcBalance?.value) {
-      const maxAmount = Number(formatUnits(usdcBalance.value!, 6)); // Convert from wei to USDC
+      const maxAmount = Number(formatUnits(usdcBalance.value, 6));
       setDepositAmount(maxAmount.toString());
     }
   };
 
-  // Helper functions
+  const handleMaxWithdrawClick = () => {
+    if (maxWithdraw) {
+      const maxAmount = Number(formatUnits(maxWithdraw, 6));
+      setWithdrawAmount(maxAmount.toString());
+    }
+  };
+
+  // Helper functions for deposit
   const getDepositButtonState = () => {
     if (!isConnected)
       return { text: "Connect Wallet", disabled: false, action: null };
@@ -84,7 +117,7 @@ const VaultPage = () => {
     if (!depositAmount || parseFloat(depositAmount) === 0)
       return { text: "Enter Amount", disabled: true, action: null };
 
-    const amount = parseUnits(depositAmount, 6); // USDC has 6 decimals
+    const amount = parseUnits(depositAmount, 6);
     const balance = usdcBalance?.value || 0n;
 
     if (amount > balance)
@@ -95,6 +128,32 @@ const VaultPage = () => {
       return { text: "Approve", disabled: false, action: "approve" };
 
     return { text: "Deposit", disabled: false, action: "deposit" };
+  };
+
+  // Helper functions for withdraw
+  const getWithdrawButtonState = () => {
+    if (!isConnected)
+      return { text: "Connect Wallet", disabled: false, action: null };
+    if (chainId !== polygon.id)
+      return {
+        text: "Switch to Polygon",
+        disabled: false,
+        action: "switch-chain",
+      };
+    if (!withdrawAmount || parseFloat(withdrawAmount) === 0)
+      return { text: "Enter Amount", disabled: true, action: null };
+
+    const amount = parseUnits(withdrawAmount, 6);
+    const balance = vaultBalance?.value || 0n;
+    const maxWithdrawable = maxWithdraw || 0n;
+
+    if (amount > balance)
+      return { text: "Insufficient Balance", disabled: true, action: null };
+    
+    if (amount > maxWithdrawable)
+      return { text: "Amount Exceeds Max", disabled: true, action: null };
+
+    return { text: "Withdraw", disabled: false, action: "withdraw" };
   };
 
   const handleApprove = () => {
@@ -121,19 +180,43 @@ const VaultPage = () => {
     });
   };
 
-  const handleButtonClick = () => {
+  const handleWithdraw = () => {
+    if (!withdrawAmount) return;
+    const amount = parseUnits(withdrawAmount, 6);
+    writeWithdraw({
+      address: VAULT_ADDRESS,
+      abi: erc4626Abi,
+      functionName: "withdraw",
+      chain: polygon,
+      args: [amount, address!, address!],
+    });
+  };
+
+  const handleDepositButtonClick = () => {
     const state = getDepositButtonState();
     if (state.text === "Connect Wallet") {
       openConnectModal?.();
       return;
     }
     if (state.action === "switch-chain") {
-      console.log("Switching to Polygon...");
       switchChain({ chainId: polygon.id });
       return;
     }
     if (state.action === "approve") handleApprove();
     else if (state.action === "deposit") handleDeposit();
+  };
+
+  const handleWithdrawButtonClick = () => {
+    const state = getWithdrawButtonState();
+    if (state.text === "Connect Wallet") {
+      openConnectModal?.();
+      return;
+    }
+    if (state.action === "switch-chain") {
+      switchChain({ chainId: polygon.id });
+      return;
+    }
+    if (state.action === "withdraw") handleWithdraw();
   };
 
   const points = [
@@ -172,6 +255,7 @@ const VaultPage = () => {
     }
     return "—";
   };
+
   return (
     <main className="px-24 mt-14">
       <div className="flex justify-around items-center gap-10">
@@ -268,7 +352,7 @@ const VaultPage = () => {
                       </div>
                       {isConnected && chainId === polygon.id && (
                         <p className="text-xs text-gray-400 mt-1">
-                          Balance: {formatUnits(usdcBalance?.value || 0n , 6)} USDC
+                          Balance: {formatUnits(usdcBalance?.value || 0n, 6)} USDC
                         </p>
                       )}
                     </span>
@@ -300,7 +384,7 @@ const VaultPage = () => {
                     </span>
                   </div>
                   <button
-                    onClick={handleButtonClick}
+                    onClick={handleDepositButtonClick}
                     disabled={
                       getDepositButtonState().disabled ||
                       isApprovePending ||
@@ -319,58 +403,82 @@ const VaultPage = () => {
                 {/* WITHDRAW */}
                 <div className="space-y-4">
                   <div className="flex gap-3">
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
-                        From Wallet
+                        From Vault
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          placeholder="0"
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border flex items-center justify-between">
+                          <span className="text-gray-400">POK-USDC</span>
+                          <span className="text-sm">🏦</span>
+                        </div>
                       </div>
                     </span>
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
                         Amount
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          placeholder="0"
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border flex items-center">
+                          <input
+                            type="number"
+                            placeholder="0"
+                            value={withdrawAmount}
+                            onChange={(e) => setWithdrawAmount(e.target.value)}
+                            className="flex-1 focus:outline-none"
+                          />
+                          <button
+                            onClick={handleMaxWithdrawClick}
+                            className="px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded text-xs font-semibold transition-colors"
+                            disabled={!isConnected || chainId !== polygon.id}
+                          >
+                            MAX
+                          </button>
+                        </div>
                       </div>
+                      {isConnected && chainId === polygon.id && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          Balance: {formatUnits(vaultBalance?.value || 0n, 6)} POK-USDC
+                        </p>
+                      )}
                     </span>
                   </div>
                   <span className="flex items-center justify-center text-primary/60">
                     <FaRegArrowAltCircleDown size={25} />
                   </span>
                   <div className="flex gap-3">
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
-                        To valut
+                        To Wallet
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          placeholder="0x"
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border flex items-center justify-between">
+                          <span className="text-gray-400">USDC</span>
+                          <span className="text-sm">💰</span>
+                        </div>
                       </div>
                     </span>
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
-                        You will recive
+                        You will receive
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          placeholder="0"
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border text-gray-400">
+                          {withdrawAmount || "0"} USDC
+                        </div>
                       </div>
                     </span>
                   </div>
-                  <button className="w-full bg-primary py-3 rounded-lg font-semibold">
-                    Deposit
+                  <button
+                    onClick={handleWithdrawButtonClick}
+                    disabled={
+                      getWithdrawButtonState().disabled || isWithdrawPending
+                    }
+                    className="w-full bg-primary py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isWithdrawPending
+                      ? "Withdrawing..."
+                      : getWithdrawButtonState().text}
                   </button>
                 </div>
               </Tabs>
