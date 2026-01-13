@@ -1,5 +1,6 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface ConnectWalletsProps {}
 
 const ConnectWallets: React.FC<ConnectWalletsProps> = () => {
