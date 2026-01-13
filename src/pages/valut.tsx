@@ -66,6 +66,13 @@ const VaultPage = () => {
     query: { enabled: isConnected && Number(withdrawAmount) > 0 },
   }) as { data: bigint | undefined };
 
+  const {data: vaultTotalAssets} = useReadContract({
+    address: VAULT_ADDRESS,
+    abi: erc4626Abi,
+    functionName: "totalAssets",
+    chainId: polygon.id,
+  }) as { data: bigint | undefined };
+
   // Contract write hooks for deposit
   const {
     writeContract: writeApprove,
@@ -276,7 +283,7 @@ const VaultPage = () => {
               </div>
               <div>
                 <p className="text-secondry">Total Assets</p>
-                <p className="text-xl">0.9840%</p>
+                <p className="text-xl">{vaultTotalAssets ? Number(formatUnits(vaultTotalAssets, 6)).toFixed(2) + " USDC" : "0.00" }</p>
               </div>
             </div>
             <div className="px-6 border-l border-primary/50 flex items-center gap-4">
@@ -285,7 +292,7 @@ const VaultPage = () => {
               </div>
               <div>
                 <p className="text-secondry">APY</p>
-                <p className="text-xl">0.9840%</p>
+                <p className="text-xl">5%</p>
               </div>
             </div>
             <div className="px-6 border-l border-primary/50 flex items-center gap-4">
