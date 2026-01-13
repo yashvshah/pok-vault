@@ -3,9 +3,131 @@ import Tabs from "../components/Tabs/TabsComponent";
 import { FaPercent, FaRegArrowAltCircleDown } from "react-icons/fa";
 import { GrMoney } from "react-icons/gr";
 import { useVaultActivities } from "../hooks/useVaultActivities";
+import { useState } from "react";
+import {
+  useAccount,
+  useBalance,
+  useReadContract,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+  useChainId,
+  useSwitchChain,
+} from "wagmi";
+import { erc20Abi, erc4626Abi, parseUnits } from "viem";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { polygon } from "viem/chains";
+import { config } from "../../wagmi.config";
 
 const VaultPage = () => {
   const { activities, isLoading, error } = useVaultActivities();
+  const { address, isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain({ config });
+  const [depositAmount, setDepositAmount] = useState("");
+
+  // Contract addresses
+  const VAULT_ADDRESS = "0x69362094D0C2D8Be0818c0006e09B82c5CA59Af9" as const;
+  const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" as const;
+
+  // USDC balance
+  const { data: usdcBalance } = useBalance({
+    address,
+    token: USDC_ADDRESS,
+    chainId: polygon.id,
+    query: { enabled: isConnected },
+  });
+
+  // USDC allowance for vault
+  const { data: allowance } = useReadContract({
+    address: USDC_ADDRESS,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: address && [address, VAULT_ADDRESS],
+    chainId: polygon.id,
+    query: { enabled: isConnected },
+  }) as { data: bigint | undefined };
+
+  // Contract write hooks
+  const {
+    writeContract: writeApprove,
+    isPending: isApprovePending,
+    data: approveHash,
+  } = useWriteContract();
+  const {
+    writeContract: writeDeposit,
+    isPending: isDepositPending,
+    data: depositHash,
+  } = useWriteContract();
+
+  // Transaction receipts
+  useWaitForTransactionReceipt({ hash: approveHash });
+  useWaitForTransactionReceipt({ hash: depositHash });
+
+  // Helper functions
+  const getDepositButtonState = () => {
+    if (!isConnected)
+      return { text: "Connect Wallet", disabled: false, action: null };
+    if (chainId !== polygon.id)
+      return {
+        text: "Switch to Polygon",
+        disabled: false,
+        action: "switch-chain",
+      };
+    if (!depositAmount || parseFloat(depositAmount) === 0)
+      return { text: "Enter Amount", disabled: true, action: null };
+
+    const amount = parseUnits(depositAmount, 6); // USDC has 6 decimals
+    const balance = usdcBalance?.value || 0n;
+
+    if (amount > balance)
+      return { text: "Insufficient Balance", disabled: true, action: null };
+
+    const currentAllowance = allowance || 0n;
+    if (amount > currentAllowance)
+      return { text: "Approve", disabled: false, action: "approve" };
+
+    return { text: "Deposit", disabled: false, action: "deposit" };
+  };
+
+  const handleApprove = () => {
+    if (!depositAmount) return;
+    const amount = parseUnits(depositAmount, 6);
+    writeApprove({
+      address: USDC_ADDRESS,
+      abi: erc20Abi,
+      functionName: "approve",
+      chain: polygon,
+      args: [VAULT_ADDRESS, amount],
+    });
+  };
+
+  const handleDeposit = () => {
+    if (!depositAmount) return;
+    const amount = parseUnits(depositAmount, 6);
+    writeDeposit({
+      address: VAULT_ADDRESS,
+      abi: erc4626Abi,
+      functionName: "deposit",
+      chain: polygon,
+      args: [amount, address!],
+    });
+  };
+
+  const handleButtonClick = () => {
+    const state = getDepositButtonState();
+    if (state.text === "Connect Wallet") {
+      openConnectModal?.();
+      return;
+    }
+    if (state.action === "switch-chain") {
+      console.log("Switching to Polygon...");
+      switchChain({ chainId: polygon.id });
+      return;
+    }
+    if (state.action === "approve") handleApprove();
+    else if (state.action === "deposit") handleDeposit();
+  };
 
   const points = [
     "Automated strategies rebalance capital across markets in real time.",
@@ -20,18 +142,21 @@ const VaultPage = () => {
 
   const formatTimestamp = (timestamp: number) => {
     const date = new Date(timestamp * 1000);
-    return date.toLocaleString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
+    return date.toLocaleString("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
     });
   };
 
-  const formatAmount = (activity: { usdCAmount: string; outcomeTokensAmount: string }) => {
+  const formatAmount = (activity: {
+    usdCAmount: string;
+    outcomeTokensAmount: string;
+  }) => {
     if (activity.usdCAmount) {
       return `${activity.usdCAmount} USDC`;
     }
@@ -101,24 +226,27 @@ const VaultPage = () => {
                 {/* DEPOSIT */}
                 <div className="space-y-4">
                   <div className="flex gap-3">
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
                         From Wallet
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          placeholder="0"
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border flex items-center justify-between">
+                          <span className="text-gray-400">USDC</span>
+                          <span className="text-sm">💰</span>
+                        </div>
                       </div>
                     </span>
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
                         Amount
                       </label>
                       <div className="gradiant-border">
                         <input
+                          type="number"
                           placeholder="0"
+                          value={depositAmount}
+                          onChange={(e) => setDepositAmount(e.target.value)}
                           className="w-full box-of-gradiant-border focus:outline-none"
                         />
                       </div>
@@ -128,31 +256,42 @@ const VaultPage = () => {
                     <FaRegArrowAltCircleDown size={25} />
                   </span>
                   <div className="flex gap-3">
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
-                        To valut
+                        To Vault
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          placeholder="0x"
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border flex items-center justify-between">
+                          <span className="text-gray-400">POK-USDC</span>
+                          <span className="text-sm">🏦</span>
+                        </div>
                       </div>
                     </span>
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
-                        You will recive
+                        You will receive
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          placeholder="0"
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border text-gray-400">
+                          {depositAmount || "0"} POK-USDC
+                        </div>
                       </div>
                     </span>
                   </div>
-                  <button className="w-full bg-primary py-3 rounded-lg font-semibold">
-                    Deposit
+                  <button
+                    onClick={handleButtonClick}
+                    disabled={
+                      getDepositButtonState().disabled ||
+                      isApprovePending ||
+                      isDepositPending
+                    }
+                    className="w-full bg-primary py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isApprovePending
+                      ? "Approving..."
+                      : isDepositPending
+                      ? "Depositing..."
+                      : getDepositButtonState().text}
                   </button>
                 </div>
 
@@ -253,19 +392,28 @@ const VaultPage = () => {
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                      <td
+                        colSpan={6}
+                        className="px-4 py-8 text-center text-gray-400"
+                      >
                         Loading activities...
                       </td>
                     </tr>
                   ) : error ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-red-400">
+                      <td
+                        colSpan={6}
+                        className="px-4 py-8 text-center text-red-400"
+                      >
                         Error loading activities: {error.message}
                       </td>
                     </tr>
                   ) : activities.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                      <td
+                        colSpan={6}
+                        className="px-4 py-8 text-center text-gray-400"
+                      >
                         No activities found
                       </td>
                     </tr>
@@ -276,7 +424,7 @@ const VaultPage = () => {
                         className="border-t border-white/5 hover:bg-white/5 transition"
                       >
                         <td className="px-4 py-3 capitalize">
-                          {activity.type.replace(/-/g, ' ')}
+                          {activity.type.replace(/-/g, " ")}
                         </td>
 
                         <td className="px-4 py-3 max-w-[320px] truncate">

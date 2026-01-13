@@ -92,8 +92,6 @@ export function useVaultActivities(limit = 100) {
       timestamp: parseInt(deposit.timestamp_),
     }));
 
-    console.log('Deposit Activities:', depositActivities);
-
     const withdrawalActivities: VaultActivity[] = withdrawals.map((withdrawal: SubgraphWithdrawal) => ({
       id: withdrawal.id,
       type: 'withdrawal' as const,
@@ -105,17 +103,12 @@ export function useVaultActivities(limit = 100) {
       timestamp: parseInt(withdrawal.timestamp_),
     }));
 
-    console.log('Withdrawal Activities:', withdrawalActivities);
-
     const newOutcomePairActivities: VaultActivity[] = newOutcomePairs.map((pair: SubgraphNewOppositeOutcomeTokenPairAdded) => {
       // Get market info for both outcome tokens
       const marketInfoA = marketInfoMap.get(pair.outcomeIdA);
       const marketInfoB = marketInfoMap.get(pair.outcomeIdB);
 
       let marketString = `Polymarket Token (ID: ${pair.outcomeIdA}) ↔️ Opinion Token (ID: ${pair.outcomeIdB})`;
-
-      console.log('Market Info A:', marketInfoA);
-      console.log('Market Info B:', marketInfoB);
 
       // If we have market info for either token, use it
       if (marketInfoA?.question) {
@@ -135,8 +128,6 @@ export function useVaultActivities(limit = 100) {
         timestamp: parseInt(pair.timestamp_),
       };
     });
-
-    console.log('New Outcome Pair Activities:', newOutcomePairActivities);
 
     const removedOutcomePairActivities: VaultActivity[] = removedOutcomePairs.map((pair: SubgraphOppositeOutcomeTokenPairRemoved) => {
       const marketInfoA = marketInfoMap.get(pair.outcomeIdA);
