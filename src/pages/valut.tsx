@@ -1,4 +1,3 @@
-import { MdKeyboardDoubleArrowRight } from "react-icons/md";
 import Tabs from "../components/Tabs/TabsComponent";
 import { FaPercent, FaRegArrowAltCircleDown } from "react-icons/fa";
 import { GrMoney } from "react-icons/gr";
@@ -16,7 +15,8 @@ import {
 import { erc20Abi, erc4626Abi, formatUnits, parseUnits } from "viem";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { bsc, polygon } from "viem/chains";
-import { useAPY } from "../hooks/useAPY";
+// import { useAPY } from "../hooks/useAPY";
+import earlyExitValutABI from "../abi/EarlyExitVault.json";
 
 const VaultPage = () => {
   const { activities, isLoading, error } = useVaultActivities();
@@ -85,6 +85,18 @@ const VaultPage = () => {
     chainId: bsc.id,
   }) as { data: bigint | undefined };
 
+  // let's get netAssetValue
+  // we call the totalEarlyExitedAmount function from the vault contract
+
+  const {data: totalEarlyExitedAmount } = useReadContract({
+    address: VAULT_ADDRESS,
+    abi: earlyExitValutABI,
+    functionName: "totalEarlyExitedAmount",
+    chainId: bsc.id,
+  }) as { data: bigint | undefined };
+
+  const utilisation = vaultTotalAssets && totalEarlyExitedAmount ? (Number(totalEarlyExitedAmount) / Number(vaultTotalAssets)) * 100 : 0;
+
   // Contract write hooks for deposit
   const {
     writeContract: writeApprove,
@@ -115,7 +127,7 @@ const VaultPage = () => {
     hash: withdrawHash,
   });
 
-  const apy = useAPY();
+  // const apy = useAPY();
 
   useEffect(() => {
    if(isDepositSuccess) {
@@ -255,13 +267,7 @@ const VaultPage = () => {
     if (state.action === "withdraw") handleWithdraw();
   };
 
-  const points = [
-    "Automated strategies rebalance capital across markets in real time.",
-    "Funds remain non-custodial and fully transparent on-chain.",
-    "Smart contracts optimize execution to minimize slippage.",
-    "Yields are generated from market inefficiencies, not speculation.",
-    "Withdraw liquidity at any time with no lock-up period.",
-  ];
+
 
   const shorten = (val: string, start = 6, end = 4) =>
     `${val.slice(0, start)}...${val.slice(-end)}`;
@@ -304,8 +310,8 @@ const VaultPage = () => {
           </h1>
 
           <p className="text-gray-400 mt-5 max-w-lg">
-            Deploy capital into automated strategies that exploit prediction
-            market inefficiencies and generate yield.
+            Provide capital to cross market arbitragers who profit from
+            market inefficiencies and generate yield without actually running the bots.
           </p>
 
           <div className="flex justify-between items-center w-fit border border-primary/40 rounded-xl p-4 mt-10">
@@ -338,8 +344,8 @@ const VaultPage = () => {
                 <GrMoney />
               </div>
               <div>
-                <p className="text-secondry">Net Value</p>
-                <p className="text-xl">0.9840%</p>
+                <p className="text-secondry">Vault Utilization</p>
+                <p className="text-xl">{utilisation.toFixed(2)}%</p>
               </div>
             </div>
           </div>
@@ -542,19 +548,33 @@ const VaultPage = () => {
         <div className="box-of-gradiant-border rounded-xl bg-[#0f0f0f] p-5">
           <Tabs tabs={[{ label: "INFO" }, { label: "ACTIVITY" }]}>
             <div>
-              <ul className="space-y-3 ml-5">
-                {points.map((text, index) => (
-                  <li key={index} className="flex items-start gap-5">
-                    <span>
-                      <MdKeyboardDoubleArrowRight
-                        className="text-primary mt-1"
-                        size={20}
-                      />
-                    </span>
-                    <p className="text-gray-300 leading-relaxed">{text}</p>
-                  </li>
-                ))}
-              </ul>
+              <div className="space-y-4 ml-5">
+                <div>
+                  <p className="text-gray-300 leading-relaxed">
+                    <strong className="text-secondry">Vault Address:</strong> {VAULT_ADDRESS}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-300 leading-relaxed">
+                    <strong className="text-secondry">Underlying asset address:</strong> {USDT_ADDRESS} (USDT)
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-300 leading-relaxed">
+                    <strong className="text-secondry">Vault Owner Address:</strong> 0x8A7f538B6f6Bdab69edD0E311aeDa9214bC5384A
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-300 leading-relaxed">
+                    <strong className="text-secondry">Performance fees:</strong> 10%
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-300 leading-relaxed">
+                    <strong className="text-secondry">Management fees:</strong> 0%
+                  </p>
+                </div>
+              </div>
             </div>
             {/* table */}
             <div className="overflow-hidden rounded-xl border border-white/10 bg-black/40 backdrop-blur-md">
