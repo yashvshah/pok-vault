@@ -68,6 +68,15 @@ const VaultPage = () => {
     query: { enabled: isConnected && Number(withdrawAmount) > 0 },
   }) as { data: bigint | undefined };
 
+  const {data: previewDepositAmount} = useReadContract({
+    address: VAULT_ADDRESS,
+    abi: erc4626Abi,
+    functionName: "previewDeposit",
+    args: [depositAmount ? parseUnits(depositAmount, USDT_DECIMALS) : 0n],
+    chainId: bsc.id,
+    query: { enabled: isConnected && Number(depositAmount) > 0 },
+  }) as { data: bigint | undefined };
+
   const { data: vaultTotalAssets } = useReadContract({
     address: VAULT_ADDRESS,
     abi: erc4626Abi,
@@ -410,7 +419,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border text-gray-400">
-                          {depositAmount || "0"} POK-USDT
+                          {previewDepositAmount ? formatUnits(previewDepositAmount, USDT_DECIMALS) : "0"} POK-USDT
                         </div>
                       </div>
                     </span>
