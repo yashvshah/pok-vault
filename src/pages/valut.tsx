@@ -15,7 +15,7 @@ import {
 } from "wagmi";
 import { erc20Abi, erc4626Abi, formatUnits, parseUnits } from "viem";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { polygon } from "viem/chains";
+import { bsc, polygon } from "viem/chains";
 
 const VaultPage = () => {
   const { activities, isLoading, error } = useVaultActivities();
@@ -26,33 +26,35 @@ const VaultPage = () => {
   const [depositAmount, setDepositAmount] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
 
+  const USDT_DECIMALS = 18 as const;
+
   // Contract addresses
   const VAULT_ADDRESS = "0x69362094D0C2D8Be0818c0006e09B82c5CA59Af9" as const;
-  const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" as const;
+  const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955" as const;
 
-  // USDC balance
-  const { data: usdcBalance } = useBalance({
+  // USDT balance
+  const { data: USDTBalance } = useBalance({
     address,
-    token: USDC_ADDRESS,
-    chainId: polygon.id,
+    token: USDT_ADDRESS,
+    chainId: bsc.id,
     query: { enabled: isConnected },
   });
 
-  // Vault token (POK-USDC) balance
+  // Vault token (POK-USDT) balance
   const { data: vaultBalance } = useBalance({
     address,
     token: VAULT_ADDRESS,
-    chainId: polygon.id,
+    chainId: bsc.id,
     query: { enabled: isConnected },
   });
 
-  // USDC allowance for vault
+  // USDT allowance for vault
   const { data: allowance } = useReadContract({
-    address: USDC_ADDRESS,
+    address: USDT_ADDRESS,
     abi: erc20Abi,
     functionName: "allowance",
     args: address && [address, VAULT_ADDRESS],
-    chainId: polygon.id,
+    chainId: bsc.id,
     query: { enabled: isConnected },
   }) as { data: bigint | undefined };
 
@@ -62,7 +64,7 @@ const VaultPage = () => {
     abi: erc4626Abi,
     functionName: "previewRedeem",
     args: [withdrawAmount ? parseUnits(withdrawAmount, 6) : 0n],
-    chainId: polygon.id,
+    chainId: bsc.id,
     query: { enabled: isConnected && Number(withdrawAmount) > 0 },
   }) as { data: bigint | undefined };
 
@@ -70,7 +72,7 @@ const VaultPage = () => {
     address: VAULT_ADDRESS,
     abi: erc4626Abi,
     functionName: "totalAssets",
-    chainId: polygon.id,
+    chainId: bsc.id,
   }) as { data: bigint | undefined };
 
   // Contract write hooks for deposit
@@ -98,15 +100,15 @@ const VaultPage = () => {
   useWaitForTransactionReceipt({ hash: withdrawHash });
 
   const handleMaxClick = () => {
-    if (usdcBalance?.value) {
-      const maxAmount = Number(formatUnits(usdcBalance.value, 6));
+    if (USDTBalance?.value) {
+      const maxAmount = Number(formatUnits(USDTBalance.value, USDT_DECIMALS));
       setDepositAmount(maxAmount.toString());
     }
   };
 
   const handleMaxWithdrawClick = () => {
     if (vaultBalance?.value) {
-      const maxAmount = Number(formatUnits(vaultBalance.value, 6));
+      const maxAmount = Number(formatUnits(vaultBalance.value, USDT_DECIMALS));
       setWithdrawAmount(maxAmount.toString());
     }
   };
@@ -115,9 +117,9 @@ const VaultPage = () => {
   const getDepositButtonState = () => {
     if (!isConnected)
       return { text: "Connect Wallet", disabled: false, action: null };
-    if (chainId !== polygon.id)
+    if (chainId !== bsc.id)
       return {
-        text: "Switch to Polygon",
+        text: "Switch Wallet to BSC chain",
         disabled: false,
         action: "switch-chain",
       };
@@ -125,7 +127,7 @@ const VaultPage = () => {
       return { text: "Enter Amount", disabled: true, action: null };
 
     const amount = parseUnits(depositAmount, 6);
-    const balance = usdcBalance?.value || 0n;
+    const balance = USDTBalance?.value || 0n;
 
     if (amount > balance)
       return { text: "Insufficient Balance", disabled: true, action: null };
@@ -141,9 +143,9 @@ const VaultPage = () => {
   const getWithdrawButtonState = () => {
     if (!isConnected)
       return { text: "Connect Wallet", disabled: false, action: null };
-    if (chainId !== polygon.id)
+    if (chainId !== bsc.id)
       return {
-        text: "Switch to Polygon",
+        text: "Switch Wallet to BSC chain",
         disabled: false,
         action: "switch-chain",
       };
@@ -164,7 +166,7 @@ const VaultPage = () => {
     if (!depositAmount) return;
     const amount = parseUnits(depositAmount, 6);
     writeApprove({
-      address: USDC_ADDRESS,
+      address: USDT_ADDRESS,
       abi: erc20Abi,
       functionName: "approve",
       chain: polygon,
@@ -203,7 +205,7 @@ const VaultPage = () => {
       return;
     }
     if (state.action === "switch-chain") {
-      switchChain({ chainId: polygon.id });
+      switchChain({ chainId: bsc.id });
       return;
     }
     if (state.action === "approve") handleApprove();
@@ -217,7 +219,7 @@ const VaultPage = () => {
       return;
     }
     if (state.action === "switch-chain") {
-      switchChain({ chainId: polygon.id });
+      switchChain({ chainId: bsc.id });
       return;
     }
     if (state.action === "withdraw") handleWithdraw();
@@ -248,11 +250,11 @@ const VaultPage = () => {
   };
 
   const formatAmount = (activity: {
-    usdCAmount: string;
+    USDTAmount: string;
     outcomeTokensAmount: string;
   }) => {
-    if (activity.usdCAmount) {
-      return `${activity.usdCAmount} USDC`;
+    if (activity.USDTAmount) {
+      return `${activity.USDTAmount} USDT`;
     }
     if (activity.outcomeTokensAmount) {
       return activity.outcomeTokensAmount;
@@ -283,7 +285,7 @@ const VaultPage = () => {
               </div>
               <div>
                 <p className="text-secondry">Total Assets</p>
-                <p className="text-xl">{vaultTotalAssets ? Number(formatUnits(vaultTotalAssets, 6)).toFixed(2) + " USDC" : "0.00" }</p>
+                <p className="text-xl">{vaultTotalAssets ? Number(formatUnits(vaultTotalAssets, USDT_DECIMALS)).toFixed(2) + " USDT" : "0.00" }</p>
               </div>
             </div>
             <div className="px-6 border-l border-primary/50 flex items-center gap-4">
@@ -327,7 +329,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center justify-between">
-                          <span className="text-gray-400">USDC</span>
+                          <span className="text-gray-400">USDT</span>
                           <span className="text-sm">💰</span>
                         </div>
                       </div>
@@ -348,15 +350,15 @@ const VaultPage = () => {
                           <button
                             onClick={handleMaxClick}
                             className="px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded text-xs font-semibold transition-colors"
-                            disabled={!isConnected || chainId !== polygon.id}
+                            disabled={!isConnected || chainId !== bsc.id}
                           >
                             MAX
                           </button>
                         </div>
                       </div>
-                      {isConnected && chainId === polygon.id && (
+                      {isConnected && chainId === bsc.id && (
                         <p className="text-xs text-gray-400 mt-1">
-                          Balance: {formatUnits(usdcBalance?.value || 0n, 6)} USDC
+                          Balance: {formatUnits(USDTBalance?.value || 0n, USDT_DECIMALS)} USDT
                         </p>
                       )}
                     </span>
@@ -371,7 +373,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center justify-between">
-                          <span className="text-gray-400">POK-USDC</span>
+                          <span className="text-gray-400">POK-USDT</span>
                           <span className="text-sm">🏦</span>
                         </div>
                       </div>
@@ -382,7 +384,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border text-gray-400">
-                          {depositAmount || "0"} POK-USDC
+                          {depositAmount || "0"} POK-USDT
                         </div>
                       </div>
                     </span>
@@ -413,7 +415,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center justify-between">
-                          <span className="text-gray-400">POK-USDC</span>
+                          <span className="text-gray-400">POK-USDT</span>
                           <span className="text-sm">🏦</span>
                         </div>
                       </div>
@@ -434,15 +436,15 @@ const VaultPage = () => {
                           <button
                             onClick={handleMaxWithdrawClick}
                             className="px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded text-xs font-semibold transition-colors"
-                            disabled={!isConnected || chainId !== polygon.id}
+                            disabled={!isConnected || chainId !== bsc.id}
                           >
                             MAX
                           </button>
                         </div>
                       </div>
-                      {isConnected && chainId === polygon.id && (
+                      {isConnected && chainId === bsc.id && (
                         <p className="text-xs text-gray-400 mt-1">
-                          Balance: {formatUnits(vaultBalance?.value || 0n, 6)} POK-USDC
+                          Balance: {formatUnits(vaultBalance?.value || 0n, 6)} POK-USDT
                         </p>
                       )}
                     </span>
@@ -457,7 +459,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center justify-between">
-                          <span className="text-gray-400">USDC</span>
+                          <span className="text-gray-400">USDT</span>
                           <span className="text-sm">💰</span>
                         </div>
                       </div>
@@ -468,7 +470,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border text-gray-400">
-                          {previewRedeemAmount ? formatUnits(previewRedeemAmount, 6) : "0"} USDC
+                          {previewRedeemAmount ? formatUnits(previewRedeemAmount, USDT_DECIMALS) : "0"} USDT
                         </div>
                       </div>
                     </span>

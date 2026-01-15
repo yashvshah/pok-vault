@@ -23,6 +23,7 @@ export function useVaultActivities(limit = 100) {
   const { data: splitOutcomeTokens = [], isLoading: splitOutcomeTokensLoading, error: splitOutcomeTokensError } = useSplitOutcomeTokens(limit);
 
   const POLYGON_ERC1155_ADDRESS = '0x4d97dcd97ec945f40cf65f87097ace5ea0476045';
+  const USDT_DECIMALS = 18 as const;
 
   // Get all unique outcome IDs from all outcome-related events
   const outcomeIds = useMemo(() => {
@@ -87,7 +88,7 @@ export function useVaultActivities(limit = 100) {
       type: 'deposit' as const,
       market: '', // blank for deposits
       outcomeTokensAmount: '', // blank for deposits
-      usdCAmount: formatUnits(BigInt(deposit.assets), 6), // USDC amount from assets field
+      USDTAmount: formatUnits(BigInt(deposit.assets), USDT_DECIMALS), // USDT amount from assets field
       user: deposit.sender, // use sender as the user who initiated the deposit
       transactionHash: deposit.transactionHash_,
       timestamp: parseInt(deposit.timestamp_),
@@ -97,7 +98,7 @@ export function useVaultActivities(limit = 100) {
       type: 'withdrawal' as const,
       market: '', // blank for withdrawals
       outcomeTokensAmount: '', // blank for withdrawals
-      usdCAmount: formatUnits(BigInt(withdrawal.assets), 6), // USDC amount from assets field
+      USDTAmount: formatUnits(BigInt(withdrawal.assets), USDT_DECIMALS), // USDT amount from assets field
       user: withdrawal.sender, // use sender as the user who initiated the withdrawal
       transactionHash: withdrawal.transactionHash_,
       timestamp: parseInt(withdrawal.timestamp_),
@@ -122,7 +123,7 @@ export function useVaultActivities(limit = 100) {
         type: 'new-outcome-pair' as const,
         market: marketString,
         outcomeTokensAmount: '', // null for new-outcome-pair
-        usdCAmount: '', // null for new-outcome-pair
+        USDTAmount: '', // null for new-outcome-pair
         user: '', // not available in subgraph for this event
         transactionHash: pair.transactionHash_,
         timestamp: parseInt(pair.timestamp_),
@@ -146,7 +147,7 @@ export function useVaultActivities(limit = 100) {
         type: 'removed-outcome-pair' as const,
         market: marketString,
         outcomeTokensAmount: '',
-        usdCAmount: '',
+        USDTAmount: '',
         user: '',
         transactionHash: pair.transactionHash_,
         timestamp: parseInt(pair.timestamp_),
@@ -170,7 +171,7 @@ export function useVaultActivities(limit = 100) {
         type: 'paused-outcome-pair' as const,
         market: marketString,
         outcomeTokensAmount: '',
-        usdCAmount: '',
+        USDTAmount: '',
         user: '',
         transactionHash: pair.transactionHash_,
         timestamp: parseInt(pair.timestamp_),
@@ -194,7 +195,7 @@ export function useVaultActivities(limit = 100) {
         type: 'profit-loss-reported' as const,
         market: marketString,
         outcomeTokensAmount: '',
-        usdCAmount: event.profitOrLoss, // profit/loss amount in USDC
+        USDTAmount: event.profitOrLoss, // profit/loss amount in USDT
         user: '',
         transactionHash: event.transactionHash_,
         timestamp: parseInt(event.timestamp_),
@@ -218,7 +219,7 @@ export function useVaultActivities(limit = 100) {
         type: 'early-exit' as const,
         market: marketString,
         outcomeTokensAmount: event.amount, // outcome token amount
-        usdCAmount: event.exitAmount, // USDC exit amount
+        USDTAmount: event.exitAmount, // USDT exit amount
         user: '',
         transactionHash: event.transactionHash_,
         timestamp: parseInt(event.timestamp_),
@@ -242,7 +243,7 @@ export function useVaultActivities(limit = 100) {
         type: 'split-outcome-tokens' as const,
         market: marketString,
         outcomeTokensAmount: event.amount, // outcome token amount
-        usdCAmount: '', // no USDC amount for split
+        USDTAmount: '', // no USDT amount for split
         user: '',
         transactionHash: event.transactionHash_,
         timestamp: parseInt(event.timestamp_),
