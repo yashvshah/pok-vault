@@ -3,9 +3,218 @@ import Tabs from "../components/Tabs/TabsComponent";
 import { FaPercent, FaRegArrowAltCircleDown } from "react-icons/fa";
 import { GrMoney } from "react-icons/gr";
 import { useVaultActivities } from "../hooks/useVaultActivities";
+import { useState } from "react";
+import {
+  useAccount,
+  useBalance,
+  useReadContract,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+  useChainId,
+  useSwitchChain,
+} from "wagmi";
+import { erc20Abi, erc4626Abi, formatUnits, parseUnits } from "viem";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+import { polygon } from "viem/chains";
 
 const VaultPage = () => {
   const { activities, isLoading, error } = useVaultActivities();
+  const { address, isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
+  const [depositAmount, setDepositAmount] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+
+  // Contract addresses
+  const VAULT_ADDRESS = "0x69362094D0C2D8Be0818c0006e09B82c5CA59Af9" as const;
+  const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" as const;
+
+  // USDC balance
+  const { data: usdcBalance } = useBalance({
+    address,
+    token: USDC_ADDRESS,
+    chainId: polygon.id,
+    query: { enabled: isConnected },
+  });
+
+  // Vault token (POK-USDC) balance
+  const { data: vaultBalance } = useBalance({
+    address,
+    token: VAULT_ADDRESS,
+    chainId: polygon.id,
+    query: { enabled: isConnected },
+  });
+
+  // USDC allowance for vault
+  const { data: allowance } = useReadContract({
+    address: USDC_ADDRESS,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: address && [address, VAULT_ADDRESS],
+    chainId: polygon.id,
+    query: { enabled: isConnected },
+  }) as { data: bigint | undefined };
+
+  // Get max withdrawable amount
+  const { data: previewRedeemAmount } = useReadContract({
+    address: VAULT_ADDRESS,
+    abi: erc4626Abi,
+    functionName: "previewRedeem",
+    args: [withdrawAmount ? parseUnits(withdrawAmount, 6) : 0n],
+    chainId: polygon.id,
+    query: { enabled: isConnected && Number(withdrawAmount) > 0 },
+  }) as { data: bigint | undefined };
+
+  // Contract write hooks for deposit
+  const {
+    writeContract: writeApprove,
+    isPending: isApprovePending,
+    data: approveHash,
+  } = useWriteContract();
+  const {
+    writeContract: writeDeposit,
+    isPending: isDepositPending,
+    data: depositHash,
+  } = useWriteContract();
+
+  // Contract write hooks for withdraw
+  const {
+    writeContract: writeWithdraw,
+    isPending: isWithdrawPending,
+    data: withdrawHash,
+  } = useWriteContract();
+
+  // Transaction receipts
+  useWaitForTransactionReceipt({ hash: approveHash });
+  useWaitForTransactionReceipt({ hash: depositHash });
+  useWaitForTransactionReceipt({ hash: withdrawHash });
+
+  const handleMaxClick = () => {
+    if (usdcBalance?.value) {
+      const maxAmount = Number(formatUnits(usdcBalance.value, 6));
+      setDepositAmount(maxAmount.toString());
+    }
+  };
+
+  const handleMaxWithdrawClick = () => {
+    if (vaultBalance?.value) {
+      const maxAmount = Number(formatUnits(vaultBalance.value, 6));
+      setWithdrawAmount(maxAmount.toString());
+    }
+  };
+
+  // Helper functions for deposit
+  const getDepositButtonState = () => {
+    if (!isConnected)
+      return { text: "Connect Wallet", disabled: false, action: null };
+    if (chainId !== polygon.id)
+      return {
+        text: "Switch to Polygon",
+        disabled: false,
+        action: "switch-chain",
+      };
+    if (!depositAmount || parseFloat(depositAmount) === 0)
+      return { text: "Enter Amount", disabled: true, action: null };
+
+    const amount = parseUnits(depositAmount, 6);
+    const balance = usdcBalance?.value || 0n;
+
+    if (amount > balance)
+      return { text: "Insufficient Balance", disabled: true, action: null };
+
+    const currentAllowance = allowance || 0n;
+    if (amount > currentAllowance)
+      return { text: "Approve", disabled: false, action: "approve" };
+
+    return { text: "Deposit", disabled: false, action: "deposit" };
+  };
+
+  // Helper functions for withdraw
+  const getWithdrawButtonState = () => {
+    if (!isConnected)
+      return { text: "Connect Wallet", disabled: false, action: null };
+    if (chainId !== polygon.id)
+      return {
+        text: "Switch to Polygon",
+        disabled: false,
+        action: "switch-chain",
+      };
+    if (!withdrawAmount || parseFloat(withdrawAmount) === 0)
+      return { text: "Enter Amount", disabled: true, action: null };
+
+    const amount = parseUnits(withdrawAmount, 6);
+    const balance = vaultBalance?.value || 0n;
+
+    if (amount > balance)
+      return { text: "Insufficient Balance", disabled: true, action: null };
+  
+
+    return { text: "Withdraw", disabled: false, action: "withdraw" };
+  };
+
+  const handleApprove = () => {
+    if (!depositAmount) return;
+    const amount = parseUnits(depositAmount, 6);
+    writeApprove({
+      address: USDC_ADDRESS,
+      abi: erc20Abi,
+      functionName: "approve",
+      chain: polygon,
+      args: [VAULT_ADDRESS, amount],
+    });
+  };
+
+  const handleDeposit = () => {
+    if (!depositAmount) return;
+    const amount = parseUnits(depositAmount, 6);
+    writeDeposit({
+      address: VAULT_ADDRESS,
+      abi: erc4626Abi,
+      functionName: "deposit",
+      chain: polygon,
+      args: [amount, address!],
+    });
+  };
+
+  const handleWithdraw = () => {
+    if (!withdrawAmount) return;
+    const amount = parseUnits(withdrawAmount, 6);
+    writeWithdraw({
+      address: VAULT_ADDRESS,
+      abi: erc4626Abi,
+      functionName: "redeem",
+      chain: polygon,
+      args: [amount, address!, address!],
+    });
+  };
+
+  const handleDepositButtonClick = () => {
+    const state = getDepositButtonState();
+    if (state.text === "Connect Wallet") {
+      openConnectModal?.();
+      return;
+    }
+    if (state.action === "switch-chain") {
+      switchChain({ chainId: polygon.id });
+      return;
+    }
+    if (state.action === "approve") handleApprove();
+    else if (state.action === "deposit") handleDeposit();
+  };
+
+  const handleWithdrawButtonClick = () => {
+    const state = getWithdrawButtonState();
+    if (state.text === "Connect Wallet") {
+      openConnectModal?.();
+      return;
+    }
+    if (state.action === "switch-chain") {
+      switchChain({ chainId: polygon.id });
+      return;
+    }
+    if (state.action === "withdraw") handleWithdraw();
+  };
 
   const points = [
     "Automated strategies rebalance capital across markets in real time.",
@@ -20,18 +229,21 @@ const VaultPage = () => {
 
   const formatTimestamp = (timestamp: number) => {
     const date = new Date(timestamp * 1000);
-    return date.toLocaleString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
+    return date.toLocaleString("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
     });
   };
 
-  const formatAmount = (activity: { usdCAmount: string; outcomeTokensAmount: string }) => {
+  const formatAmount = (activity: {
+    usdCAmount: string;
+    outcomeTokensAmount: string;
+  }) => {
     if (activity.usdCAmount) {
       return `${activity.usdCAmount} USDC`;
     }
@@ -40,6 +252,7 @@ const VaultPage = () => {
     }
     return "—";
   };
+
   return (
     <main className="px-24 mt-14">
       <div className="flex justify-around items-center gap-10">
@@ -101,116 +314,168 @@ const VaultPage = () => {
                 {/* DEPOSIT */}
                 <div className="space-y-4">
                   <div className="flex gap-3">
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
                         From Wallet
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          placeholder="0"
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border flex items-center justify-between">
+                          <span className="text-gray-400">USDC</span>
+                          <span className="text-sm">💰</span>
+                        </div>
                       </div>
                     </span>
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
                         Amount
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          placeholder="0"
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border flex items-center">
+                          <input
+                            type="number"
+                            placeholder="0"
+                            value={depositAmount}
+                            onChange={(e) => setDepositAmount(e.target.value)}
+                            className="flex-1 focus:outline-none"
+                          />
+                          <button
+                            onClick={handleMaxClick}
+                            className="px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded text-xs font-semibold transition-colors"
+                            disabled={!isConnected || chainId !== polygon.id}
+                          >
+                            MAX
+                          </button>
+                        </div>
                       </div>
+                      {isConnected && chainId === polygon.id && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          Balance: {formatUnits(usdcBalance?.value || 0n, 6)} USDC
+                        </p>
+                      )}
                     </span>
                   </div>
                   <span className="flex items-center justify-center text-primary/60">
                     <FaRegArrowAltCircleDown size={25} />
                   </span>
                   <div className="flex gap-3">
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
-                        To valut
+                        To Vault
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          placeholder="0x"
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border flex items-center justify-between">
+                          <span className="text-gray-400">POK-USDC</span>
+                          <span className="text-sm">🏦</span>
+                        </div>
                       </div>
                     </span>
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
-                        You will recive
+                        You will receive
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          placeholder="0"
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border text-gray-400">
+                          {depositAmount || "0"} POK-USDC
+                        </div>
                       </div>
                     </span>
                   </div>
-                  <button className="w-full bg-primary py-3 rounded-lg font-semibold">
-                    Deposit
+                  <button
+                    onClick={handleDepositButtonClick}
+                    disabled={
+                      getDepositButtonState().disabled ||
+                      isApprovePending ||
+                      isDepositPending
+                    }
+                    className="w-full bg-primary py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isApprovePending
+                      ? "Approving..."
+                      : isDepositPending
+                      ? "Depositing..."
+                      : getDepositButtonState().text}
                   </button>
                 </div>
 
                 {/* WITHDRAW */}
                 <div className="space-y-4">
                   <div className="flex gap-3">
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
-                        From Wallet
+                        From Vault
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          placeholder="0"
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border flex items-center justify-between">
+                          <span className="text-gray-400">POK-USDC</span>
+                          <span className="text-sm">🏦</span>
+                        </div>
                       </div>
                     </span>
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
                         Amount
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          placeholder="0"
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border flex items-center">
+                          <input
+                            type="number"
+                            placeholder="0"
+                            value={withdrawAmount}
+                            onChange={(e) => setWithdrawAmount(e.target.value)}
+                            className="flex-1 focus:outline-none"
+                          />
+                          <button
+                            onClick={handleMaxWithdrawClick}
+                            className="px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded text-xs font-semibold transition-colors"
+                            disabled={!isConnected || chainId !== polygon.id}
+                          >
+                            MAX
+                          </button>
+                        </div>
                       </div>
+                      {isConnected && chainId === polygon.id && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          Balance: {formatUnits(vaultBalance?.value || 0n, 6)} POK-USDC
+                        </p>
+                      )}
                     </span>
                   </div>
                   <span className="flex items-center justify-center text-primary/60">
                     <FaRegArrowAltCircleDown size={25} />
                   </span>
                   <div className="flex gap-3">
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
-                        To valut
+                        To Wallet
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          placeholder="0x"
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border flex items-center justify-between">
+                          <span className="text-gray-400">USDC</span>
+                          <span className="text-sm">💰</span>
+                        </div>
                       </div>
                     </span>
-                    <span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
-                        You will recive
+                        You will receive
                       </label>
                       <div className="gradiant-border">
-                        <input
-                          placeholder="0"
-                          className="w-full box-of-gradiant-border focus:outline-none"
-                        />
+                        <div className="box-of-gradiant-border text-gray-400">
+                          {previewRedeemAmount ? formatUnits(previewRedeemAmount, 6) : "0"} USDC
+                        </div>
                       </div>
                     </span>
                   </div>
-                  <button className="w-full bg-primary py-3 rounded-lg font-semibold">
-                    Deposit
+                  <button
+                    onClick={handleWithdrawButtonClick}
+                    disabled={
+                      getWithdrawButtonState().disabled || isWithdrawPending
+                    }
+                    className="w-full bg-primary py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isWithdrawPending
+                      ? "Withdrawing..."
+                      : getWithdrawButtonState().text}
                   </button>
                 </div>
               </Tabs>
@@ -253,19 +518,28 @@ const VaultPage = () => {
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                      <td
+                        colSpan={6}
+                        className="px-4 py-8 text-center text-gray-400"
+                      >
                         Loading activities...
                       </td>
                     </tr>
                   ) : error ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-red-400">
+                      <td
+                        colSpan={6}
+                        className="px-4 py-8 text-center text-red-400"
+                      >
                         Error loading activities: {error.message}
                       </td>
                     </tr>
                   ) : activities.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                      <td
+                        colSpan={6}
+                        className="px-4 py-8 text-center text-gray-400"
+                      >
                         No activities found
                       </td>
                     </tr>
@@ -276,7 +550,7 @@ const VaultPage = () => {
                         className="border-t border-white/5 hover:bg-white/5 transition"
                       >
                         <td className="px-4 py-3 capitalize">
-                          {activity.type.replace(/-/g, ' ')}
+                          {activity.type.replace(/-/g, " ")}
                         </td>
 
                         <td className="px-4 py-3 max-w-[320px] truncate">

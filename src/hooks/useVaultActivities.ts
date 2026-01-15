@@ -10,6 +10,7 @@ import { useSplitOutcomeTokens } from './activities/useSplitOutcomeTokens';
 import { useMarketInfos } from './useMarketInfos';
 import type { VaultActivity, SubgraphDeposit, SubgraphWithdrawal, SubgraphNewOppositeOutcomeTokenPairAdded, SubgraphOppositeOutcomeTokenPairRemoved, SubgraphOppositeOutcomeTokenPairPaused, SubgraphProfitOrLossReported, SubgraphEarlyExit, SubgraphSplitOppositeOutcomeTokens } from '../types/vault';
 import type { PolymarketMarket } from '../services/polymarket';
+import { formatUnits } from 'viem';
 
 export function useVaultActivities(limit = 100) {
   const { data: deposits = [], isLoading: depositsLoading, error: depositsError } = useDeposits(limit);
@@ -86,26 +87,21 @@ export function useVaultActivities(limit = 100) {
       type: 'deposit' as const,
       market: '', // blank for deposits
       outcomeTokensAmount: '', // blank for deposits
-      usdCAmount: deposit.assets, // USDC amount from assets field
+      usdCAmount: formatUnits(BigInt(deposit.assets), 6), // USDC amount from assets field
       user: deposit.sender, // use sender as the user who initiated the deposit
       transactionHash: deposit.transactionHash_,
       timestamp: parseInt(deposit.timestamp_),
     }));
-
-    console.log('Deposit Activities:', depositActivities);
-
     const withdrawalActivities: VaultActivity[] = withdrawals.map((withdrawal: SubgraphWithdrawal) => ({
       id: withdrawal.id,
       type: 'withdrawal' as const,
       market: '', // blank for withdrawals
       outcomeTokensAmount: '', // blank for withdrawals
-      usdCAmount: withdrawal.assets, // USDC amount from assets field
+      usdCAmount: formatUnits(BigInt(withdrawal.assets), 6), // USDC amount from assets field
       user: withdrawal.sender, // use sender as the user who initiated the withdrawal
       transactionHash: withdrawal.transactionHash_,
       timestamp: parseInt(withdrawal.timestamp_),
     }));
-
-    console.log('Withdrawal Activities:', withdrawalActivities);
 
     const newOutcomePairActivities: VaultActivity[] = newOutcomePairs.map((pair: SubgraphNewOppositeOutcomeTokenPairAdded) => {
       // Get market info for both outcome tokens
@@ -113,9 +109,6 @@ export function useVaultActivities(limit = 100) {
       const marketInfoB = marketInfoMap.get(pair.outcomeIdB);
 
       let marketString = `Polymarket Token (ID: ${pair.outcomeIdA}) ↔️ Opinion Token (ID: ${pair.outcomeIdB})`;
-
-      console.log('Market Info A:', marketInfoA);
-      console.log('Market Info B:', marketInfoB);
 
       // If we have market info for either token, use it
       if (marketInfoA?.question) {
@@ -135,8 +128,6 @@ export function useVaultActivities(limit = 100) {
         timestamp: parseInt(pair.timestamp_),
       };
     });
-
-    console.log('New Outcome Pair Activities:', newOutcomePairActivities);
 
     const removedOutcomePairActivities: VaultActivity[] = removedOutcomePairs.map((pair: SubgraphOppositeOutcomeTokenPairRemoved) => {
       const marketInfoA = marketInfoMap.get(pair.outcomeIdA);
