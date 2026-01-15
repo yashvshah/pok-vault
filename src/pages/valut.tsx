@@ -330,7 +330,7 @@ const VaultPage = () => {
               </div>
               <div>
                 <p className="text-secondry">APY</p>
-                <p className="text-xl">{apy}%</p>
+                <p className="text-xl">{5}%</p>
               </div>
             </div>
             <div className="px-6 border-l border-primary/50 flex items-center gap-4">
