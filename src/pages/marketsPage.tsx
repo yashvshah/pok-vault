@@ -11,10 +11,9 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   return (
     <>
       <div className="mx-30 mb-10">
-        <h1 className="text-5xl font-League-Spartan mt-10 ">MARKETS</h1>
+        <h1 className="text-5xl font-League-Spartan mt-10 ">Supported Markets</h1>
         <p className="text-gray-400 mt-5 max-w-lg">
-          Deploy capital into automated strategies that exploit prediction
-          market inefficiencies and generate yield.
+          Buy opposite outcome tokens in following markets for less than 1 dollar and get back USDT immediately.
         </p>
 
         <MarketFilters
