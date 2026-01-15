@@ -16,6 +16,7 @@ import {
 import { erc20Abi, erc4626Abi, formatUnits, parseUnits } from "viem";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { bsc, polygon } from "viem/chains";
+import { useAPY } from "../hooks/useAPY";
 
 const VaultPage = () => {
   const { activities, isLoading, error } = useVaultActivities();
@@ -113,6 +114,8 @@ const VaultPage = () => {
   const { isSuccess: isWithdrawSuccess } = useWaitForTransactionReceipt({
     hash: withdrawHash,
   });
+
+  const apy = useAPY();
 
   useEffect(() => {
    if(isDepositSuccess) {
@@ -327,7 +330,7 @@ const VaultPage = () => {
               </div>
               <div>
                 <p className="text-secondry">APY</p>
-                <p className="text-xl">5%</p>
+                <p className="text-xl">{apy}%</p>
               </div>
             </div>
             <div className="px-6 border-l border-primary/50 flex items-center gap-4">
