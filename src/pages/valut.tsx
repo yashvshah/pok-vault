@@ -3,7 +3,7 @@ import Tabs from "../components/Tabs/TabsComponent";
 import { FaPercent, FaRegArrowAltCircleDown } from "react-icons/fa";
 import { GrMoney } from "react-icons/gr";
 import { useVaultActivities } from "../hooks/useVaultActivities";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useAccount,
   useBalance,
@@ -41,7 +41,7 @@ const VaultPage = () => {
   });
 
   // Vault token (POK-USDT) balance
-  const { data: vaultBalance } = useBalance({
+  const { data: vaultBalance , refetch: refetchVaultBalance } = useBalance({
     address,
     token: VAULT_ADDRESS,
     chainId: bsc.id,
@@ -49,26 +49,26 @@ const VaultPage = () => {
   });
 
   // USDT allowance for vault
-  const { data: allowance } = useReadContract({
+  const { data: allowance , refetch: refetchAllowance } = useReadContract({
     address: USDT_ADDRESS,
     abi: erc20Abi,
     functionName: "allowance",
     args: address && [address, VAULT_ADDRESS],
     chainId: bsc.id,
-    query: { enabled: isConnected },
-  }) as { data: bigint | undefined };
+    query: { enabled: isConnected }
+  });
 
   // Get max withdrawable amount
   const { data: previewRedeemAmount } = useReadContract({
     address: VAULT_ADDRESS,
     abi: erc4626Abi,
     functionName: "previewRedeem",
-    args: [withdrawAmount ? parseUnits(withdrawAmount, 6) : 0n],
+    args: [withdrawAmount ? parseUnits(withdrawAmount, USDT_DECIMALS) : 0n],
     chainId: bsc.id,
     query: { enabled: isConnected && Number(withdrawAmount) > 0 },
   }) as { data: bigint | undefined };
 
-  const {data: vaultTotalAssets} = useReadContract({
+  const { data: vaultTotalAssets } = useReadContract({
     address: VAULT_ADDRESS,
     abi: erc4626Abi,
     functionName: "totalAssets",
@@ -95,9 +95,28 @@ const VaultPage = () => {
   } = useWriteContract();
 
   // Transaction receipts
-  useWaitForTransactionReceipt({ hash: approveHash });
-  useWaitForTransactionReceipt({ hash: depositHash });
-  useWaitForTransactionReceipt({ hash: withdrawHash });
+  const { isSuccess: isApproveSuccess } = useWaitForTransactionReceipt({
+    hash: approveHash,
+  });
+  const { isSuccess: isDepositSuccess } = useWaitForTransactionReceipt({
+    hash: depositHash,
+  });
+  const { isSuccess: isWithdrawSuccess } = useWaitForTransactionReceipt({
+    hash: withdrawHash,
+  });
+
+  useEffect(() => {
+   if(isDepositSuccess) {
+    refetchVaultBalance();
+   }
+   if(isWithdrawSuccess) {
+    refetchVaultBalance();
+   }
+   if(isApproveSuccess) {
+    refetchAllowance();
+   }
+
+  },[isDepositSuccess, isWithdrawSuccess, isApproveSuccess, refetchVaultBalance, refetchAllowance]);
 
   const handleMaxClick = () => {
     if (USDTBalance?.value) {
@@ -126,7 +145,7 @@ const VaultPage = () => {
     if (!depositAmount || parseFloat(depositAmount) === 0)
       return { text: "Enter Amount", disabled: true, action: null };
 
-    const amount = parseUnits(depositAmount, 6);
+    const amount = parseUnits(depositAmount, USDT_DECIMALS);
     const balance = USDTBalance?.value || 0n;
 
     if (amount > balance)
@@ -152,19 +171,18 @@ const VaultPage = () => {
     if (!withdrawAmount || parseFloat(withdrawAmount) === 0)
       return { text: "Enter Amount", disabled: true, action: null };
 
-    const amount = parseUnits(withdrawAmount, 6);
+    const amount = parseUnits(withdrawAmount, USDT_DECIMALS);
     const balance = vaultBalance?.value || 0n;
 
     if (amount > balance)
       return { text: "Insufficient Balance", disabled: true, action: null };
-  
 
     return { text: "Withdraw", disabled: false, action: "withdraw" };
   };
 
   const handleApprove = () => {
     if (!depositAmount) return;
-    const amount = parseUnits(depositAmount, 6);
+    const amount = parseUnits(depositAmount, USDT_DECIMALS);
     writeApprove({
       address: USDT_ADDRESS,
       abi: erc20Abi,
@@ -176,7 +194,7 @@ const VaultPage = () => {
 
   const handleDeposit = () => {
     if (!depositAmount) return;
-    const amount = parseUnits(depositAmount, 6);
+    const amount = parseUnits(depositAmount, USDT_DECIMALS);
     writeDeposit({
       address: VAULT_ADDRESS,
       abi: erc4626Abi,
@@ -188,7 +206,7 @@ const VaultPage = () => {
 
   const handleWithdraw = () => {
     if (!withdrawAmount) return;
-    const amount = parseUnits(withdrawAmount, 6);
+    const amount = parseUnits(withdrawAmount, USDT_DECIMALS);
     writeWithdraw({
       address: VAULT_ADDRESS,
       abi: erc4626Abi,
@@ -285,7 +303,13 @@ const VaultPage = () => {
               </div>
               <div>
                 <p className="text-secondry">Total Assets</p>
-                <p className="text-xl">{vaultTotalAssets ? Number(formatUnits(vaultTotalAssets, USDT_DECIMALS)).toFixed(2) + " USDT" : "0.00" }</p>
+                <p className="text-xl">
+                  {vaultTotalAssets
+                    ? Number(
+                        formatUnits(vaultTotalAssets, USDT_DECIMALS)
+                      ).toFixed(2) + " USDT"
+                    : "0.00"}
+                </p>
               </div>
             </div>
             <div className="px-6 border-l border-primary/50 flex items-center gap-4">
@@ -358,7 +382,9 @@ const VaultPage = () => {
                       </div>
                       {isConnected && chainId === bsc.id && (
                         <p className="text-xs text-gray-400 mt-1">
-                          Balance: {formatUnits(USDTBalance?.value || 0n, USDT_DECIMALS)} USDT
+                          Balance:{" "}
+                          {formatUnits(USDTBalance?.value || 0n, USDT_DECIMALS)}{" "}
+                          USDT
                         </p>
                       )}
                     </span>
@@ -394,13 +420,15 @@ const VaultPage = () => {
                     disabled={
                       getDepositButtonState().disabled ||
                       isApprovePending ||
-                      isDepositPending
+                      (!isApproveSuccess && approveHash != undefined) ||
+                      isDepositPending ||
+                      (!isDepositSuccess && depositHash != undefined)
                     }
                     className="w-full bg-primary py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isApprovePending
+                    {isApprovePending || (!isApproveSuccess && approveHash != undefined)
                       ? "Approving..."
-                      : isDepositPending
+                      : isDepositPending || (!isDepositSuccess && depositHash != undefined)
                       ? "Depositing..."
                       : getDepositButtonState().text}
                   </button>
@@ -444,7 +472,8 @@ const VaultPage = () => {
                       </div>
                       {isConnected && chainId === bsc.id && (
                         <p className="text-xs text-gray-400 mt-1">
-                          Balance: {formatUnits(vaultBalance?.value || 0n, 6)} POK-USDT
+                          Balance: {formatUnits(vaultBalance?.value || 0n, USDT_DECIMALS)}{" "}
+                          POK-USDT
                         </p>
                       )}
                     </span>
@@ -470,7 +499,10 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border text-gray-400">
-                          {previewRedeemAmount ? formatUnits(previewRedeemAmount, USDT_DECIMALS) : "0"} USDT
+                          {previewRedeemAmount
+                            ? formatUnits(previewRedeemAmount, USDT_DECIMALS)
+                            : "0"}{" "}
+                          USDT
                         </div>
                       </div>
                     </span>
@@ -478,11 +510,13 @@ const VaultPage = () => {
                   <button
                     onClick={handleWithdrawButtonClick}
                     disabled={
-                      getWithdrawButtonState().disabled || isWithdrawPending
+                      getWithdrawButtonState().disabled ||
+                      isWithdrawPending ||
+                      (!isWithdrawSuccess && withdrawHash != undefined)
                     }
                     className="w-full bg-primary py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isWithdrawPending
+                    {isWithdrawPending || (!isWithdrawSuccess && withdrawHash != undefined)
                       ? "Withdrawing..."
                       : getWithdrawButtonState().text}
                   </button>

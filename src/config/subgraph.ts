@@ -1,6 +1,6 @@
 import { GraphQLClient } from 'graphql-request';
 
-export const SUBGRAPH_URL = 'https://api.goldsky.com/api/public/project_cmk8kaeveu7zx01u72pajfmi5/subgraphs/pokVault/1.0.0/gn';
+export const SUBGRAPH_URL = 'https://api.goldsky.com/api/public/project_cmk8kaeveu7zx01u72pajfmi5/subgraphs/pokVault-BSC/1.0.0/gn';
 
 export const subgraphClient = new GraphQLClient(SUBGRAPH_URL);
 
