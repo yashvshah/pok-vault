@@ -1,6 +1,7 @@
 
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Header from "./components/Header";
+import Footer from "./components/Footer";
 import VaultPage from "./pages/valut";
 
 function App() {
@@ -13,6 +14,8 @@ function App() {
         <Route path="/vault" element={<VaultPage />} />
         {/* <Route path="/markets" element={<MarketsPage />} /> */}
       </Routes>
+
+      <Footer />
     </BrowserRouter>
   );
 }

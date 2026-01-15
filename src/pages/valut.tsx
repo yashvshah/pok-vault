@@ -1,9 +1,8 @@
-import { MdKeyboardDoubleArrowRight } from "react-icons/md";
 import Tabs from "../components/Tabs/TabsComponent";
 import { FaPercent, FaRegArrowAltCircleDown } from "react-icons/fa";
 import { GrMoney } from "react-icons/gr";
 import { useVaultActivities } from "../hooks/useVaultActivities";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useAccount,
   useBalance,
@@ -15,7 +14,9 @@ import {
 } from "wagmi";
 import { erc20Abi, erc4626Abi, formatUnits, parseUnits } from "viem";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { polygon } from "viem/chains";
+import { bsc, polygon } from "viem/chains";
+import { useAPY } from "../hooks/useAPY";
+import earlyExitValutABI from "../abi/EarlyExitVault.json";
 
 const VaultPage = () => {
   const { activities, isLoading, error } = useVaultActivities();
@@ -26,45 +27,75 @@ const VaultPage = () => {
   const [depositAmount, setDepositAmount] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
 
-  // Contract addresses
-  const VAULT_ADDRESS = "0x69362094D0C2D8Be0818c0006e09B82c5CA59Af9" as const;
-  const USDC_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174" as const;
+  const USDT_DECIMALS = 18 as const;
 
-  // USDC balance
-  const { data: usdcBalance } = useBalance({
+  // Contract addresses
+  const VAULT_ADDRESS = "0x5a791CCAB49931861056365eBC072653F3FA0ba0" as const;
+  const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955" as const;
+
+  // USDT balance
+  const { data: USDTBalance } = useBalance({
     address,
-    token: USDC_ADDRESS,
-    chainId: polygon.id,
+    token: USDT_ADDRESS,
+    chainId: bsc.id,
     query: { enabled: isConnected },
   });
 
-  // Vault token (POK-USDC) balance
-  const { data: vaultBalance } = useBalance({
+  // Vault token (POK-USDT) balance
+  const { data: vaultBalance , refetch: refetchVaultBalance } = useBalance({
     address,
     token: VAULT_ADDRESS,
-    chainId: polygon.id,
+    chainId: bsc.id,
     query: { enabled: isConnected },
   });
 
-  // USDC allowance for vault
-  const { data: allowance } = useReadContract({
-    address: USDC_ADDRESS,
+  // USDT allowance for vault
+  const { data: allowance , refetch: refetchAllowance } = useReadContract({
+    address: USDT_ADDRESS,
     abi: erc20Abi,
     functionName: "allowance",
     args: address && [address, VAULT_ADDRESS],
-    chainId: polygon.id,
-    query: { enabled: isConnected },
-  }) as { data: bigint | undefined };
+    chainId: bsc.id,
+    query: { enabled: isConnected }
+  });
 
   // Get max withdrawable amount
   const { data: previewRedeemAmount } = useReadContract({
     address: VAULT_ADDRESS,
     abi: erc4626Abi,
     functionName: "previewRedeem",
-    args: [withdrawAmount ? parseUnits(withdrawAmount, 6) : 0n],
-    chainId: polygon.id,
+    args: [withdrawAmount ? parseUnits(withdrawAmount, USDT_DECIMALS) : 0n],
+    chainId: bsc.id,
     query: { enabled: isConnected && Number(withdrawAmount) > 0 },
   }) as { data: bigint | undefined };
+
+  const {data: previewDepositAmount} = useReadContract({
+    address: VAULT_ADDRESS,
+    abi: erc4626Abi,
+    functionName: "previewDeposit",
+    args: [depositAmount ? parseUnits(depositAmount, USDT_DECIMALS) : 0n],
+    chainId: bsc.id,
+    query: { enabled: isConnected && Number(depositAmount) > 0 },
+  }) as { data: bigint | undefined };
+
+  const { data: vaultTotalAssets } = useReadContract({
+    address: VAULT_ADDRESS,
+    abi: erc4626Abi,
+    functionName: "totalAssets",
+    chainId: bsc.id,
+  }) as { data: bigint | undefined };
+
+  // let's get netAssetValue
+  // we call the totalEarlyExitedAmount function from the vault contract
+
+  const {data: totalEarlyExitedAmount } = useReadContract({
+    address: VAULT_ADDRESS,
+    abi: earlyExitValutABI,
+    functionName: "totalEarlyExitedAmount",
+    chainId: bsc.id,
+  }) as { data: bigint | undefined };
+
+  const utilisation = vaultTotalAssets && totalEarlyExitedAmount ? (Number(totalEarlyExitedAmount) / Number(vaultTotalAssets)) * 100 : 0;
 
   // Contract write hooks for deposit
   const {
@@ -86,20 +117,41 @@ const VaultPage = () => {
   } = useWriteContract();
 
   // Transaction receipts
-  useWaitForTransactionReceipt({ hash: approveHash });
-  useWaitForTransactionReceipt({ hash: depositHash });
-  useWaitForTransactionReceipt({ hash: withdrawHash });
+  const { isSuccess: isApproveSuccess } = useWaitForTransactionReceipt({
+    hash: approveHash,
+  });
+  const { isSuccess: isDepositSuccess } = useWaitForTransactionReceipt({
+    hash: depositHash,
+  });
+  const { isSuccess: isWithdrawSuccess } = useWaitForTransactionReceipt({
+    hash: withdrawHash,
+  });
+
+  const apy = useAPY();
+
+  useEffect(() => {
+   if(isDepositSuccess) {
+    refetchVaultBalance();
+   }
+   if(isWithdrawSuccess) {
+    refetchVaultBalance();
+   }
+   if(isApproveSuccess) {
+    refetchAllowance();
+   }
+
+  },[isDepositSuccess, isWithdrawSuccess, isApproveSuccess, refetchVaultBalance, refetchAllowance]);
 
   const handleMaxClick = () => {
-    if (usdcBalance?.value) {
-      const maxAmount = Number(formatUnits(usdcBalance.value, 6));
+    if (USDTBalance?.value) {
+      const maxAmount = Number(formatUnits(USDTBalance.value, USDT_DECIMALS));
       setDepositAmount(maxAmount.toString());
     }
   };
 
   const handleMaxWithdrawClick = () => {
     if (vaultBalance?.value) {
-      const maxAmount = Number(formatUnits(vaultBalance.value, 6));
+      const maxAmount = Number(formatUnits(vaultBalance.value, USDT_DECIMALS));
       setWithdrawAmount(maxAmount.toString());
     }
   };
@@ -108,17 +160,17 @@ const VaultPage = () => {
   const getDepositButtonState = () => {
     if (!isConnected)
       return { text: "Connect Wallet", disabled: false, action: null };
-    if (chainId !== polygon.id)
+    if (chainId !== bsc.id)
       return {
-        text: "Switch to Polygon",
+        text: "Switch Wallet to BSC chain",
         disabled: false,
         action: "switch-chain",
       };
     if (!depositAmount || parseFloat(depositAmount) === 0)
       return { text: "Enter Amount", disabled: true, action: null };
 
-    const amount = parseUnits(depositAmount, 6);
-    const balance = usdcBalance?.value || 0n;
+    const amount = parseUnits(depositAmount, USDT_DECIMALS);
+    const balance = USDTBalance?.value || 0n;
 
     if (amount > balance)
       return { text: "Insufficient Balance", disabled: true, action: null };
@@ -134,30 +186,29 @@ const VaultPage = () => {
   const getWithdrawButtonState = () => {
     if (!isConnected)
       return { text: "Connect Wallet", disabled: false, action: null };
-    if (chainId !== polygon.id)
+    if (chainId !== bsc.id)
       return {
-        text: "Switch to Polygon",
+        text: "Switch Wallet to BSC chain",
         disabled: false,
         action: "switch-chain",
       };
     if (!withdrawAmount || parseFloat(withdrawAmount) === 0)
       return { text: "Enter Amount", disabled: true, action: null };
 
-    const amount = parseUnits(withdrawAmount, 6);
+    const amount = parseUnits(withdrawAmount, USDT_DECIMALS);
     const balance = vaultBalance?.value || 0n;
 
     if (amount > balance)
       return { text: "Insufficient Balance", disabled: true, action: null };
-  
 
     return { text: "Withdraw", disabled: false, action: "withdraw" };
   };
 
   const handleApprove = () => {
     if (!depositAmount) return;
-    const amount = parseUnits(depositAmount, 6);
+    const amount = parseUnits(depositAmount, USDT_DECIMALS);
     writeApprove({
-      address: USDC_ADDRESS,
+      address: USDT_ADDRESS,
       abi: erc20Abi,
       functionName: "approve",
       chain: polygon,
@@ -167,7 +218,7 @@ const VaultPage = () => {
 
   const handleDeposit = () => {
     if (!depositAmount) return;
-    const amount = parseUnits(depositAmount, 6);
+    const amount = parseUnits(depositAmount, USDT_DECIMALS);
     writeDeposit({
       address: VAULT_ADDRESS,
       abi: erc4626Abi,
@@ -179,7 +230,7 @@ const VaultPage = () => {
 
   const handleWithdraw = () => {
     if (!withdrawAmount) return;
-    const amount = parseUnits(withdrawAmount, 6);
+    const amount = parseUnits(withdrawAmount, USDT_DECIMALS);
     writeWithdraw({
       address: VAULT_ADDRESS,
       abi: erc4626Abi,
@@ -196,7 +247,7 @@ const VaultPage = () => {
       return;
     }
     if (state.action === "switch-chain") {
-      switchChain({ chainId: polygon.id });
+      switchChain({ chainId: bsc.id });
       return;
     }
     if (state.action === "approve") handleApprove();
@@ -210,19 +261,13 @@ const VaultPage = () => {
       return;
     }
     if (state.action === "switch-chain") {
-      switchChain({ chainId: polygon.id });
+      switchChain({ chainId: bsc.id });
       return;
     }
     if (state.action === "withdraw") handleWithdraw();
   };
 
-  const points = [
-    "Automated strategies rebalance capital across markets in real time.",
-    "Funds remain non-custodial and fully transparent on-chain.",
-    "Smart contracts optimize execution to minimize slippage.",
-    "Yields are generated from market inefficiencies, not speculation.",
-    "Withdraw liquidity at any time with no lock-up period.",
-  ];
+
 
   const shorten = (val: string, start = 6, end = 4) =>
     `${val.slice(0, start)}...${val.slice(-end)}`;
@@ -241,11 +286,11 @@ const VaultPage = () => {
   };
 
   const formatAmount = (activity: {
-    usdCAmount: string;
+    USDTAmount: string;
     outcomeTokensAmount: string;
   }) => {
-    if (activity.usdCAmount) {
-      return `${activity.usdCAmount} USDC`;
+    if (activity.USDTAmount) {
+      return `${activity.USDTAmount} USDT`;
     }
     if (activity.outcomeTokensAmount) {
       return activity.outcomeTokensAmount;
@@ -265,8 +310,8 @@ const VaultPage = () => {
           </h1>
 
           <p className="text-gray-400 mt-5 max-w-lg">
-            Deploy capital into automated strategies that exploit prediction
-            market inefficiencies and generate yield.
+            Provide capital to cross market arbitragers who profit from
+            market inefficiencies and generate yield without actually running the bots.
           </p>
 
           <div className="flex justify-between items-center w-fit border border-primary/40 rounded-xl p-4 mt-10">
@@ -276,7 +321,13 @@ const VaultPage = () => {
               </div>
               <div>
                 <p className="text-secondry">Total Assets</p>
-                <p className="text-xl">0.9840%</p>
+                <p className="text-xl">
+                  {vaultTotalAssets
+                    ? Number(
+                        formatUnits(vaultTotalAssets, USDT_DECIMALS)
+                      ).toFixed(2) + " USDT"
+                    : "0.00"}
+                </p>
               </div>
             </div>
             <div className="px-6 border-l border-primary/50 flex items-center gap-4">
@@ -285,7 +336,7 @@ const VaultPage = () => {
               </div>
               <div>
                 <p className="text-secondry">APY</p>
-                <p className="text-xl">0.9840%</p>
+                <p className="text-xl">{apy.toFixed(2)}%</p>
               </div>
             </div>
             <div className="px-6 border-l border-primary/50 flex items-center gap-4">
@@ -293,8 +344,8 @@ const VaultPage = () => {
                 <GrMoney />
               </div>
               <div>
-                <p className="text-secondry">Net Value</p>
-                <p className="text-xl">0.9840%</p>
+                <p className="text-secondry">Vault Utilization</p>
+                <p className="text-xl">{utilisation.toFixed(2)}%</p>
               </div>
             </div>
           </div>
@@ -320,7 +371,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center justify-between">
-                          <span className="text-gray-400">USDC</span>
+                          <span className="text-gray-400">USDT</span>
                           <span className="text-sm">💰</span>
                         </div>
                       </div>
@@ -341,15 +392,17 @@ const VaultPage = () => {
                           <button
                             onClick={handleMaxClick}
                             className="px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded text-xs font-semibold transition-colors"
-                            disabled={!isConnected || chainId !== polygon.id}
+                            disabled={!isConnected || chainId !== bsc.id}
                           >
                             MAX
                           </button>
                         </div>
                       </div>
-                      {isConnected && chainId === polygon.id && (
+                      {isConnected && chainId === bsc.id && (
                         <p className="text-xs text-gray-400 mt-1">
-                          Balance: {formatUnits(usdcBalance?.value || 0n, 6)} USDC
+                          Balance:{" "}
+                          {formatUnits(USDTBalance?.value || 0n, USDT_DECIMALS)}{" "}
+                          USDT
                         </p>
                       )}
                     </span>
@@ -364,7 +417,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center justify-between">
-                          <span className="text-gray-400">POK-USDC</span>
+                          <span className="text-gray-400">POK-USDT</span>
                           <span className="text-sm">🏦</span>
                         </div>
                       </div>
@@ -375,7 +428,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border text-gray-400">
-                          {depositAmount || "0"} POK-USDC
+                          {previewDepositAmount ? formatUnits(previewDepositAmount, USDT_DECIMALS) : "0"} POK-USDT
                         </div>
                       </div>
                     </span>
@@ -385,13 +438,15 @@ const VaultPage = () => {
                     disabled={
                       getDepositButtonState().disabled ||
                       isApprovePending ||
-                      isDepositPending
+                      (!isApproveSuccess && approveHash != undefined) ||
+                      isDepositPending ||
+                      (!isDepositSuccess && depositHash != undefined)
                     }
                     className="w-full bg-primary py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isApprovePending
+                    {isApprovePending || (!isApproveSuccess && approveHash != undefined)
                       ? "Approving..."
-                      : isDepositPending
+                      : isDepositPending || (!isDepositSuccess && depositHash != undefined)
                       ? "Depositing..."
                       : getDepositButtonState().text}
                   </button>
@@ -406,7 +461,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center justify-between">
-                          <span className="text-gray-400">POK-USDC</span>
+                          <span className="text-gray-400">POK-USDT</span>
                           <span className="text-sm">🏦</span>
                         </div>
                       </div>
@@ -427,15 +482,16 @@ const VaultPage = () => {
                           <button
                             onClick={handleMaxWithdrawClick}
                             className="px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded text-xs font-semibold transition-colors"
-                            disabled={!isConnected || chainId !== polygon.id}
+                            disabled={!isConnected || chainId !== bsc.id}
                           >
                             MAX
                           </button>
                         </div>
                       </div>
-                      {isConnected && chainId === polygon.id && (
+                      {isConnected && chainId === bsc.id && (
                         <p className="text-xs text-gray-400 mt-1">
-                          Balance: {formatUnits(vaultBalance?.value || 0n, 6)} POK-USDC
+                          Balance: {formatUnits(vaultBalance?.value || 0n, USDT_DECIMALS)}{" "}
+                          POK-USDT
                         </p>
                       )}
                     </span>
@@ -450,7 +506,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center justify-between">
-                          <span className="text-gray-400">USDC</span>
+                          <span className="text-gray-400">USDT</span>
                           <span className="text-sm">💰</span>
                         </div>
                       </div>
@@ -461,7 +517,10 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border text-gray-400">
-                          {previewRedeemAmount ? formatUnits(previewRedeemAmount, 6) : "0"} USDC
+                          {previewRedeemAmount
+                            ? formatUnits(previewRedeemAmount, USDT_DECIMALS)
+                            : "0"}{" "}
+                          USDT
                         </div>
                       </div>
                     </span>
@@ -469,11 +528,13 @@ const VaultPage = () => {
                   <button
                     onClick={handleWithdrawButtonClick}
                     disabled={
-                      getWithdrawButtonState().disabled || isWithdrawPending
+                      getWithdrawButtonState().disabled ||
+                      isWithdrawPending ||
+                      (!isWithdrawSuccess && withdrawHash != undefined)
                     }
                     className="w-full bg-primary py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isWithdrawPending
+                    {isWithdrawPending || (!isWithdrawSuccess && withdrawHash != undefined)
                       ? "Withdrawing..."
                       : getWithdrawButtonState().text}
                   </button>
@@ -487,19 +548,33 @@ const VaultPage = () => {
         <div className="box-of-gradiant-border rounded-xl bg-[#0f0f0f] p-5">
           <Tabs tabs={[{ label: "INFO" }, { label: "ACTIVITY" }]}>
             <div>
-              <ul className="space-y-3 ml-5">
-                {points.map((text, index) => (
-                  <li key={index} className="flex items-start gap-5">
-                    <span>
-                      <MdKeyboardDoubleArrowRight
-                        className="text-primary mt-1"
-                        size={20}
-                      />
-                    </span>
-                    <p className="text-gray-300 leading-relaxed">{text}</p>
-                  </li>
-                ))}
-              </ul>
+              <div className="space-y-4 ml-5">
+                <div>
+                  <p className="text-gray-300 leading-relaxed">
+                    <strong className="text-secondry">Vault Address:</strong> {VAULT_ADDRESS}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-300 leading-relaxed">
+                    <strong className="text-secondry">Underlying asset address:</strong> {USDT_ADDRESS} (USDT)
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-300 leading-relaxed">
+                    <strong className="text-secondry">Vault Owner Address:</strong> 0x8A7f538B6f6Bdab69edD0E311aeDa9214bC5384A
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-300 leading-relaxed">
+                    <strong className="text-secondry">Performance fees:</strong> 10%
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-300 leading-relaxed">
+                    <strong className="text-secondry">Management fees:</strong> 0%
+                  </p>
+                </div>
+              </div>
             </div>
             {/* table */}
             <div className="overflow-hidden rounded-xl border border-white/10 bg-black/40 backdrop-blur-md">

@@ -100,7 +100,7 @@ export interface VaultActivity {
   type: 'deposit' | 'withdrawal' | 'new-outcome-pair' | 'removed-outcome-pair' | 'paused-outcome-pair' | 'profit-loss-reported' | 'early-exit' | 'split-outcome-tokens';
   market: string; // market info for outcome-related activities, blank for deposits/withdrawals
   outcomeTokensAmount: string; // amount for outcome token activities
-  usdCAmount: string; // USDC amount for deposits/withdrawals and profit-loss activities
+  USDTAmount: string; // USDT amount for deposits/withdrawals and profit-loss activities
   user: string; // blank for outcome-related activities (not available in subgraph)
   transactionHash: string;
   timestamp: number;
