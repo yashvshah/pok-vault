@@ -9,7 +9,6 @@ import { useEarlyExits } from './activities/useEarlyExits';
 import { useSplitOutcomeTokens } from './activities/useSplitOutcomeTokens';
 import { useMarketInfos } from './useMarketInfos';
 import type { VaultActivity, SubgraphDeposit, SubgraphWithdrawal, SubgraphNewOppositeOutcomeTokenPairAdded, SubgraphOppositeOutcomeTokenPairRemoved, SubgraphOppositeOutcomeTokenPairPaused, SubgraphProfitOrLossReported, SubgraphEarlyExit, SubgraphSplitOppositeOutcomeTokens } from '../types/vault';
-import type { PolymarketMarket } from '../services/polymarket';
 import { formatUnits } from 'viem';
 
 export function useVaultActivities(limit = 100) {
@@ -22,65 +21,73 @@ export function useVaultActivities(limit = 100) {
   const { data: earlyExits = [], isLoading: earlyExitsLoading, error: earlyExitsError } = useEarlyExits(limit);
   const { data: splitOutcomeTokens = [], isLoading: splitOutcomeTokensLoading, error: splitOutcomeTokensError } = useSplitOutcomeTokens(limit);
 
-  const POLYGON_ERC1155_ADDRESS = '0x4d97dcd97ec945f40cf65f87097ace5ea0476045';
   const USDT_DECIMALS = 18 as const;
 
-  // Get all unique outcome IDs from all outcome-related events
-  const outcomeIds = useMemo(() => {
-    const ids = new Set<string>();
+  // Get all unique outcome IDs with their token addresses from all outcome-related events
+  const marketInfoInputs = useMemo(() => {
+    const inputMap = new Map<string, { outcomeId: string; tokenAddress: string }>();
+    
+    // Helper to add to map with unique key
+    const addInput = (outcomeId: string, tokenAddress: string) => {
+      const key = `${tokenAddress}-${outcomeId}`;
+      if (!inputMap.has(key)) {
+        inputMap.set(key, { outcomeId, tokenAddress });
+      }
+    };
     
     // New outcome pairs
     newOutcomePairs.forEach((pair) => {
-      if (pair.outcomeIdA && pair.outcomeTokenA.toLowerCase() === POLYGON_ERC1155_ADDRESS.toLowerCase()) ids.add(pair.outcomeIdA);
-      if (pair.outcomeIdB && pair.outcomeTokenB.toLowerCase() === POLYGON_ERC1155_ADDRESS.toLowerCase()) ids.add(pair.outcomeIdB);
+      if (pair.outcomeIdA) addInput(pair.outcomeIdA, pair.outcomeTokenA);
+      if (pair.outcomeIdB) addInput(pair.outcomeIdB, pair.outcomeTokenB);
     });
     
     // Removed outcome pairs
     removedOutcomePairs.forEach((pair) => {
-      if (pair.outcomeIdA && pair.outcomeTokenA.toLowerCase() === POLYGON_ERC1155_ADDRESS.toLowerCase()) ids.add(pair.outcomeIdA);
-      if (pair.outcomeIdB && pair.outcomeTokenB.toLowerCase() === POLYGON_ERC1155_ADDRESS.toLowerCase()) ids.add(pair.outcomeIdB);
+      if (pair.outcomeIdA) addInput(pair.outcomeIdA, pair.outcomeTokenA);
+      if (pair.outcomeIdB) addInput(pair.outcomeIdB, pair.outcomeTokenB);
     });
     
     // Paused outcome pairs
     pausedOutcomePairs.forEach((pair) => {
-      if (pair.outcomeIdA && pair.outcomeTokenA.toLowerCase() === POLYGON_ERC1155_ADDRESS.toLowerCase()) ids.add(pair.outcomeIdA);
-      if (pair.outcomeIdB && pair.outcomeTokenB.toLowerCase() === POLYGON_ERC1155_ADDRESS.toLowerCase()) ids.add(pair.outcomeIdB);
+      if (pair.outcomeIdA) addInput(pair.outcomeIdA, pair.outcomeTokenA);
+      if (pair.outcomeIdB) addInput(pair.outcomeIdB, pair.outcomeTokenB);
     });
     
     // Profit/Loss reported
     profitLossReported.forEach((event) => {
-      if (event.outcomeIdA && event.outcomeTokenA.toLowerCase() === POLYGON_ERC1155_ADDRESS.toLowerCase()) ids.add(event.outcomeIdA);
-      if (event.outcomeIdB && event.outcomeTokenB.toLowerCase() === POLYGON_ERC1155_ADDRESS.toLowerCase()) ids.add(event.outcomeIdB);
+      if (event.outcomeIdA) addInput(event.outcomeIdA, event.outcomeTokenA);
+      if (event.outcomeIdB) addInput(event.outcomeIdB, event.outcomeTokenB);
     });
     
     // Early exits
     earlyExits.forEach((event) => {
-      if (event.outcomeIdA && event.outcomeTokenA.toLowerCase() === POLYGON_ERC1155_ADDRESS.toLowerCase()) ids.add(event.outcomeIdA);
-      if (event.outcomeIdB && event.outcomeTokenB.toLowerCase() === POLYGON_ERC1155_ADDRESS.toLowerCase()) ids.add(event.outcomeIdB);
+      if (event.outcomeIdA) addInput(event.outcomeIdA, event.outcomeTokenA);
+      if (event.outcomeIdB) addInput(event.outcomeIdB, event.outcomeTokenB);
     });
     
     // Split outcome tokens
     splitOutcomeTokens.forEach((event) => {
-      if (event.outcomeIdA && event.outcomeTokenA.toLowerCase() === POLYGON_ERC1155_ADDRESS.toLowerCase()) ids.add(event.outcomeIdA);
-      if (event.outcomeIdB && event.outcomeTokenB.toLowerCase() === POLYGON_ERC1155_ADDRESS.toLowerCase()) ids.add(event.outcomeIdB);
+      if (event.outcomeIdA) addInput(event.outcomeIdA, event.outcomeTokenA);
+      if (event.outcomeIdB) addInput(event.outcomeIdB, event.outcomeTokenB);
     });
     
-    return Array.from(ids);
+    return Array.from(inputMap.values());
   }, [newOutcomePairs, removedOutcomePairs, pausedOutcomePairs, profitLossReported, earlyExits, splitOutcomeTokens]);
 
   // Fetch market info for all outcome IDs
-  const { data: marketInfos } = useMarketInfos(outcomeIds);
+  const { data: marketInfos } = useMarketInfos(marketInfoInputs);
 
-  // Create a map of outcome ID to market info for easy lookup
+  // Create a map of outcome ID + token address to market info for easy lookup
   const marketInfoMap = useMemo(() => {
-    const map = new Map<string, PolymarketMarket>();
-    outcomeIds.forEach((id, index) => {
+    const map = new Map<string, any>();
+    marketInfoInputs.forEach((input, index) => {
       if (marketInfos?.[index]) {
-        map.set(id, marketInfos[index]);
+        const key = `${input.tokenAddress}-${input.outcomeId}`;
+        map.set(key, marketInfos[index]);
       }
     });
     return map;
-  }, [outcomeIds, marketInfos]);
+  }, [marketInfoInputs, marketInfos]);
 
   const activities: VaultActivity[] = useMemo(() => {
     const depositActivities: VaultActivity[] = deposits.map((deposit: SubgraphDeposit) => ({
@@ -106,16 +113,23 @@ export function useVaultActivities(limit = 100) {
 
     const newOutcomePairActivities: VaultActivity[] = newOutcomePairs.map((pair: SubgraphNewOppositeOutcomeTokenPairAdded) => {
       // Get market info for both outcome tokens
-      const marketInfoA = marketInfoMap.get(pair.outcomeIdA);
-      const marketInfoB = marketInfoMap.get(pair.outcomeIdB);
+      const keyA = `${pair.outcomeTokenA}-${pair.outcomeIdA}`;
+      const keyB = `${pair.outcomeTokenB}-${pair.outcomeIdB}`;
+      const marketInfoA = marketInfoMap.get(keyA);
+      const marketInfoB = marketInfoMap.get(keyB);
 
-      let marketString = `Polymarket Token (ID: ${pair.outcomeIdA}) ↔️ Opinion Token (ID: ${pair.outcomeIdB})`;
+      console.log("marketInfoA:", marketInfoA); 
+      console.log("marketInfoB:", marketInfoB);
 
-      // If we have market info for either token, use it
-      if (marketInfoA?.question) {
-        marketString = `${marketInfoA.question}`;
+      let marketString = `Token A (ID: ${pair.outcomeIdA}) ↔️ Token B (ID: ${pair.outcomeIdB})`;
+
+      // Build market string with both platform info
+      if (marketInfoA?.question && marketInfoB?.question) {
+        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'}) ↔️ ${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+      } else if (marketInfoA?.question) {
+        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
       } else if (marketInfoB?.question) {
-        marketString = `${marketInfoB.question} `;
+        marketString = `${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
       }
 
       return {
@@ -131,15 +145,19 @@ export function useVaultActivities(limit = 100) {
     });
 
     const removedOutcomePairActivities: VaultActivity[] = removedOutcomePairs.map((pair: SubgraphOppositeOutcomeTokenPairRemoved) => {
-      const marketInfoA = marketInfoMap.get(pair.outcomeIdA);
-      const marketInfoB = marketInfoMap.get(pair.outcomeIdB);
+      const keyA = `${pair.outcomeTokenA}-${pair.outcomeIdA}`;
+      const keyB = `${pair.outcomeTokenB}-${pair.outcomeIdB}`;
+      const marketInfoA = marketInfoMap.get(keyA);
+      const marketInfoB = marketInfoMap.get(keyB);
 
-      let marketString = `Polymarket Token (ID: ${pair.outcomeIdA}) ↔️ Opinion Token (ID: ${pair.outcomeIdB})`;
+      let marketString = `Token A (ID: ${pair.outcomeIdA}) ↔️ Token B (ID: ${pair.outcomeIdB})`;
 
-      if (marketInfoA?.question) {
-        marketString = `${marketInfoA.question}`;
+      if (marketInfoA?.question && marketInfoB?.question) {
+        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'}) ↔️ ${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+      } else if (marketInfoA?.question) {
+        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
       } else if (marketInfoB?.question) {
-        marketString = `${marketInfoB.question} `;
+        marketString = `${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
       }
 
       return {
@@ -155,15 +173,19 @@ export function useVaultActivities(limit = 100) {
     });
 
     const pausedOutcomePairActivities: VaultActivity[] = pausedOutcomePairs.map((pair: SubgraphOppositeOutcomeTokenPairPaused) => {
-      const marketInfoA = marketInfoMap.get(pair.outcomeIdA);
-      const marketInfoB = marketInfoMap.get(pair.outcomeIdB);
+      const keyA = `${pair.outcomeTokenA}-${pair.outcomeIdA}`;
+      const keyB = `${pair.outcomeTokenB}-${pair.outcomeIdB}`;
+      const marketInfoA = marketInfoMap.get(keyA);
+      const marketInfoB = marketInfoMap.get(keyB);
 
-      let marketString = `Polymarket Token (ID: ${pair.outcomeIdA}) ↔️ Opinion Token (ID: ${pair.outcomeIdB})`;
+      let marketString = `Token A (ID: ${pair.outcomeIdA}) ↔️ Token B (ID: ${pair.outcomeIdB})`;
 
-      if (marketInfoA?.question) {
-        marketString = `${marketInfoA.question}`;
+      if (marketInfoA?.question && marketInfoB?.question) {
+        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'}) ↔️ ${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+      } else if (marketInfoA?.question) {
+        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
       } else if (marketInfoB?.question) {
-        marketString = `${marketInfoB.question} `;
+        marketString = `${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
       }
 
       return {
@@ -179,15 +201,19 @@ export function useVaultActivities(limit = 100) {
     });
 
     const profitLossReportedActivities: VaultActivity[] = profitLossReported.map((event: SubgraphProfitOrLossReported) => {
-      const marketInfoA = marketInfoMap.get(event.outcomeIdA);
-      const marketInfoB = marketInfoMap.get(event.outcomeIdB);
+      const keyA = `${event.outcomeTokenA}-${event.outcomeIdA}`;
+      const keyB = `${event.outcomeTokenB}-${event.outcomeIdB}`;
+      const marketInfoA = marketInfoMap.get(keyA);
+      const marketInfoB = marketInfoMap.get(keyB);
 
-      let marketString = `Polymarket Token (ID: ${event.outcomeIdA}) ↔️ Opinion Token (ID: ${event.outcomeIdB})`;
+      let marketString = `Token A (ID: ${event.outcomeIdA}) ↔️ Token B (ID: ${event.outcomeIdB})`;
 
-      if (marketInfoA?.question) {
-        marketString = `${marketInfoA.question}`;
+      if (marketInfoA?.question && marketInfoB?.question) {
+        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'}) ↔️ ${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+      } else if (marketInfoA?.question) {
+        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
       } else if (marketInfoB?.question) {
-        marketString = `${marketInfoB.question} `;
+        marketString = `${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
       }
 
       return {
@@ -203,15 +229,19 @@ export function useVaultActivities(limit = 100) {
     });
 
     const earlyExitActivities: VaultActivity[] = earlyExits.map((event: SubgraphEarlyExit) => {
-      const marketInfoA = marketInfoMap.get(event.outcomeIdA);
-      const marketInfoB = marketInfoMap.get(event.outcomeIdB);
+      const keyA = `${event.outcomeTokenA}-${event.outcomeIdA}`;
+      const keyB = `${event.outcomeTokenB}-${event.outcomeIdB}`;
+      const marketInfoA = marketInfoMap.get(keyA);
+      const marketInfoB = marketInfoMap.get(keyB);
 
-      let marketString = `Polymarket Token (ID: ${event.outcomeIdA}) ↔️ Opinion Token (ID: ${event.outcomeIdB})`;
+      let marketString = `Token A (ID: ${event.outcomeIdA}) ↔️ Token B (ID: ${event.outcomeIdB})`;
 
-      if (marketInfoA?.question) {
-        marketString = `${marketInfoA.question}`;
+      if (marketInfoA?.question && marketInfoB?.question) {
+        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'}) ↔️ ${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+      } else if (marketInfoA?.question) {
+        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
       } else if (marketInfoB?.question) {
-        marketString = `${marketInfoB.question} `;
+        marketString = `${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
       }
 
       return {
@@ -227,15 +257,19 @@ export function useVaultActivities(limit = 100) {
     });
 
     const splitOutcomeTokensActivities: VaultActivity[] = splitOutcomeTokens.map((event: SubgraphSplitOppositeOutcomeTokens) => {
-      const marketInfoA = marketInfoMap.get(event.outcomeIdA);
-      const marketInfoB = marketInfoMap.get(event.outcomeIdB);
+      const keyA = `${event.outcomeTokenA}-${event.outcomeIdA}`;
+      const keyB = `${event.outcomeTokenB}-${event.outcomeIdB}`;
+      const marketInfoA = marketInfoMap.get(keyA);
+      const marketInfoB = marketInfoMap.get(keyB);
 
-      let marketString = `Polymarket Token (ID: ${event.outcomeIdA}) ↔️ Opinion Token (ID: ${event.outcomeIdB})`;
+      let marketString = `Token A (ID: ${event.outcomeIdA}) ↔️ Token B (ID: ${event.outcomeIdB})`;
 
-      if (marketInfoA?.question) {
-        marketString = `${marketInfoA.question}`;
+      if (marketInfoA?.question && marketInfoB?.question) {
+        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'}) ↔️ ${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+      } else if (marketInfoA?.question) {
+        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
       } else if (marketInfoB?.question) {
-        marketString = `${marketInfoB.question} `;
+        marketString = `${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
       }
 
       return {

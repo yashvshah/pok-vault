@@ -1,4 +1,6 @@
 // Service for fetching market information from Polymarket API
+import { MIDDLEWARE_BASE_URL } from '../config/addresses';
+
 export interface PolymarketMarket {
   question: string;
   slug: string;
@@ -13,12 +15,10 @@ export interface PolymarketMarket {
 }
 
 class PolymarketService {
-  private baseUrl = `https://pokvault-middleware-server.vercel.app/api/polymarket`;
-
   async getMarketByConditionId(conditionId: string): Promise<PolymarketMarket | null> {
     try {
       // Get markets by condition ID (include closed markets)
-      const marketsUrl = `${this.baseUrl}/markets?condition_ids=${encodeURIComponent(conditionId)}`;
+      const marketsUrl = `${MIDDLEWARE_BASE_URL}/polymarket/markets?condition_ids=${encodeURIComponent(conditionId)}`;
       const marketsResponse = await fetch(marketsUrl);
       console.log('Fetched markets response for condition ID', conditionId, marketsResponse);
 

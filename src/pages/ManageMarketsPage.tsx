@@ -4,15 +4,16 @@ import { keccak256, encodePacked, isAddress } from "viem";
 import EarlyExitVaultABI from "../abi/EarlyExitVault.json";
 import EarlyExitAmountBasedOnFixedAPYABI from "../abi/EarlyExitAmountBasedOnFixedAPY.json";
 import EarlyExitAmountFactoryBasedOnFixedAPYABI from "../abi/EarlyExitAmountFactoryBasedOnFixedAPYABI.json";
-
-const VAULT_ADDRESS = "0x5a791CCAB49931861056365eBC072653F3FA0ba0" as const;
-const POLYGON_ERC1155_BRIDGED_BSCADDRESS = "0xB42D95Bd05713eD14369fC1a1e4fAF107b27c464" as const;
-const OPINION_ERC1155_ADDRESS = "0xAD1a38cEc043e70E83a3eC30443dB285ED10D774" as const;
-const EARLY_EXIT_FACTORY_ADDRESS = "0xe78d1d9f5b9daaccf6197a279698bb1e62dd2471" as const; // Replace with actual factory address
-
-// Default decimals for each platform
-const POLYMARKET_DECIMALS = 6;
-const OPINION_DECIMALS = 18;
+import { opinionService } from "../services/opinion";
+import {
+  VAULT_ADDRESS,
+  EARLY_EXIT_FACTORY_ADDRESS,
+  POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
+  OPINION_ERC1155_ADDRESS,
+  POLYMARKET_DECIMALS,
+  OPINION_DECIMALS,
+  MIDDLEWARE_BASE_URL,
+} from "../config/addresses";
 
 interface OppositeOutcomeTokensInfo {
   isAllowed: boolean;
@@ -137,7 +138,7 @@ const ManageMarketsPage: FunctionComponent = () => {
   const yesPolyNoOpinionHash = fetchedMarket?.polymarketInfo?.yesTokenId && fetchedMarket?.opinionInfo?.noTokenId
     ? (() => {
         const [[addr1, id1], [addr2, id2]] = getSortedTokenPair(
-          POLYGON_ERC1155_BRIDGED_BSCADDRESS,
+          POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
           fetchedMarket.polymarketInfo.yesTokenId,
           OPINION_ERC1155_ADDRESS,
           fetchedMarket.opinionInfo.noTokenId
@@ -155,7 +156,7 @@ const ManageMarketsPage: FunctionComponent = () => {
   const noPolyYesOpinionHash = fetchedMarket?.polymarketInfo?.noTokenId && fetchedMarket?.opinionInfo?.yesTokenId
     ? (() => {
         const [[addr1, id1], [addr2, id2]] = getSortedTokenPair(
-          POLYGON_ERC1155_BRIDGED_BSCADDRESS,
+          POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
           fetchedMarket.polymarketInfo.noTokenId,
           OPINION_ERC1155_ADDRESS,
           fetchedMarket.opinionInfo.yesTokenId
@@ -193,7 +194,7 @@ const ManageMarketsPage: FunctionComponent = () => {
 
   const fetchPolymarketInfo = async (slug: string) => {
     try {
-      const response = await fetch(`https://pokvault-middleware-server.vercel.app/api/polymarket/markets/slug/${slug}`);
+      const response = await fetch(`${MIDDLEWARE_BASE_URL}/polymarket/markets/slug/${slug}`);
       
       if (!response.ok) {
         throw new Error(`Polymarket API error: ${response.status}`);
@@ -220,35 +221,17 @@ const ManageMarketsPage: FunctionComponent = () => {
 
   const fetchOpinionInfo = async (marketId: string) => {
     try {
-      const apiKey = import.meta.env.VITE_OPINION_API_KEY;
+      const opinionData = await opinionService.getMarketById(marketId);
       
-      if (!apiKey) {
-        throw new Error("OPINION_API_KEY not found in environment variables");
+      if (!opinionData) {
+        throw new Error("Failed to fetch Opinion market data");
       }
-
-      const response = await fetch(`https://pokvault-middleware-server.vercel.app/api/opinion/market/${marketId}`, {
-        headers: {
-          'apikey': apiKey,
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Opinion API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.errno !== 0) {
-        throw new Error(`Opinion API returned error: ${data.errmsg}`);
-      }
-
-      const marketData = data.result.data;
 
       return {
-        question: marketData.marketTitle,
-        yesTokenId: marketData.yesTokenId,
-        noTokenId: marketData.noTokenId,
-        thumbnailUrl: marketData.thumbnailUrl,
+        question: opinionData.marketTitle,
+        yesTokenId: opinionData.yesTokenId,
+        noTokenId: opinionData.noTokenId,
+        thumbnailUrl: opinionData.thumbnailUrl,
       };
     } catch (error) {
       console.error("Error fetching Opinion info:", error);
@@ -305,15 +288,15 @@ const ManageMarketsPage: FunctionComponent = () => {
     if (!fetchedMarket || !earlyExitContractAddress) return;
     
     const [[addr1, id1], [addr2, id2]] = getSortedTokenPair(
-      POLYGON_ERC1155_BRIDGED_BSCADDRESS,
+      POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
       fetchedMarket.polymarketInfo!.yesTokenId,
       OPINION_ERC1155_ADDRESS,
       fetchedMarket.opinionInfo!.noTokenId
     );
 
     // Determine decimals based on which token is first after sorting
-    const decimals1 = addr1.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSCADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
-    const decimals2 = addr2.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSCADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
+    const decimals1 = addr1.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
+    const decimals2 = addr2.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
 
     writeContract({
       address: VAULT_ADDRESS,
@@ -335,15 +318,15 @@ const ManageMarketsPage: FunctionComponent = () => {
     if (!fetchedMarket || !earlyExitContractAddress) return;
     
     const [[addr1, id1], [addr2, id2]] = getSortedTokenPair(
-      POLYGON_ERC1155_BRIDGED_BSCADDRESS,
+      POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
       fetchedMarket.polymarketInfo!.noTokenId,
       OPINION_ERC1155_ADDRESS,
       fetchedMarket.opinionInfo!.yesTokenId
     );
 
     // Determine decimals based on which token is first after sorting
-    const decimals1 = addr1.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSCADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
-    const decimals2 = addr2.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSCADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
+    const decimals1 = addr1.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
+    const decimals2 = addr2.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
 
     writeContract({
       address: VAULT_ADDRESS,
