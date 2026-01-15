@@ -15,7 +15,7 @@ import {
 import { erc20Abi, erc4626Abi, formatUnits, parseUnits } from "viem";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { bsc, polygon } from "viem/chains";
-// import { useAPY } from "../hooks/useAPY";
+import { useAPY } from "../hooks/useAPY";
 import earlyExitValutABI from "../abi/EarlyExitVault.json";
 
 const VaultPage = () => {
@@ -30,7 +30,7 @@ const VaultPage = () => {
   const USDT_DECIMALS = 18 as const;
 
   // Contract addresses
-  const VAULT_ADDRESS = "0x69362094D0C2D8Be0818c0006e09B82c5CA59Af9" as const;
+  const VAULT_ADDRESS = "0x5a791CCAB49931861056365eBC072653F3FA0ba0" as const;
   const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955" as const;
 
   // USDT balance
@@ -127,7 +127,7 @@ const VaultPage = () => {
     hash: withdrawHash,
   });
 
-  // const apy = useAPY();
+  const apy = useAPY();
 
   useEffect(() => {
    if(isDepositSuccess) {
@@ -336,7 +336,7 @@ const VaultPage = () => {
               </div>
               <div>
                 <p className="text-secondry">APY</p>
-                <p className="text-xl">{5}%</p>
+                <p className="text-xl">{apy}%</p>
               </div>
             </div>
             <div className="px-6 border-l border-primary/50 flex items-center gap-4">
