@@ -1,0 +1,76 @@
+[
+    {
+      "type": "constructor",
+      "inputs": [
+        {
+          "name": "_marketExpiryTime",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "_expectedApy",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "fixedTimeAfterExpiry",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "BASIS_POINTS",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "EXPECTED_APY",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "FIXED_TIME_AFTER_EXPIRY",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "MARKET_EXPIRY_TIME",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "SECONDS_IN_YEAR",
+      "inputs": [],
+      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "getEarlyExitAmount",
+      "inputs": [
+        { "name": "", "type": "address", "internalType": "contract IERC1155" },
+        { "name": "", "type": "uint256", "internalType": "uint256" },
+        { "name": "", "type": "address", "internalType": "contract IERC1155" },
+        { "name": "", "type": "uint256", "internalType": "uint256" },
+        { "name": "amount", "type": "uint256", "internalType": "uint256" },
+        {
+          "name": "",
+          "type": "uint8",
+          "internalType": "enum IGetEarlyExitAmount.ActionType"
+        }
+      ],
+      "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+      "stateMutability": "view"
+    }
+  ]
