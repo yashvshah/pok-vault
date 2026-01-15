@@ -1,6 +1,7 @@
 // Contract addresses
 export const VAULT_ADDRESS = "0x5a791CCAB49931861056365eBC072653F3FA0ba0" as const;
 export const EARLY_EXIT_FACTORY_ADDRESS = "0xe78d1d9f5b9daaccf6197a279698bb1e62dd2471" as const;
+export const VAULT_OWNER_ADDRESS = "0x8A7f538B6f6Bdab69edD0E311aeDa9214bC5384A" as const;
 
 // ERC1155 Token addresses
 export const POLYGON_ERC1155_BRIDGED_BSC_ADDRESS = "0xB42D95Bd05713eD14369fC1a1e4fAF107b27c464" as const;
