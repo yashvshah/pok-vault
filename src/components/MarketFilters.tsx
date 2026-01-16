@@ -2,7 +2,7 @@ import { useState } from "react";
 
 /* ================= TYPES ================= */
 
-export type MarketStatus = "All" | "Allowed" | "Paused" | "Expired";
+export type MarketStatus = "All" | "Allowed" | "Paused" | "Removed";
 
 export interface MarketFilterState {
   search: string;
@@ -25,7 +25,7 @@ export default function MarketFilters({
 }: MarketFiltersProps) {
   const [filters, setFilters] = useState<MarketFilterState>({
     search: "",
-    status: "All",
+    status: "Allowed",
     markets: availableMarkets.slice(0, minMarkets),
   });
 
@@ -34,21 +34,6 @@ export default function MarketFilters({
     setFilters(updated);
     onChange(updated);
   };
-
-//   const toggleMarket = (market: string) => {
-//     const isActive = filters.markets.includes(market);
-
-//     if (isActive) {
-//       if (filters.markets.length <= minMarkets) return;
-//       updateFilters({
-//         markets: filters.markets.filter((m) => m !== market),
-//       });
-//     } else {
-//       updateFilters({
-//         markets: [...filters.markets, market],
-//       });
-//     }
-//   };
 
   return (
     <div className="flex flex-wrap gap-3 my-5">
@@ -74,37 +59,8 @@ export default function MarketFilters({
         <option value="All">All Status</option>
         <option value="Allowed">Allowed</option>
         <option value="Paused">Paused</option>
-        <option value="Expired">Expired</option>
+        <option value="Removed">Expired/Removed</option>
       </select>
-
-      {/* ================= MARKET FILTER ================= */}
-      {/* <div className="flex flex-wrap items-center gap-2 rounded-xl bg-black/40 px-3 py-2 ring-1 ring-white/10">
-        <span className="text-xs text-white/50">Markets</span>
-
-        {(availableMarkets ?? []).map((market) => {
-          const active = filters.markets.includes(market);
-          const locked = active && filters.markets.length <= minMarkets;
-
-          return (
-            <button
-              key={market}
-              onClick={() => toggleMarket(market)}
-              disabled={locked}
-              className={`
-                rounded-lg px-3 py-1 text-xs transition
-                ${
-                  active
-                    ? "bg-primary/20 text-primary"
-                    : "bg-white/5 text-white/50 hover:bg-white/10"
-                }
-                ${locked ? "opacity-50 cursor-not-allowed" : ""}
-              `}
-            >
-              {market}
-            </button>
-          );
-        })}
-      </div> */}
     </div>
   );
 }

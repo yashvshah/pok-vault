@@ -134,7 +134,7 @@ export default function MarketCard({
         {actionsOpen && actionTabs && (
           <div className="border-t border-white/10 px-5 py-5">
             <TabsComponent
-              tabs={[{ label: "Merge & Exit" }, { label: "Split & Acquire" }]}
+              tabs={actionTabs.map(tab => ({ label: tab.label }))}
               initialIndex={0}
               xClassName="px-4 py-2 text-sm w-full"
             >

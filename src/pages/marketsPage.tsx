@@ -1,5 +1,5 @@
 import { useState, type FunctionComponent } from "react";
-import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance, useWriteContract } from "wagmi";
 import { polygon, bsc } from "wagmi/chains";
 import { parseUnits, erc1155Abi, formatUnits, encodeAbiParameters } from "viem";
 import type { Address } from "viem";
@@ -15,6 +15,7 @@ import MarketFilters, { type MarketFilterState } from "../components/MarketFilte
 import { useSupportedMarkets, type MarketStatus, type SupportedMarket } from "../hooks/useSupportedMarkets";
 
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface MarketsPageProps {}
 
 
@@ -375,14 +376,201 @@ function PairSplitAction({ pair, idx, amount, onInputChange }: { pair: Supported
   );
 }
 
+function OwnerActionsForPair({ pair, idx }: { pair: SupportedMarket["pairs"][number]; idx: number }) {
+  const { address } = useAccount();
+  const currentChainId = useChainId();
+  const { switchChain } = useSwitchChain();
+  const { writeContract } = useWriteContract();
+  
+  const [profitLossAmount, setProfitLossAmount] = useState('0');
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [isStartingRedeem, setIsStartingRedeem] = useState(false);
+  const [isReportingProfit, setIsReportingProfit] = useState(false);
+  const [isReportingAndRemoving, setIsReportingAndRemoving] = useState(false);
+
+  const idA = BigInt(pair.outcomeIdA);
+  const idB = BigInt(pair.outcomeIdB);
+  
+  const isPolyA = pair.outcomeTokenA.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase();
+  const tokenAName = isPolyA ? "Polymarket (Bridged)" : "Opinion";
+  const tokenBName = !isPolyA ? "Polymarket (Bridged)" : "Opinion";
+
+  const onRemovePair = async () => {
+    if (!address || currentChainId !== bsc.id) {
+      switchChain({ chainId: bsc.id });
+      return;
+    }
+    setIsRemoving(true);
+    try {
+      await writeContract({
+        abi: EarlyExitVaultAbi,
+        address: VAULT_ADDRESS,
+        functionName: 'removeAllowedOppositeOutcomeTokens',
+        args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB],
+        chainId: bsc.id,
+      });
+    } catch (error) {
+      console.error('Failed to remove pair:', error);
+    } finally {
+      setIsRemoving(false);
+    }
+  };
+
+  const onStartRedeem = async () => {
+    if (!address || currentChainId !== bsc.id) {
+      switchChain({ chainId: bsc.id });
+      return;
+    }
+    setIsStartingRedeem(true);
+    try {
+      await writeContract({
+        abi: EarlyExitVaultAbi,
+        address: VAULT_ADDRESS,
+        functionName: 'startRedeemProcess',
+        args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB],
+        chainId: bsc.id,
+      });
+    } catch (error) {
+      console.error('Failed to start redeem:', error);
+    } finally {
+      setIsStartingRedeem(false);
+    }
+  };
+
+  const onReportProfitOrLoss = async () => {
+    if (!address || currentChainId !== bsc.id) {
+      switchChain({ chainId: bsc.id });
+      return;
+    }
+    const amount = parseUnits(profitLossAmount || '0', 18);
+    if (amount === 0n) return;
+    
+    setIsReportingProfit(true);
+    try {
+      await writeContract({
+        abi: EarlyExitVaultAbi,
+        address: VAULT_ADDRESS,
+        functionName: 'reportProfitOrLoss',
+        args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB, amount],
+        chainId: bsc.id,
+      });
+    } catch (error) {
+      console.error('Failed to report profit/loss:', error);
+    } finally {
+      setIsReportingProfit(false);
+    }
+  };
+
+  const onReportProfitOrLossAndRemove = async () => {
+    if (!address || currentChainId !== bsc.id) {
+      switchChain({ chainId: bsc.id });
+      return;
+    }
+    const amount = parseUnits(profitLossAmount || '0', 18);
+    // if (amount === 0n) return;
+    
+    setIsReportingAndRemoving(true);
+    try {
+      await writeContract({
+        abi: EarlyExitVaultAbi,
+        address: VAULT_ADDRESS,
+        functionName: 'reportProfitOrLossAndRemovePair',
+        args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB, amount],
+        chainId: bsc.id,
+      });
+    } catch (error) {
+      console.error('Failed to report and remove:', error);
+    } finally {
+      setIsReportingAndRemoving(false);
+    }
+  };
+
+  const needsChainSwitch = currentChainId !== bsc.id;
+
+  return (
+    <div className="border-b border-white/10 pb-4 last:border-0">
+      <div className="text-sm font-medium text-white/90 mb-3">
+        Owner Actions - Pair {idx + 1}: {tokenAName} + {tokenBName}
+      </div>
+      
+      <div className="space-y-3">
+        {/* Remove Pair */}
+        <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-3">
+          <div className="text-xs text-white/80 mb-2">Remove this outcome pair from vault</div>
+          <button
+            className="w-full rounded bg-red-500/20 px-3 py-2 border border-red-500/40 text-xs hover:bg-red-500/30 disabled:opacity-50"
+            onClick={onRemovePair}
+            disabled={isRemoving || pair.status === 'removed'}
+          >
+            {needsChainSwitch ? 'Switch to BSC to Remove' : isRemoving ? 'Removing...' : 'Remove Pair'}
+          </button>
+        </div>
+
+        {/* Start Redeem Process */}
+        <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-3">
+          <div className="text-xs text-white/80 mb-2">Start redemption process (after market expiry)</div>
+          <button
+            className="w-full rounded bg-blue-500/20 px-3 py-2 border border-blue-500/40 text-xs hover:bg-blue-500/30 disabled:opacity-50"
+            onClick={onStartRedeem}
+            disabled={isStartingRedeem || pair.status === 'removed'}
+          >
+            {needsChainSwitch ? 'Switch to BSC to Start' : isStartingRedeem ? 'Starting...' : 'Start Redeem Process'}
+          </button>
+        </div>
+
+        {/* Report Profit/Loss */}
+        <div className="rounded-lg bg-green-500/10 border border-green-500/30 p-3">
+          <div className="text-xs text-white/80 mb-2">Report profit or loss for this pair</div>
+          <div className="flex gap-2 mb-2">
+            <input
+              className="flex-1 rounded bg-black/40 px-3 py-2 text-white/80 border border-white/10 text-xs"
+              value={profitLossAmount}
+              onChange={(e) => setProfitLossAmount(e.target.value)}
+              placeholder="Amount (USDT)"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              className="flex-1 rounded bg-green-500/20 px-3 py-2 border border-green-500/40 text-xs hover:bg-green-500/30 disabled:opacity-50"
+              onClick={onReportProfitOrLoss}
+              disabled={isReportingProfit || !profitLossAmount || profitLossAmount === '0' || pair.status === 'removed'}
+            >
+              {needsChainSwitch ? 'Switch to BSC' : isReportingProfit ? 'Reporting...' : 'Report Profit/Loss'}
+            </button>
+            <button
+              className="flex-1 rounded bg-yellow-500/20 px-3 py-2 border border-yellow-500/40 text-xs hover:bg-yellow-500/30 disabled:opacity-50"
+              onClick={onReportProfitOrLossAndRemove}
+              disabled={isReportingAndRemoving || !profitLossAmount || pair.status === 'removed'}
+            >
+              {needsChainSwitch ? 'Switch to BSC' : isReportingAndRemoving ? 'Reporting & Removing...' : 'Report & Remove Pair'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   const [amount, setAmount] = useState("0.00");
   const [filters, setFilters] = useState<MarketFilterState>({
     search: "",
-    status: "All",
+    status: "Allowed",
     markets: ["Polymarket (Bridged)", "Opinion"],
   });
   const { data: markets = [], isLoading, error } = useSupportedMarkets();
+  const { address } = useAccount();
+
+  console.log("MarketsPage render - markets:", markets, "filters:", filters);
+
+  // Read owner from contract
+  const { data: ownerAddress } = useReadContract({
+    address: VAULT_ADDRESS,
+    abi: EarlyExitVaultAbi,
+    functionName: "owner",
+  }) as { data: string | undefined };
+
+  const isOwner = address && ownerAddress && address.toLowerCase() === ownerAddress.toLowerCase();
 
   // Apply filters to markets
   const filteredMarkets = markets.filter(market => {
@@ -419,7 +607,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
       case 'paused':
         return '⏸️ Paused';
       case 'removed':
-        return '🔴 Expired';
+        return '🔴 Expired/Removed';
       default:
         return status;
     }
@@ -481,6 +669,46 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
               market.opinionQuestion && { name: "Opinion", question: market.opinionQuestion },
             ].filter(Boolean) as { name: string; question: string }[];
 
+            const actionTabs = [
+              {
+                key: "merge",
+                label: "Merge & Exit",
+                content: (
+                  <div className="space-y-4">
+                    {market.pairs.map((pair, idx) => (
+                      <PairMergeAction key={pair.key} pair={pair} idx={idx} amount={amount} onInputChange={setAmount} />
+                    ))}
+                  </div>
+                ),
+              },
+              {
+                key: "split",
+                label: "Split & Acquire",
+                content: (
+                  <div className="space-y-4">
+                    {market.pairs.map((pair, idx) => (
+                      <PairSplitAction key={pair.key} pair={pair} idx={idx} amount={amount} onInputChange={setAmount} />
+                    ))}
+                  </div>
+                ),
+              },
+            ];
+
+            // Add owner actions tab if connected wallet is owner
+            if (isOwner) {
+              actionTabs.push({
+                key: "owner",
+                label: "Owner Actions",
+                content: (
+                  <div className="space-y-4">
+                    {market.pairs.map((pair, idx) => (
+                      <OwnerActionsForPair key={pair.key} pair={pair} idx={idx} />
+                    ))}
+                  </div>
+                ),
+              });
+            }
+
             return (
               <MarketCard
                 key={market.marketKey}
@@ -490,30 +718,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                 statusColor={getStatusColor(market.overallStatus)}
                 markets={marketPlatforms}
                 balances={<TokenBalances market={market} />}
-                actionTabs={[
-                  {
-                    key: "merge",
-                    label: "Merge & Exit",
-                    content: (
-                      <div className="space-y-4">
-                        {market.pairs.map((pair, idx) => (
-                          <PairMergeAction key={pair.key} pair={pair} idx={idx} amount={amount} onInputChange={setAmount} />
-                        ))}
-                      </div>
-                    ),
-                  },
-                  {
-                    key: "split",
-                    label: "Split & Acquire",
-                    content: (
-                      <div className="space-y-4">
-                        {market.pairs.map((pair, idx) => (
-                          <PairSplitAction key={pair.key} pair={pair} idx={idx} amount={amount} onInputChange={setAmount} />
-                        ))}
-                      </div>
-                    ),
-                  },
-                ]}
+                actionTabs={actionTabs}
               />
             );
           })}
