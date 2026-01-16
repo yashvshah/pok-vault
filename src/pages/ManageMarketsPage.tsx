@@ -114,6 +114,12 @@ const ManageMarketsPage: FunctionComponent = () => {
     return date.toLocaleString();
   };
 
+  const formatEarlyExitedAmount = (amount: bigint | undefined) => {
+    if (!amount) return "0";
+    const formatted = Number(amount) / 1e18;
+    return formatted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
+  };
+
   // Helper function to sort token pairs (lesser one first)
   const getSortedTokenPair = (
     tokenA: string,
@@ -171,7 +177,7 @@ const ManageMarketsPage: FunctionComponent = () => {
     : undefined;
 
   // Read contract data for YES Poly + NO Opinion
-  const { data: yesPolyNoOpinionInfo } = useReadContract({
+  const { data: yesPolyNoOpinionRawData } = useReadContract({
     address: VAULT_ADDRESS,
     abi: EarlyExitVaultABI,
     functionName: "allowedOppositeOutcomeTokensInfo",
@@ -179,10 +185,22 @@ const ManageMarketsPage: FunctionComponent = () => {
     query: {
       enabled: !!yesPolyNoOpinionHash,
     },
-  }) as { data: OppositeOutcomeTokensInfo | undefined };
+  }) as { data: readonly [boolean, boolean, number, number, string, bigint] | undefined };
+
+  // Map array response to structured object
+  const yesPolyNoOpinionInfo: OppositeOutcomeTokensInfo | undefined = yesPolyNoOpinionRawData
+    ? {
+        isAllowed: yesPolyNoOpinionRawData[0],
+        isPaused: yesPolyNoOpinionRawData[1],
+        decimalsA: yesPolyNoOpinionRawData[2],
+        decimalsB: yesPolyNoOpinionRawData[3],
+        earlyExitAmountContract: yesPolyNoOpinionRawData[4],
+        earlyExitedAmount: yesPolyNoOpinionRawData[5],
+      }
+    : undefined;
 
   // Read contract data for NO Poly + YES Opinion
-  const { data: noPolyYesOpinionInfo } = useReadContract({
+  const { data: noPolyYesOpinionRawData } = useReadContract({
     address: VAULT_ADDRESS,
     abi: EarlyExitVaultABI,
     functionName: "allowedOppositeOutcomeTokensInfo",
@@ -190,7 +208,19 @@ const ManageMarketsPage: FunctionComponent = () => {
     query: {
       enabled: !!noPolyYesOpinionHash,
     },
-  }) as { data: OppositeOutcomeTokensInfo | undefined };
+  }) as { data: readonly [boolean, boolean, number, number, string, bigint] | undefined };
+
+  // Map array response to structured object
+  const noPolyYesOpinionInfo: OppositeOutcomeTokensInfo | undefined = noPolyYesOpinionRawData
+    ? {
+        isAllowed: noPolyYesOpinionRawData[0],
+        isPaused: noPolyYesOpinionRawData[1],
+        decimalsA: noPolyYesOpinionRawData[2],
+        decimalsB: noPolyYesOpinionRawData[3],
+        earlyExitAmountContract: noPolyYesOpinionRawData[4],
+        earlyExitedAmount: noPolyYesOpinionRawData[5],
+      }
+    : undefined;
 
   const fetchPolymarketInfo = async (slug: string) => {
     try {
@@ -557,11 +587,10 @@ const ManageMarketsPage: FunctionComponent = () => {
                     {yesPolyNoOpinionInfo?.isAllowed && (
                       <div className="mt-3 p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-sm text-white/80 space-y-1">
                         <p className="text-green-400 font-medium mb-2">Pair Information:</p>
-                        <p>Status: {yesPolyNoOpinionInfo.isPaused ? "⏸️ Paused" : "✅ Active"}</p>
-                        <p>Decimals A: {yesPolyNoOpinionInfo.decimalsA}</p>
-                        <p>Decimals B: {yesPolyNoOpinionInfo.decimalsB}</p>
-                        <p className="font-mono break-all">Exit Contract: {yesPolyNoOpinionInfo.earlyExitAmountContract}</p>
-                        <p>Exited Amount: {yesPolyNoOpinionInfo.earlyExitedAmount.toString()}</p>
+                        <p><span className="text-white/60">Is Allowed:</span> {yesPolyNoOpinionInfo.isAllowed ? "✅ Yes" : "❌ No"}</p>
+                        <p><span className="text-white/60">Is Paused:</span> {yesPolyNoOpinionInfo.isPaused ? "⏸️ Yes" : "✅ No"}</p>
+                        <p><span className="text-white/60">Early Exited Amount:</span> {formatEarlyExitedAmount(yesPolyNoOpinionInfo.earlyExitedAmount)}</p>
+                        <p className="font-mono break-all text-xs"><span className="text-white/60">Exit Contract:</span> {yesPolyNoOpinionInfo.earlyExitAmountContract}</p>
                       </div>
                     )}
                   </div>
@@ -582,11 +611,10 @@ const ManageMarketsPage: FunctionComponent = () => {
                     {noPolyYesOpinionInfo?.isAllowed && (
                       <div className="mt-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-sm text-white/80 space-y-1">
                         <p className="text-blue-400 font-medium mb-2">Pair Information:</p>
-                        <p>Status: {noPolyYesOpinionInfo.isPaused ? "⏸️ Paused" : "✅ Active"}</p>
-                        <p>Decimals A: {noPolyYesOpinionInfo.decimalsA}</p>
-                        <p>Decimals B: {noPolyYesOpinionInfo.decimalsB}</p>
-                        <p className="font-mono break-all">Exit Contract: {noPolyYesOpinionInfo.earlyExitAmountContract}</p>
-                        <p>Exited Amount: {noPolyYesOpinionInfo.earlyExitedAmount.toString()}</p>
+                        <p><span className="text-white/60">Is Allowed:</span> {noPolyYesOpinionInfo.isAllowed ? "✅ Yes" : "❌ No"}</p>
+                        <p><span className="text-white/60">Is Paused:</span> {noPolyYesOpinionInfo.isPaused ? "⏸️ Yes" : "✅ No"}</p>
+                        <p><span className="text-white/60">Early Exited Amount:</span> {formatEarlyExitedAmount(noPolyYesOpinionInfo.earlyExitedAmount)}</p>
+                        <p className="font-mono break-all text-xs"><span className="text-white/60">Exit Contract:</span> {noPolyYesOpinionInfo.earlyExitAmountContract}</p>
                       </div>
                     )}
                   </div>
@@ -600,22 +628,20 @@ const ManageMarketsPage: FunctionComponent = () => {
                   {yesPolyNoOpinionInfo?.isAllowed && (
                     <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-sm text-white/80 space-y-1">
                       <p className="text-green-400 font-medium mb-2">YES Poly + NO Opinion - Pair Information:</p>
-                      <p>Status: {yesPolyNoOpinionInfo.isPaused ? "⏸️ Paused" : "✅ Active"}</p>
-                      <p>Decimals A: {yesPolyNoOpinionInfo.decimalsA}</p>
-                      <p>Decimals B: {yesPolyNoOpinionInfo.decimalsB}</p>
-                      <p className="font-mono break-all">Exit Contract: {yesPolyNoOpinionInfo.earlyExitAmountContract}</p>
-                      <p>Exited Amount: {yesPolyNoOpinionInfo.earlyExitedAmount.toString()}</p>
+                      <p><span className="text-white/60">Is Allowed:</span> {yesPolyNoOpinionInfo.isAllowed ? "✅ Yes" : "❌ No"}</p>
+                      <p><span className="text-white/60">Is Paused:</span> {yesPolyNoOpinionInfo.isPaused ? "⏸️ Yes" : "✅ No"}</p>
+                      <p><span className="text-white/60">Early Exited Amount:</span> {formatEarlyExitedAmount(yesPolyNoOpinionInfo.earlyExitedAmount)}</p>
+                      <p className="font-mono break-all text-xs"><span className="text-white/60">Exit Contract:</span> {yesPolyNoOpinionInfo.earlyExitAmountContract}</p>
                     </div>
                   )}
                   
                   {noPolyYesOpinionInfo?.isAllowed && (
                     <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-sm text-white/80 space-y-1">
                       <p className="text-blue-400 font-medium mb-2">NO Poly + YES Opinion - Pair Information:</p>
-                      <p>Status: {noPolyYesOpinionInfo.isPaused ? "⏸️ Paused" : "✅ Active"}</p>
-                      <p>Decimals A: {noPolyYesOpinionInfo.decimalsA}</p>
-                      <p>Decimals B: {noPolyYesOpinionInfo.decimalsB}</p>
-                      <p className="font-mono break-all">Exit Contract: {noPolyYesOpinionInfo.earlyExitAmountContract}</p>
-                      <p>Exited Amount: {noPolyYesOpinionInfo.earlyExitedAmount.toString()}</p>
+                      <p><span className="text-white/60">Is Allowed:</span> {noPolyYesOpinionInfo.isAllowed ? "✅ Yes" : "❌ No"}</p>
+                      <p><span className="text-white/60">Is Paused:</span> {noPolyYesOpinionInfo.isPaused ? "⏸️ Yes" : "✅ No"}</p>
+                      <p><span className="text-white/60">Early Exited Amount:</span> {formatEarlyExitedAmount(noPolyYesOpinionInfo.earlyExitedAmount)}</p>
+                      <p className="font-mono break-all text-xs"><span className="text-white/60">Exit Contract:</span> {noPolyYesOpinionInfo.earlyExitAmountContract}</p>
                     </div>
                   )}
                 </div>

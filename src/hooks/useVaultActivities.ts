@@ -118,9 +118,6 @@ export function useVaultActivities(limit = 100) {
       const marketInfoA = marketInfoMap.get(keyA);
       const marketInfoB = marketInfoMap.get(keyB);
 
-      console.log("marketInfoA:", marketInfoA); 
-      console.log("marketInfoB:", marketInfoB);
-
       let marketString = `Token A (ID: ${pair.outcomeIdA}) ↔️ Token B (ID: ${pair.outcomeIdB})`;
 
       // Build market string with both platform info

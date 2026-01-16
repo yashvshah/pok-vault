@@ -44,8 +44,6 @@ class PolymarketService {
       // Import contract service dynamically to avoid circular dependencies
       const { ctfExchangeService } = await import('./ctfExchange');
 
-      console.log('Fetching market info for outcome token:', outcomeTokenId);
-
       // Get condition ID from the outcome token
       const conditionId = await ctfExchangeService.getConditionId(outcomeTokenId);
 
