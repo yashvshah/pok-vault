@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import type { Address } from "viem";
 import { polygon, bsc } from "wagmi/chains";
-import { deriveSafeAddress, checkSafeExists } from "../utils/safe";
+import { deriveSafeAddress, checkSafeExists, fetchSafesFromAPI, getSafeCreationInfo } from "../utils/safe";
+import { OPINION_SAFE_FACTORY_ADDRESS } from "../config/safe";
 
 interface SafeAddressesState {
   polymarketSafe: Address | null;
@@ -18,6 +19,9 @@ interface SafeAddressesActions {
 
 /**
  * Hook to derive and manage Gnosis Safe addresses for both Polymarket (Polygon) and Opinion (BSC)
+ * 
+ * - Polymarket (Polygon): Uses deriveSafe with known factory
+ * - Opinion (BSC): Fetches from API and validates factory
  */
 export function useSafeAddresses(
   eoaAddress?: Address
@@ -41,20 +45,46 @@ export function useSafeAddresses(
 
     const detectSafes = async () => {
       try {
-        console.log("Detecting safes for EOA:", eoaAddress);
-        // Derive safe addresses (same factory for both chains)
-        const safeAddress = deriveSafeAddress(eoaAddress);
-        console.log("Derived safe address:", safeAddress);
+        // POLYGON (Polymarket): Use deriveSafe with known factory
+        const pmSafeAddress = deriveSafeAddress(eoaAddress);
+        const pmExists = await checkSafeExists(pmSafeAddress, polygon.id);
+        setPolymarketSafe(pmExists ? pmSafeAddress : null);
 
-        // Check if safes exist on-chain
-        const [pmExists, opExists] = await Promise.all([
-          checkSafeExists(safeAddress, polygon.id),
-          checkSafeExists(safeAddress, bsc.id),
-        ]);
-
-        // Only set safe if it exists
-        setPolymarketSafe(pmExists ? safeAddress : null);
-        setOpinionSafe(opExists ? safeAddress : null);
+        // BSC (Opinion): Fetch from Safe Transaction Service API
+        const bscSafes = await fetchSafesFromAPI(eoaAddress, bsc.id);
+        
+        if (bscSafes.length > 0) {
+          console.log(`Found ${bscSafes.length} Safe(s) on BSC for ${eoaAddress}`);
+          
+          // Find the safe created with Opinion factory
+          let opinionSafeAddress: Address | null = null;
+          
+          for (const safe of bscSafes) {
+            const creationInfo = await getSafeCreationInfo(safe, bsc.id);
+            
+            console.log(`Safe ${safe} created by factory:`, creationInfo.factoryAddress);
+            
+            if (
+              creationInfo.factoryAddress &&
+              creationInfo.factoryAddress.toLowerCase() === OPINION_SAFE_FACTORY_ADDRESS.toLowerCase()
+            ) {
+              opinionSafeAddress = safe;
+              console.log(`✅ Found Opinion Safe: ${safe}`);
+              break; // Found the correct safe, stop looking
+            } else {
+              console.log(`❌ Safe ${safe} not created by Opinion factory, skipping`);
+            }
+          }
+          
+          setOpinionSafe(opinionSafeAddress);
+          
+          if (!opinionSafeAddress && bscSafes.length > 0) {
+            console.log(`⚠️ No safe created by Opinion factory (${OPINION_SAFE_FACTORY_ADDRESS}) found`);
+          }
+        } else {
+          console.log(`No safes found on BSC for ${eoaAddress}`);
+          setOpinionSafe(null);
+        }
       } catch (error) {
         console.error("Error detecting safes:", error);
         setPolymarketSafe(null);
