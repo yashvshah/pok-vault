@@ -16,13 +16,11 @@ class MarketInfoService {
     tokenAddress: string
   ): Promise<UnifiedMarketInfo | null> {
     try {
-      console.log("Fetching market info for outcomeTokenId:", outcomeTokenId, "with tokenAddress:", tokenAddress);
       const normalizedAddress = tokenAddress.toLowerCase();
 
       // Check if it's Polymarket (Polygon ERC1155)
       if (normalizedAddress === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase()) {
         const polymarketData = await polymarketService.getMarketInfoFromOutcomeToken(outcomeTokenId);
-        console.log("Polymarket data fetched:", polymarketData);
         
         if (polymarketData) {
           return {

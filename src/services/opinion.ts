@@ -29,7 +29,6 @@ class OpinionService {
       }
 
       const marketIdData = await marketIdResponse.json();
-      console.log('Fetched Opinion market ID data for outcome token', outcomeTokenId, marketIdData);
       const marketId = marketIdData?.marketId;
 
       if (!marketId) {

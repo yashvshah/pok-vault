@@ -20,7 +20,6 @@ class PolymarketService {
       // Get markets by condition ID (include closed markets)
       const marketsUrl = `${MIDDLEWARE_BASE_URL}/polymarket/markets?condition_ids=${encodeURIComponent(conditionId)}`;
       const marketsResponse = await fetch(marketsUrl);
-      console.log('Fetched markets response for condition ID', conditionId, marketsResponse);
 
       if (!marketsResponse.ok) {
         throw new Error(`Failed to fetch markets: ${marketsResponse.status}`);
