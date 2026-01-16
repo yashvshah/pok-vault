@@ -1,8 +1,10 @@
 import { useState, type FunctionComponent } from "react";
-import { useAccount, useWriteContract, useChainId, useSwitchChain } from "wagmi";
+import { useAccount, useWriteContract, useChainId, useSwitchChain, useReadContract, useBalance } from "wagmi";
 import { polygon, bsc } from "wagmi/chains";
 import { parseUnits, erc1155Abi, formatUnits } from "viem";
-import { POLYGON_ERC1155_POLYGON_ADDRESS, POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, OPINION_ERC1155_ADDRESS, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, POLYMARKET_DECIMALS } from "../config/addresses";
+import type { Address } from "viem";
+import EarlyExitVaultAbi from "../abi/EarlyExitVault.json";
+import { POLYGON_ERC1155_POLYGON_ADDRESS, POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, OPINION_ERC1155_ADDRESS, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, POLYMARKET_DECIMALS, VAULT_ADDRESS, OPINION_DECIMALS, USDT_ADDRESS } from "../config/addresses";
 import { useErc1155Balance } from "../hooks/useErc1155Balance";
 import MarketCard from "../components/MarketCard";
 import MarketActionCard from "../components/MarketActionCard";
@@ -51,7 +53,7 @@ function TokenBalances({ market }: { market: SupportedMarket }) {
     <div className="text-xs text-white/80 space-y-3 mt-2">
       <div className="grid grid-cols-2 gap-3">
         <BalanceItem
-          title="Polymarket YES (Polygon)"
+          title="Polymarket (Bridged) YES (Polygon)"
           balance={formatUnits(balPolyYes ?? 0n, POLYMARKET_DECIMALS).toString()}
           action={(
             <div className="flex gap-2">
@@ -63,7 +65,7 @@ function TokenBalances({ market }: { market: SupportedMarket }) {
           )}
         />
         <BalanceItem
-          title="Polymarket NO (Polygon)"
+          title="Polymarket (Bridged) NO (Polygon)"
           balance={formatUnits(balPolyNo ?? 0n, POLYMARKET_DECIMALS).toString()}
           action={(
             <div className="flex gap-2">
@@ -74,8 +76,8 @@ function TokenBalances({ market }: { market: SupportedMarket }) {
             </div>
           )}
         />
-        <BalanceItem title="Opinion YES (BSC)" balance={formatUnits(balOpinionYes ?? 0n, POLYMARKET_DECIMALS)} />
-        <BalanceItem title="Opinion NO (BSC)" balance={formatUnits(balOpinionNo ?? 0n, POLYMARKET_DECIMALS)} />
+        <BalanceItem title="Opinion YES (BSC)" balance={formatUnits(balOpinionYes ?? 0n, OPINION_DECIMALS)} />
+        <BalanceItem title="Opinion NO (BSC)" balance={formatUnits(balOpinionNo ?? 0n, OPINION_DECIMALS)} />
         <BalanceItem title="Bridged Poly YES (BSC)" balance={formatUnits(balBridgedYes ?? 0n, POLYMARKET_DECIMALS)} />
         <BalanceItem title="Bridged Poly NO (BSC)" balance={formatUnits(balBridgedNo ?? 0n, POLYMARKET_DECIMALS)} />
         <BalanceItem title="Poly YES Pending Bridge" balance={"—"} action={<button className="rounded bg-white/10 px-2 py-1 border border-white/20">Complete Bridge</button>} />
@@ -86,12 +88,141 @@ function TokenBalances({ market }: { market: SupportedMarket }) {
   );
 }
 
+function PairMergeAction({ pair, idx, amount, onInputChange }: { pair: SupportedMarket["pairs"][number]; idx: number; amount: string; onInputChange: (v: string) => void }) {
+  const { address } = useAccount();
+  const { writeContract } = useWriteContract();
+  const currentChainId = useChainId();
+  const { switchChain } = useSwitchChain();
+
+  const idA = BigInt(pair.outcomeIdA);
+  const idB = BigInt(pair.outcomeIdB);
+  const { data: balA } = useErc1155Balance({ tokenAddress: pair.outcomeTokenA as Address, tokenId: idA, chainId: bsc.id });
+  const { data: balB } = useErc1155Balance({ tokenAddress: pair.outcomeTokenB as Address, tokenId: idB, chainId: bsc.id });
+
+  const amountUsdt = parseUnits(amount || '0', 18);
+  const reqA = parseUnits(amount || '0', pair.decimalsA);
+  const reqB = parseUnits(amount || '0', pair.decimalsB);
+  const enough = (balA ?? 0n) >= reqA && (balB ?? 0n) >= reqB;
+
+  const { data: estimated } = useReadContract({
+    abi: EarlyExitVaultAbi,
+    address: VAULT_ADDRESS,
+    functionName: 'estimateEarlyExitAmount',
+    args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB, amountUsdt],
+    chainId: bsc.id,
+  });
+  const receiveAmount = estimated ? formatUnits(estimated as bigint, 18) : '0.00';
+
+  const onSubmit = async () => {
+    if (!address) return;
+    if (currentChainId !== bsc.id) {
+      switchChain({ chainId: bsc.id });
+      return;
+    }
+    if (!enough) return;
+    await writeContract({
+      abi: EarlyExitVaultAbi,
+      address: VAULT_ADDRESS,
+      functionName: 'earlyExit',
+      args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB, amountUsdt, address],
+      chainId: bsc.id,
+    });
+  };
+
+  const isPolyA = pair.outcomeTokenA.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase();
+  const tokenAName = isPolyA ? "Polymarket (Bridged)" : "Opinion";
+  const tokenBName = !isPolyA ? "Polymarket (Bridged)" : "Opinion";
+
+  return (
+    <div className="border-b border-white/10 pb-4 last:border-0">
+      <MarketActionCard
+        title={`Pair ${idx + 1}: ${tokenAName} + ${tokenBName}`}
+        inputLabel="Amount to Merge"
+        inputValue={amount}
+        receiveItems={[{ amount: receiveAmount, token: 'USDT', highlight: 'primary' }]}
+        buttonLabel={!enough ? 'Insufficient balance to merge and exit' : currentChainId === bsc.id ? 'Merge & Exit' : 'Switch chain to merge and exit'}
+        disabled={pair.status !== 'allowed'}
+        buttonDisabled={!enough || pair.status !== 'allowed'}
+        disabledReason={pair.status === 'paused' ? 'Pair is paused' : pair.status === 'removed' ? 'Pair has been removed' : undefined}
+        onInputChange={onInputChange}
+        onSubmit={onSubmit}
+      />
+    </div>
+  );
+}
+
+function PairSplitAction({ pair, idx, amount, onInputChange }: { pair: SupportedMarket["pairs"][number]; idx: number; amount: string; onInputChange: (v: string) => void }) {
+  const { address } = useAccount();
+  const { writeContract } = useWriteContract();
+  const currentChainId = useChainId();
+  const { switchChain } = useSwitchChain();
+
+  const idA = BigInt(pair.outcomeIdA);
+  const idB = BigInt(pair.outcomeIdB);
+  const amountUsdt = parseUnits(amount || '0', 18);
+
+  const { data: usdtBal } = useBalance({ address, chainId: bsc.id, token: USDT_ADDRESS });
+  const enoughUsdt = (usdtBal?.value ?? 0n) >= amountUsdt;
+
+  const { data: estSplit } = useReadContract({
+    abi: EarlyExitVaultAbi,
+    address: VAULT_ADDRESS,
+    functionName: 'estimateSplitOppositeOutcomeTokensAmount',
+    args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB, amountUsdt],
+    chainId: bsc.id,
+  });
+
+  const onSubmit = async () => {
+    if (!address) return;
+    if (currentChainId !== bsc.id) {
+      switchChain({ chainId: bsc.id });
+      return;
+    }
+    if (!enoughUsdt) return;
+    await writeContract({
+      abi: EarlyExitVaultAbi,
+      address: VAULT_ADDRESS,
+      functionName: 'splitOppositeOutcomeTokens',
+      args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB, amountUsdt, address],
+      chainId: bsc.id,
+    });
+  };
+
+  const isPolyA = pair.outcomeTokenA.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase();
+  const tokenAName = isPolyA ? "Polymarket (Bridged)" : "Opinion";
+  const tokenBName = !isPolyA ? "Polymarket (Bridged)" : "Opinion";
+
+  const estSplitAmt: bigint = typeof estSplit === 'bigint' ? estSplit : 0n;
+  const tokenAmtA = formatUnits(estSplitAmt, pair.decimalsA);
+  const tokenAmtB = formatUnits(estSplitAmt, pair.decimalsB);
+
+  return (
+    <div className="border-b border-white/10 pb-4 last:border-0">
+      <MarketActionCard
+        title={`Pair ${idx + 1}: ${tokenAName} + ${tokenBName}`}
+        inputLabel="Amount to Split"
+        inputValue={amount}
+        receiveItems={[
+          { amount: tokenAmtA, token: `Token A (${pair.decimalsA} decimals)`, highlight: 'yellow' },
+          { amount: tokenAmtB, token: `Token B (${pair.decimalsB} decimals)`, highlight: 'yellow' },
+        ]}
+        buttonLabel={!enoughUsdt ? 'Insufficient USDT balance to split and acquire' : currentChainId === bsc.id ? 'Split & Acquire' : 'Switch chain to split'}
+        disabled={pair.status !== 'allowed'}
+        buttonDisabled={!enoughUsdt || pair.status !== 'allowed'}
+        disabledReason={pair.status === 'paused' ? 'Pair is paused' : pair.status === 'removed' ? 'Pair has been removed' : undefined}
+        onInputChange={onInputChange}
+        onSubmit={onSubmit}
+      />
+    </div>
+  );
+}
+
 const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   const [amount, setAmount] = useState("0.00");
   const [filters, setFilters] = useState<MarketFilterState>({
     search: "",
     status: "All",
-    markets: ["Polymarket", "Opinion"],
+    markets: ["Polymarket (Bridged)", "Opinion"],
   });
   const { data: markets = [], isLoading, error } = useSupportedMarkets();
 
@@ -181,14 +312,14 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
         </p>
 
         <MarketFilters
-          availableMarkets={["Polymarket", "Opinion"]}
+          availableMarkets={["Polymarket (Bridged)", "Opinion"]}
           onChange={(newFilters) => setFilters(newFilters)}
         />
 
         <div className="grid grid-cols-2 gap-5 items-start mt-6">
           {filteredMarkets.map((market) => {
             const marketPlatforms = [
-              market.polymarketQuestion && { name: "Polymarket", question: market.polymarketQuestion },
+              market.polymarketQuestion && { name: "Polymarket (Bridged)", question: market.polymarketQuestion },
               market.opinionQuestion && { name: "Opinion", question: market.opinionQuestion },
             ].filter(Boolean) as { name: string; question: string }[];
 
@@ -207,37 +338,9 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                     label: "Merge & Exit",
                     content: (
                       <div className="space-y-4">
-                        {market.pairs.map((pair, idx) => {
-                          // Determine which tokens are in this pair
-                          const isPolyA = pair.outcomeTokenA.toLowerCase() === "0x4d97dcd97ec945f40cf65f87097ace5ea0476045";
-                          const tokenAName = isPolyA ? "Polymarket" : "Opinion (Bridged)";
-                          const tokenBName = !isPolyA ? "Polymarket" : "Opinion (Bridged)";
-                          
-                          return (
-                            <div key={pair.key} className="border-b border-white/10 pb-4 last:border-0">
-                              <MarketActionCard
-                                title={`Pair ${idx + 1}: ${tokenAName} + ${tokenBName}`}
-                                inputLabel="Amount to Merge"
-                                inputValue={amount}
-                                maxValue="0.00"
-                                receiveItems={[
-                                  {
-                                    amount: "0.00",
-                                    token: "USDC.e",
-                                    highlight: "primary",
-                                  },
-                                ]}
-                                buttonLabel="Merge & Exit"
-                                disabled={pair.status !== 'allowed'}
-                                disabledReason={pair.status === 'paused' ? 'Pair is paused' : pair.status === 'removed' ? 'Pair has been removed' : undefined}
-                                onInputChange={setAmount}
-                                onSubmit={() => {
-                                  console.log("Merge submitted:", amount, pair);
-                                }}
-                              />
-                            </div>
-                          );
-                        })}
+                        {market.pairs.map((pair, idx) => (
+                          <PairMergeAction key={pair.key} pair={pair} idx={idx} amount={amount} onInputChange={setAmount} />
+                        ))}
                       </div>
                     ),
                   },
@@ -246,41 +349,9 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                     label: "Split & Acquire",
                     content: (
                       <div className="space-y-4">
-                        {market.pairs.map((pair, idx) => {
-                          const isPolyA = pair.outcomeTokenA.toLowerCase() === "0x4d97dcd97ec945f40cf65f87097ace5ea0476045";
-                          const tokenAName = isPolyA ? "Polymarket" : "Opinion (Bridged)";
-                          const tokenBName = !isPolyA ? "Polymarket" : "Opinion (Bridged)";
-                          
-                          return (
-                            <div key={pair.key} className="border-b border-white/10 pb-4 last:border-0">
-                              <MarketActionCard
-                                title={`Pair ${idx + 1}: ${tokenAName} + ${tokenBName}`}
-                                inputLabel="Amount to Split"
-                                inputValue={amount}
-                                maxValue="0.00"
-                                receiveItems={[
-                                  {
-                                    amount: "0.00",
-                                    token: `Token A (${pair.decimalsA} decimals)`,
-                                    highlight: "yellow",
-                                  },
-                                  {
-                                    amount: "0.00",
-                                    token: `Token B (${pair.decimalsB} decimals)`,
-                                    highlight: "yellow",
-                                  },
-                                ]}
-                                buttonLabel="Split & Acquire"
-                                disabled={pair.status !== 'allowed'}
-                                disabledReason={pair.status === 'paused' ? 'Pair is paused' : pair.status === 'removed' ? 'Pair has been removed' : undefined}
-                                onInputChange={setAmount}
-                                onSubmit={() => {
-                                  console.log("Split submitted:", amount, pair);
-                                }}
-                              />
-                            </div>
-                          );
-                        })}
+                        {market.pairs.map((pair, idx) => (
+                          <PairSplitAction key={pair.key} pair={pair} idx={idx} amount={amount} onInputChange={setAmount} />
+                        ))}
                       </div>
                     ),
                   },

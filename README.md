@@ -1,6 +1,6 @@
 # POKVault Dashboard
 
-A React + TypeScript application for managing and interacting with POKVault on Polygon. POKVault is an ERC4626 vault that enables early exits for prediction market arbitragers across Polymarket (Polygon) and Opinion (BSC, bridged via Axelar GMP).
+A React + TypeScript application for managing and interacting with POKVault on BSC. POKVault is an ERC4626 vault that enables early exits for prediction market arbitragers across Polymarket (Polygon) and Opinion (BSC, bridged via Axelar GMP).
 
 ## Features
 
@@ -264,7 +264,7 @@ interface OppositeOutcomeTokensInfo {
 ### Common Issues
 
 **"Network not supported"**
-- Make sure wallet is connected to Polygon for vault operations
+- Make sure wallet is connected to BSC for vault operations
 - Switch networks when prompted by the app
 
 **"Cannot read properties of undefined"**

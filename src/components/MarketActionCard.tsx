@@ -14,7 +14,8 @@ interface MarketActionCardProps {
   receiveItems: ReceiveItem[];
   buttonLabel: string;
   isLoading?: boolean;
-  disabled?: boolean;
+  disabled?: boolean; // controls input disabled
+  buttonDisabled?: boolean; // controls button disabled
   disabledReason?: string;
   onInputChange: (value: string) => void;
   onSubmit: () => void;
@@ -28,6 +29,7 @@ const MarketActionCard: React.FC<MarketActionCardProps> = ({
   receiveItems,
   buttonLabel,
   disabled = false,
+  buttonDisabled,
   disabledReason,
   onInputChange,
   onSubmit,
@@ -103,7 +105,7 @@ const MarketActionCard: React.FC<MarketActionCardProps> = ({
       {/* Button */}
       <button
         onClick={onSubmit}
-        disabled={disabled}
+        disabled={buttonDisabled ?? disabled}
         className="
           mt-6 w-full rounded-xl
           bg-primary

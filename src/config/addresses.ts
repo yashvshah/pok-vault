@@ -17,6 +17,6 @@ export const POLYMARKET_DESTINATION_BRIDGE_BSC_ADDRESS = POLYGON_ERC1155_BRIDGED
 // Token decimals
 export const POLYMARKET_DECIMALS = 6;
 export const OPINION_DECIMALS = 18;
-
+export const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955" as const;
 // Middleware server URL
 export const MIDDLEWARE_BASE_URL = 'https://pokvault-middleware-server.vercel.app/api' as const;
