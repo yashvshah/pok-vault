@@ -1,11 +1,13 @@
 import { useState, type FunctionComponent } from "react";
-import { useAccount, useWriteContract, useChainId, useSwitchChain, useReadContract, useBalance } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance } from "wagmi";
 import { polygon, bsc } from "wagmi/chains";
-import { parseUnits, erc1155Abi, formatUnits } from "viem";
+import { parseUnits, erc1155Abi, formatUnits, encodeAbiParameters } from "viem";
 import type { Address } from "viem";
 import EarlyExitVaultAbi from "../abi/EarlyExitVault.json";
 import { POLYGON_ERC1155_POLYGON_ADDRESS, POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, OPINION_ERC1155_ADDRESS, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, POLYMARKET_DESTINATION_BRIDGE_BSC_ADDRESS, POLYMARKET_DECIMALS, VAULT_ADDRESS, OPINION_DECIMALS, USDT_ADDRESS, USDT_DECIMALS } from "../config/addresses";
 import { useErc1155Balance } from "../hooks/useErc1155Balance";
+import { useSafeAddresses } from "../hooks/useSafeAddresses";
+import { useSafeWrite } from "../hooks/useSafeWrite";
 import MarketCard from "../components/MarketCard";
 import MarketActionCard from "../components/MarketActionCard";
 import BalanceItem from "../components/BalanceItem";
@@ -18,20 +20,44 @@ interface MarketsPageProps {}
 
 function TokenBalances({ market }: { market: SupportedMarket }) {
   const { address } = useAccount();
-  const { writeContract } = useWriteContract();
   const currentChainId = useChainId();
   const { switchChain } = useSwitchChain();
+  
+  // Detect Gnosis Safe addresses
+  const { 
+    polymarketSafe, 
+    opinionSafe, 
+    usePolymarketSafe, 
+    useOpinionSafe,
+    setUsePolymarketSafe,
+    setUseOpinionSafe 
+  } = useSafeAddresses(address);
+  
+  // Use safe write hooks
+  const { write: writePolygon } = useSafeWrite({ 
+    safeAddress: usePolymarketSafe ? polymarketSafe : null, 
+    chainId: polygon.id 
+  });
+  const { write: writeBsc } = useSafeWrite({ 
+    safeAddress: useOpinionSafe ? opinionSafe : null, 
+    chainId: bsc.id 
+  });
+  
   const yesIdPoly = market.polymarketYesTokenId ? BigInt(market.polymarketYesTokenId) : 0n;
   const noIdPoly = market.polymarketNoTokenId ? BigInt(market.polymarketNoTokenId) : 0n;
   const yesIdOpinion = market.opinionYesTokenId ? BigInt(market.opinionYesTokenId) : 0n;
   const noIdOpinion = market.opinionNoTokenId ? BigInt(market.opinionNoTokenId) : 0n;
 
-  const { data: balPolyYes } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_POLYGON_ADDRESS, tokenId: yesIdPoly, chainId: polygon.id });
-  const { data: balPolyNo } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_POLYGON_ADDRESS, tokenId: noIdPoly, chainId: polygon.id });
-  const { data: balOpinionYes } = useErc1155Balance({ tokenAddress: OPINION_ERC1155_ADDRESS, tokenId: yesIdOpinion, chainId: bsc.id });
-  const { data: balOpinionNo } = useErc1155Balance({ tokenAddress: OPINION_ERC1155_ADDRESS, tokenId: noIdOpinion, chainId: bsc.id });
-  const { data: balBridgedYes } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, tokenId: yesIdPoly, chainId: bsc.id });
-  const { data: balBridgedNo } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, tokenId: noIdPoly, chainId: bsc.id });
+  // Determine owner addresses based on safe usage
+  const polyOwner = usePolymarketSafe ? polymarketSafe : null;
+  const bscOwner = useOpinionSafe ? opinionSafe : null;
+
+  const { data: balPolyYes } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_POLYGON_ADDRESS, tokenId: yesIdPoly, chainId: polygon.id, ownerAddress: polyOwner });
+  const { data: balPolyNo } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_POLYGON_ADDRESS, tokenId: noIdPoly, chainId: polygon.id, ownerAddress: polyOwner });
+  const { data: balOpinionYes } = useErc1155Balance({ tokenAddress: OPINION_ERC1155_ADDRESS, tokenId: yesIdOpinion, chainId: bsc.id, ownerAddress: bscOwner });
+  const { data: balOpinionNo } = useErc1155Balance({ tokenAddress: OPINION_ERC1155_ADDRESS, tokenId: noIdOpinion, chainId: bsc.id, ownerAddress: bscOwner });
+  const { data: balBridgedYes } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, tokenId: yesIdPoly, chainId: bsc.id, ownerAddress: bscOwner });
+  const { data: balBridgedNo } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, tokenId: noIdPoly, chainId: bsc.id, ownerAddress: bscOwner });
 
   const [bridgeToBscYesAmt, setBridgeToBscYesAmt] = useState('0');
   const [bridgeToBscNoAmt, setBridgeToBscNoAmt] = useState('0');
@@ -41,30 +67,86 @@ function TokenBalances({ market }: { market: SupportedMarket }) {
 
   const onBridgeToBsc = async (id: bigint, amtStr: string) => {
     if (!address) return;
+    const from = usePolymarketSafe && polymarketSafe ? polymarketSafe : address;
+    const to = useOpinionSafe && opinionSafe ? opinionSafe : address;
     const value = parseUnits(amtStr || '0', POLYMARKET_DECIMALS);
-    await writeContract({
+    
+    // Encode the destination address for the bridge
+    const data = encodeAbiParameters(
+      [{ type: 'address' }],
+      [to]
+    );
+    
+    await writePolygon({
       abi: erc1155Abi,
       address: POLYGON_ERC1155_POLYGON_ADDRESS,
       functionName: 'safeTransferFrom',
-      args: [address, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, id, value, '0x'],
-      chainId: polygon.id,
+      args: [from, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, id, value, data],
     });
   };
 
   const onBridgeToPolygon = async (id: bigint, amtStr: string) => {
     if (!address) return;
+    const from = useOpinionSafe && opinionSafe ? opinionSafe : address;
+    const to = usePolymarketSafe && polymarketSafe ? polymarketSafe : address;
     const value = parseUnits(amtStr || '0', POLYMARKET_DECIMALS);
-    await writeContract({
+    
+    // Encode the destination address for the bridge
+    const data = encodeAbiParameters(
+      [{ type: 'address' }],
+      [to]
+    );
+    
+    await writeBsc({
       abi: erc1155Abi,
       address: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
       functionName: 'safeTransferFrom',
-      args: [address, POLYMARKET_DESTINATION_BRIDGE_BSC_ADDRESS, id, value, '0x'],
-      chainId: bsc.id,
+      args: [from, POLYMARKET_DESTINATION_BRIDGE_BSC_ADDRESS, id, value, data],
     });
   };
 
   return (
     <div className="text-xs text-white/80 space-y-3 mt-2">
+      {/* Safe Detection Notices */}
+      {polymarketSafe && (
+        <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium text-blue-400">Polymarket Account (Gnosis Safe) Detected</div>
+              <div className="text-xs text-white/60 mt-1">Address: {polymarketSafe}</div>
+              <div className="text-xs text-white/60">
+                {usePolymarketSafe ? 'Using Safe for transactions' : 'Using EOA for transactions'}
+              </div>
+            </div>
+            <button
+              className="rounded bg-blue-500/20 px-3 py-1.5 border border-blue-500/40 text-xs hover:bg-blue-500/30"
+              onClick={() => setUsePolymarketSafe(!usePolymarketSafe)}
+            >
+              {usePolymarketSafe ? 'Switch to EOA' : 'Switch to Safe'}
+            </button>
+          </div>
+        </div>
+      )}
+      {opinionSafe && (
+        <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium text-blue-400">Opinion Gnosis Safe Detected (BSC)</div>
+              <div className="text-xs text-white/60 mt-1">Address: {opinionSafe}</div>
+              <div className="text-xs text-white/60">
+                {useOpinionSafe ? 'Using Safe for transactions' : 'Using EOA for transactions'}
+              </div>
+            </div>
+            <button
+              className="rounded bg-blue-500/20 px-3 py-1.5 border border-blue-500/40 text-xs hover:bg-blue-500/30"
+              onClick={() => setUseOpinionSafe(!useOpinionSafe)}
+            >
+              {useOpinionSafe ? 'Switch to EOA' : 'Switch to Safe'}
+            </button>
+          </div>
+        </div>
+      )}
+      
       <div className="grid grid-cols-2 gap-3">
         <BalanceItem
           title="Polymarket YES (Polygon)"
@@ -128,14 +210,23 @@ function TokenBalances({ market }: { market: SupportedMarket }) {
 
 function PairMergeAction({ pair, idx, amount, onInputChange }: { pair: SupportedMarket["pairs"][number]; idx: number; amount: string; onInputChange: (v: string) => void }) {
   const { address } = useAccount();
-  const { writeContract } = useWriteContract();
   const currentChainId = useChainId();
   const { switchChain } = useSwitchChain();
+  
+  // Detect safe and use safe write
+  const { opinionSafe, useOpinionSafe } = useSafeAddresses(address);
+  const { write: writeBsc } = useSafeWrite({ 
+    safeAddress: useOpinionSafe ? opinionSafe : null, 
+    chainId: bsc.id 
+  });
 
   const idA = BigInt(pair.outcomeIdA);
   const idB = BigInt(pair.outcomeIdB);
-  const { data: balA } = useErc1155Balance({ tokenAddress: pair.outcomeTokenA as Address, tokenId: idA, chainId: bsc.id });
-  const { data: balB } = useErc1155Balance({ tokenAddress: pair.outcomeTokenB as Address, tokenId: idB, chainId: bsc.id });
+  
+  // Use safe address for balance reads if applicable
+  const bscOwner = useOpinionSafe ? opinionSafe : null;
+  const { data: balA } = useErc1155Balance({ tokenAddress: pair.outcomeTokenA as Address, tokenId: idA, chainId: bsc.id, ownerAddress: bscOwner });
+  const { data: balB } = useErc1155Balance({ tokenAddress: pair.outcomeTokenB as Address, tokenId: idB, chainId: bsc.id, ownerAddress: bscOwner });
 
   const balAFormatted = formatUnits(balA ?? 0n, pair.decimalsA);
   const balBFormatted = formatUnits(balB ?? 0n, pair.decimalsB);
@@ -166,12 +257,12 @@ function PairMergeAction({ pair, idx, amount, onInputChange }: { pair: Supported
       return;
     }
     if (!enough) return;
-    await writeContract({
+    const recipient = useOpinionSafe && opinionSafe ? opinionSafe : address;
+    await writeBsc({
       abi: EarlyExitVaultAbi,
       address: VAULT_ADDRESS,
       functionName: 'earlyExit',
-      args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB, amountUsdt, address],
-      chainId: bsc.id,
+      args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB, amountUsdt, recipient],
     });
   };
 
@@ -205,15 +296,23 @@ function PairMergeAction({ pair, idx, amount, onInputChange }: { pair: Supported
 
 function PairSplitAction({ pair, idx, amount, onInputChange }: { pair: SupportedMarket["pairs"][number]; idx: number; amount: string; onInputChange: (v: string) => void }) {
   const { address } = useAccount();
-  const { writeContract } = useWriteContract();
   const currentChainId = useChainId();
   const { switchChain } = useSwitchChain();
+  
+  // Detect safe and use safe write
+  const { opinionSafe, useOpinionSafe } = useSafeAddresses(address);
+  const { write: writeBsc } = useSafeWrite({ 
+    safeAddress: useOpinionSafe ? opinionSafe : null, 
+    chainId: bsc.id 
+  });
 
   const idA = BigInt(pair.outcomeIdA);
   const idB = BigInt(pair.outcomeIdB);
   const amountUsdt = parseUnits(amount || '0', 18);
 
-  const { data: usdtBal } = useBalance({ address, chainId: bsc.id, token: USDT_ADDRESS });
+  // Use safe address for USDT balance if applicable
+  const bscOwner = useOpinionSafe && opinionSafe ? opinionSafe : address;
+  const { data: usdtBal } = useBalance({ address: bscOwner, chainId: bsc.id, token: USDT_ADDRESS });
   const enoughUsdt = (usdtBal?.value ?? 0n) >= amountUsdt;
   const usdtBalFormatted = formatUnits(usdtBal?.value ?? 0n, 18);
 
@@ -232,12 +331,12 @@ function PairSplitAction({ pair, idx, amount, onInputChange }: { pair: Supported
       return;
     }
     if (!enoughUsdt) return;
-    await writeContract({
+    const recipient = useOpinionSafe && opinionSafe ? opinionSafe : address;
+    await writeBsc({
       abi: EarlyExitVaultAbi,
       address: VAULT_ADDRESS,
       functionName: 'splitOppositeOutcomeTokens',
-      args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB, amountUsdt, address],
-      chainId: bsc.id,
+      args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB, amountUsdt, recipient],
     });
   };
 

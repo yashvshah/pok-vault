@@ -9,7 +9,6 @@ export default defineConfig({
   optimizeDeps: {
     include: [
       "@rainbow-me/rainbowkit",
-      "@walletconnect/modal",
       "@walletconnect/ethereum-provider",
       "wagmi",
       "viem",
