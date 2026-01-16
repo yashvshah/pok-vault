@@ -1,17 +1,18 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { WagmiProvider } from "wagmi";
-import { RainbowKitProvider } from "@rainbow-me/rainbowkit";
+import { http, WagmiProvider } from "wagmi";
+import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
 import "@rainbow-me/rainbowkit/styles.css";
-import { http } from "viem";
-import { createConfig } from "wagmi";
-import { polygon, bsc } from "wagmi/chains"; // Add more chains as needed
-import { createClient } from "viem";
+import { polygon, bsc } from "wagmi/chains";
 
-const config = createConfig({
-  chains: [polygon, bsc],
-  client({ chain }) {
-    return createClient({ chain, transport: http() });
+const config = getDefaultConfig({
+  appName: "POKVault",
+  projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
+  chains: [bsc, polygon],
+  transports: {
+    [bsc.id]:http(import.meta.env.VITE_BSC_RPC_URL || bsc.rpcUrls.default.http[0]),
+    [polygon.id]:http(import.meta.env.VITE_POLYGON_RPC_URL || polygon.rpcUrls.default.http[0]),
   },
+
 });
 
 const queryClient = new QueryClient();

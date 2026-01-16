@@ -23,7 +23,7 @@ A React + TypeScript application for managing and interacting with POKVault on B
 - **Real-time Status**: View isAllowed, isPaused, early exited amounts, and contract addresses for configured pairs
 
 ### Web3 Integration
-- **Wallet Connection**: Connect to Polygon/BSC using RainbowKit
+- **Wallet Connection**: Connect via RainbowKit with support for MetaMask, WalletConnect, Coinbase Wallet, and more
 - **Multi-Network Support**: Automatic network switching for deposits and withdrawals
 - **Smart Contract Interactions**: Direct interaction with vault and early exit contracts
 
@@ -104,12 +104,21 @@ cd pok-vault
 npm install
 ```
 
-3. Start the development server:
+3. Configure environment variables:
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and add:
+- `VITE_OPINION_API_KEY`: Your Opinion API key
+- `VITE_WALLETCONNECT_PROJECT_ID`: Your WalletConnect project ID from [cloud.walletconnect.com](https://cloud.walletconnect.com/)
+
+4. Start the development server:
 ```bash
 npm run dev
 ```
 
-4. Open [http://localhost:5173](http://localhost:5173) in your browser
+5. Open [http://localhost:5173](http://localhost:5173) in your browser
 
 ### Build for Production
 
