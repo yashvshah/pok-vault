@@ -1,7 +1,7 @@
 // Unified service for fetching market information from both Polymarket and Opinion
 import { type PolymarketMarket, polymarketService } from './polymarket';
 import { type OpinionMarket, opinionService } from './opinion';
-import { POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, OPINION_ERC1155_ADDRESS } from '../config/addresses';
+import { POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, OPINION_ERC1155_ADDRESS, POLYGON_ERC1155_BRIDGED_BSC_OLD_BUGGY_ADDRESS } from '../config/addresses';
 
 export interface UnifiedMarketInfo {
   question: string;
@@ -17,6 +17,13 @@ class MarketInfoService {
   ): Promise<UnifiedMarketInfo | null> {
     try {
       const normalizedAddress = tokenAddress.toLowerCase();
+
+      if(normalizedAddress === POLYGON_ERC1155_BRIDGED_BSC_OLD_BUGGY_ADDRESS.toLowerCase()) {
+        return {
+          question: 'Test Event',
+          platform: 'polymarket'
+        }
+      }
 
       // Check if it's Polymarket (Polygon ERC1155)
       if (normalizedAddress === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase()) {
