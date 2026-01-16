@@ -5,6 +5,7 @@ import EarlyExitVaultABI from "../abi/EarlyExitVault.json";
 import EarlyExitAmountBasedOnFixedAPYABI from "../abi/EarlyExitAmountBasedOnFixedAPY.json";
 import EarlyExitAmountFactoryBasedOnFixedAPYABI from "../abi/EarlyExitAmountFactoryBasedOnFixedAPYABI.json";
 import { opinionService } from "../services/opinion";
+import { polymarketService } from "../services/polymarket";
 import {
   VAULT_ADDRESS,
   EARLY_EXIT_FACTORY_ADDRESS,
@@ -12,7 +13,6 @@ import {
   OPINION_ERC1155_ADDRESS,
   POLYMARKET_DECIMALS,
   OPINION_DECIMALS,
-  MIDDLEWARE_BASE_URL,
 } from "../config/addresses";
 
 interface OppositeOutcomeTokensInfo {
@@ -224,24 +224,18 @@ const ManageMarketsPage: FunctionComponent = () => {
 
   const fetchPolymarketInfo = async (slug: string) => {
     try {
-      const response = await fetch(`${MIDDLEWARE_BASE_URL}/polymarket/markets/slug/${slug}`);
+      const market = await polymarketService.getMarketBySlug(slug);
       
-      if (!response.ok) {
-        throw new Error(`Polymarket API error: ${response.status}`);
+      if (!market) {
+        throw new Error("Failed to fetch Polymarket market data");
       }
 
-      const data = await response.json();
-      
-      // Parse clobTokenIds to get YES and NO token IDs
-      const tokenIds = JSON.parse(data.clobTokenIds);
-      const [yesTokenId, noTokenId] = tokenIds;
-
       return {
-        question: data.question,
-        yesTokenId,
-        noTokenId,
-        image: data.image,
-        endDate: data.endDate,
+        question: market.question,
+        yesTokenId: market.yesTokenId,
+        noTokenId: market.noTokenId,
+        image: market.outcomes?.[0],
+        endDate: market.endDate,
       };
     } catch (error) {
       console.error("Error fetching Polymarket info:", error);

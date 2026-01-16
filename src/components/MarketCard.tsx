@@ -21,7 +21,8 @@ export interface MarketCardProps {
   question: string;
   markets: MarketInfo[];
   balances?: React.ReactNode;
-  status: MarketStatus;
+  status: string; // Changed from MarketStatus to string for flexibility
+  statusColor?: string; // Optional custom status color
   actionTabs?: ActionTab[]; // actions slot
 }
 
@@ -35,13 +36,17 @@ export default function MarketCard({
   image,
   question,
   status,
+  statusColor,
   markets,
   balances,
   actionTabs,
 }: MarketCardProps) {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [balancesOpen, setBalancesOpen] = useState(false);
-  //const [activeTab, setActiveTab] = useState(actionTabs?.[0]?.key);
+  
+  // Use custom color if provided, otherwise fall back to STATUS_STYLES
+  const statusClassName = statusColor || (STATUS_STYLES[status as MarketStatus] ?? "bg-gray-500/15 text-gray-400 border-gray-500/30");
+  
   return (
     <div
       className={`
@@ -80,7 +85,7 @@ export default function MarketCard({
 
           {/* Status */}
           <span
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${STATUS_STYLES[status]}`}
+            className={`rounded-full border px-3 py-1 text-xs font-medium ${statusClassName}`}
           >
             {status}
           </span>
