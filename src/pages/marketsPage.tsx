@@ -4,7 +4,7 @@ import { polygon, bsc } from "wagmi/chains";
 import { parseUnits, erc1155Abi, formatUnits } from "viem";
 import type { Address } from "viem";
 import EarlyExitVaultAbi from "../abi/EarlyExitVault.json";
-import { POLYGON_ERC1155_POLYGON_ADDRESS, POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, OPINION_ERC1155_ADDRESS, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, POLYMARKET_DECIMALS, VAULT_ADDRESS, OPINION_DECIMALS, USDT_ADDRESS, USDT_DECIMALS } from "../config/addresses";
+import { POLYGON_ERC1155_POLYGON_ADDRESS, POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, OPINION_ERC1155_ADDRESS, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, POLYMARKET_DESTINATION_BRIDGE_BSC_ADDRESS, POLYMARKET_DECIMALS, VAULT_ADDRESS, OPINION_DECIMALS, USDT_ADDRESS, USDT_DECIMALS } from "../config/addresses";
 import { useErc1155Balance } from "../hooks/useErc1155Balance";
 import MarketCard from "../components/MarketCard";
 import MarketActionCard from "../components/MarketActionCard";
@@ -33,11 +33,13 @@ function TokenBalances({ market }: { market: SupportedMarket }) {
   const { data: balBridgedYes } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, tokenId: yesIdPoly, chainId: bsc.id });
   const { data: balBridgedNo } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, tokenId: noIdPoly, chainId: bsc.id });
 
-  const [bridgeYesAmt, setBridgeYesAmt] = useState('0');
-  const [bridgeNoAmt, setBridgeNoAmt] = useState('0');
+  const [bridgeToBscYesAmt, setBridgeToBscYesAmt] = useState('0');
+  const [bridgeToBscNoAmt, setBridgeToBscNoAmt] = useState('0');
+  const [bridgeToPolygonYesAmt, setBridgeToPolygonYesAmt] = useState('0');
+  const [bridgeToPolygonNoAmt, setBridgeToPolygonNoAmt] = useState('0');
 
 
-  const onBridge = async (id: bigint, amtStr: string) => {
+  const onBridgeToBsc = async (id: bigint, amtStr: string) => {
     if (!address) return;
     const value = parseUnits(amtStr || '0', POLYMARKET_DECIMALS);
     await writeContract({
@@ -49,39 +51,75 @@ function TokenBalances({ market }: { market: SupportedMarket }) {
     });
   };
 
+  const onBridgeToPolygon = async (id: bigint, amtStr: string) => {
+    if (!address) return;
+    const value = parseUnits(amtStr || '0', POLYMARKET_DECIMALS);
+    await writeContract({
+      abi: erc1155Abi,
+      address: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
+      functionName: 'safeTransferFrom',
+      args: [address, POLYMARKET_DESTINATION_BRIDGE_BSC_ADDRESS, id, value, '0x'],
+      chainId: bsc.id,
+    });
+  };
+
   return (
     <div className="text-xs text-white/80 space-y-3 mt-2">
       <div className="grid grid-cols-2 gap-3">
         <BalanceItem
-          title="Polymarket (Bridged) YES (Polygon)"
+          title="Polymarket YES (Polygon)"
           balance={formatUnits(balPolyYes ?? 0n, POLYMARKET_DECIMALS).toString()}
           action={(
             <div className="flex gap-2">
-              <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeYesAmt} onChange={e => setBridgeYesAmt(e.target.value)} placeholder="amt" />
-              <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40" onClick={() => (currentChainId === polygon.id ? onBridge(yesIdPoly, bridgeYesAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
-                {currentChainId === polygon.id ? 'Bridge' : 'Switch chain to bridge'}
+              <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscYesAmt} onChange={e => setBridgeToBscYesAmt(e.target.value)} placeholder="amt" />
+              <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(yesIdPoly, bridgeToBscYesAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
+                {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch to Polygon'}
               </button>
             </div>
           )}
         />
         <BalanceItem
-          title="Polymarket (Bridged) NO (Polygon)"
+          title="Polymarket NO (Polygon)"
           balance={formatUnits(balPolyNo ?? 0n, POLYMARKET_DECIMALS).toString()}
           action={(
             <div className="flex gap-2">
-              <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeNoAmt} onChange={e => setBridgeNoAmt(e.target.value)} placeholder="amt" />
-              <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40" onClick={() => (currentChainId === polygon.id ? onBridge(noIdPoly, bridgeNoAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
-                {currentChainId === polygon.id ? 'Bridge' : 'Switch chain to bridge'}
+              <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscNoAmt} onChange={e => setBridgeToBscNoAmt(e.target.value)} placeholder="amt" />
+              <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(noIdPoly, bridgeToBscNoAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
+                {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch to Polygon'}
+              </button>
+            </div>
+          )}
+        />
+        <BalanceItem 
+          title="Bridged Polymarket YES (BSC)" 
+          balance={formatUnits(balBridgedYes ?? 0n, POLYMARKET_DECIMALS)}
+          action={(
+            <div className="flex gap-2">
+              <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonYesAmt} onChange={e => setBridgeToPolygonYesAmt(e.target.value)} placeholder="amt" />
+              <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(yesIdPoly, bridgeToPolygonYesAmt) : switchChain({ chainId: bsc.id }))} disabled={!address}>
+                {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch to BSC'}
+              </button>
+            </div>
+          )}
+        />
+        <BalanceItem 
+          title="Bridged Polymarket NO (BSC)" 
+          balance={formatUnits(balBridgedNo ?? 0n, POLYMARKET_DECIMALS)}
+          action={(
+            <div className="flex gap-2">
+              <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonNoAmt} onChange={e => setBridgeToPolygonNoAmt(e.target.value)} placeholder="amt" />
+              <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(noIdPoly, bridgeToPolygonNoAmt) : switchChain({ chainId: bsc.id }))} disabled={!address}>
+                {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch to BSC'}
               </button>
             </div>
           )}
         />
         <BalanceItem title="Opinion YES (BSC)" balance={formatUnits(balOpinionYes ?? 0n, OPINION_DECIMALS)} />
         <BalanceItem title="Opinion NO (BSC)" balance={formatUnits(balOpinionNo ?? 0n, OPINION_DECIMALS)} />
-        <BalanceItem title="Bridged Poly YES (BSC)" balance={formatUnits(balBridgedYes ?? 0n, POLYMARKET_DECIMALS)} />
-        <BalanceItem title="Bridged Poly NO (BSC)" balance={formatUnits(balBridgedNo ?? 0n, POLYMARKET_DECIMALS)} />
-        <BalanceItem title="Poly YES Pending Bridge" balance={"—"} action={<button className="rounded bg-white/10 px-2 py-1 border border-white/20">Complete Bridge</button>} />
-        <BalanceItem title="Poly NO Pending Bridge" balance={"—"} action={<button className="rounded bg-white/10 px-2 py-1 border border-white/20">Complete Bridge</button>} />
+        <BalanceItem title="Polymarket YES Pending (Polygon → BSC)" balance={"—"} action={<button className="rounded bg-white/10 px-2 py-1 border border-white/20 text-xs">Complete Bridge</button>} />
+        <BalanceItem title="Polymarket NO Pending (Polygon → BSC)" balance={"—"} action={<button className="rounded bg-white/10 px-2 py-1 border border-white/20 text-xs">Complete Bridge</button>} />
+        <BalanceItem title="Polymarket YES Pending (BSC → Polygon)" balance={"—"} action={<button className="rounded bg-white/10 px-2 py-1 border border-white/20 text-xs">Complete Bridge</button>} />
+        <BalanceItem title="Polymarket NO Pending (BSC → Polygon)" balance={"—"} action={<button className="rounded bg-white/10 px-2 py-1 border border-white/20 text-xs">Complete Bridge</button>} />
       </div>
       <div className="text-white/50">Note: Bridging requires calling bridge function and then calling complete bridge to pay gas fees</div>
     </div>
