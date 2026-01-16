@@ -1,12 +1,27 @@
 // Service for fetching market information from Opinion API
 import { MIDDLEWARE_BASE_URL } from '../config/addresses';
 
+export interface OpinionChildMarket {
+  marketId: number;
+  marketTitle: string;
+  status: number;
+  yesTokenId: string;
+  noTokenId: string;
+  conditionId: string;
+  volume: string;
+  createdAt: number;
+}
+
 export interface OpinionMarket {
   marketId: number;
   marketTitle: string;
   thumbnailUrl: string;
   yesTokenId: string;
   noTokenId: string;
+  marketType?: number; // 1 = categorical with children
+  childMarkets?: OpinionChildMarket[];
+  parentThumbnailUrl?: string; // Store parent thumbnail for categorical markets
+  isCategorical?: boolean; // Flag to indicate if fetched from categorical endpoint
 }
 
 class OpinionService {
@@ -52,7 +67,8 @@ class OpinionService {
         throw new Error("OPINION_API_KEY not found in environment variables");
       }
 
-      const marketResponse = await fetch(
+      // First try regular market endpoint
+      let marketResponse = await fetch(
         `${MIDDLEWARE_BASE_URL}/opinion/market/${marketId}`,
         {
           headers: {
@@ -61,13 +77,33 @@ class OpinionService {
         }
       );
 
-      if (!marketResponse.ok) {
-        console.log('Failed to fetch Opinion market info for market ID:', marketId);
-        return null;
+      let marketData = await marketResponse.json();
+
+      let isCategorical = false;
+
+      // If regular endpoint fails, try categorical endpoint
+      if (marketData.errno !== 0) {
+        
+        marketResponse = await fetch(
+          `${MIDDLEWARE_BASE_URL}/opinion/market/categorical/${marketId}`,
+          {
+            headers: {
+              'apiKey': apiKey,
+            },
+          }
+        );
+
+        marketData = await marketResponse.json();
+
+        if (!marketResponse.ok) {
+          console.log('Both endpoints failed for market ID:', marketId);
+          return null;
+        }
+
+        isCategorical = true;
       }
 
-      const marketData = await marketResponse.json();
-
+    
       if (marketData.errno !== 0) {
         console.log('Opinion API returned error:', marketData.errmsg);
         return null;
@@ -75,12 +111,30 @@ class OpinionService {
 
       const data = marketData.result.data;
 
+      // Check if it's a categorical market with child markets
+      const hasChildMarkets = data.childMarkets && Array.isArray(data.childMarkets) && data.childMarkets.length > 0;
+
       return {
         marketId: data.marketId,
         marketTitle: data.marketTitle,
         thumbnailUrl: data.thumbnailUrl,
-        yesTokenId: data.yesTokenId,
-        noTokenId: data.noTokenId,
+        yesTokenId: data.yesTokenId || '',
+        noTokenId: data.noTokenId || '',
+        marketType: data.marketType,
+        isCategorical: isCategorical,
+        parentThumbnailUrl: isCategorical ? data.thumbnailUrl : undefined,
+        childMarkets: hasChildMarkets 
+          ? data.childMarkets.map((child: any) => ({
+              marketId: child.marketId,
+              marketTitle: child.marketTitle,
+              status: child.status,
+              yesTokenId: child.yesTokenId,
+              noTokenId: child.noTokenId,
+              conditionId: child.conditionId,
+              volume: child.volume,
+              createdAt: child.createdAt,
+            }))
+          : undefined,
       };
     } catch (error) {
       console.error('Error fetching Opinion market info:', error);

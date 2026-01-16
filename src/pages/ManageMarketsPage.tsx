@@ -39,6 +39,16 @@ interface MarketInputData {
     yesTokenId: string;
     noTokenId: string;
     thumbnailUrl?: string;
+    parentThumbnailUrl?: string; // Store parent thumbnail for categorical markets
+    childMarkets?: Array<{
+      marketId: number;
+      marketTitle: string;
+      status: number;
+      yesTokenId: string;
+      noTokenId: string;
+    }>;
+    selectedChildMarketId?: number;
+    isCategorical?: boolean;
   };
 }
 
@@ -49,8 +59,6 @@ const ManageMarketsPage: FunctionComponent = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [earlyExitContractAddress, setEarlyExitContractAddress] = useState("");
   const [showCreateContract, setShowCreateContract] = useState(false);
-
-  console.log("Fetched Market:", fetchedMarket);
   
   // Factory contract creation inputs
   const [newMarketExpiryDate, setNewMarketExpiryDate] = useState("");
@@ -59,6 +67,37 @@ const ManageMarketsPage: FunctionComponent = () => {
 
   const { address } = useAccount();
   const { writeContract } = useWriteContract();
+
+  // Handler for selecting a child market
+  const handleSelectChildMarket = (childMarketId: number) => {
+    if (!fetchedMarket?.opinionInfo?.childMarkets) return;
+    
+    const selectedChild = fetchedMarket.opinionInfo.childMarkets.find(
+      (child) => child.marketId === childMarketId
+    );
+    
+    if (!selectedChild) return;
+    
+    // Combine parent title + child title for the question
+    const combinedQuestion = `${fetchedMarket.opinionInfo.question} - ${selectedChild.marketTitle}`;
+    
+    // Use parent thumbnail if this is a categorical market
+    const thumbnailToUse = fetchedMarket.opinionInfo.parentThumbnailUrl || fetchedMarket.opinionInfo.thumbnailUrl;
+    
+    setFetchedMarket({
+      ...fetchedMarket,
+      // Update opinionId to use child's marketId for categorical markets
+      opinionId: fetchedMarket.opinionInfo.isCategorical ? String(childMarketId) : fetchedMarket.opinionId,
+      opinionInfo: {
+        ...fetchedMarket.opinionInfo,
+        question: combinedQuestion,
+        yesTokenId: selectedChild.yesTokenId,
+        noTokenId: selectedChild.noTokenId,
+        thumbnailUrl: thumbnailToUse,
+        selectedChildMarketId: childMarketId,
+      },
+    });
+  };
 
   // Read owner from contract
   const { data: ownerAddress } = useReadContract({
@@ -253,11 +292,16 @@ const ManageMarketsPage: FunctionComponent = () => {
         throw new Error("Failed to fetch Opinion market data");
       }
 
+      const hasChildMarkets = opinionData.childMarkets && opinionData.childMarkets.length > 0;
+
       return {
         question: opinionData.marketTitle,
         yesTokenId: opinionData.yesTokenId,
         noTokenId: opinionData.noTokenId,
         thumbnailUrl: opinionData.thumbnailUrl,
+        parentThumbnailUrl: opinionData.parentThumbnailUrl,
+        isCategorical: opinionData.isCategorical,
+        childMarkets: hasChildMarkets ? opinionData.childMarkets : undefined,
       };
     } catch (error) {
       console.error("Error fetching Opinion info:", error);
@@ -462,6 +506,41 @@ const ManageMarketsPage: FunctionComponent = () => {
                       <p className="text-white/80 mb-1">{fetchedMarket.opinionInfo?.question}</p>
                     </div>
                   </div>
+
+                  {/* Child Markets Selection */}
+                  {fetchedMarket.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId && (
+                    <div className="mb-4 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+                      <p className="text-yellow-400 text-sm font-medium mb-3">
+                        ⚠️ This is a categorical market. Please select a submarket:
+                      </p>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {fetchedMarket.opinionInfo.childMarkets.map((child) => (
+                          <button
+                            key={child.marketId}
+                            onClick={() => handleSelectChildMarket(child.marketId)}
+                            className="w-full text-left px-4 py-3 rounded-lg bg-black/30 hover:bg-black/50 border border-white/10 hover:border-primary/50 transition-all"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <p className="text-white font-medium">{child.marketTitle}</p>
+                                <p className="text-xs text-white/50 mt-1">Market ID: {child.marketId}</p>
+                              </div>
+                              <span className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-400">
+                                {child.status === 2 ? 'Active' : 'Created'}
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {fetchedMarket.opinionInfo?.selectedChildMarketId && (
+                    <div className="mb-3 p-2 rounded bg-green-500/10 border border-green-500/30">
+                      <p className="text-green-400 text-xs">✓ Submarket selected (ID: {fetchedMarket.opinionInfo.selectedChildMarketId})</p>
+                    </div>
+                  )}
+
                   <div className="text-sm text-white/60 space-y-1">
                     <p className="font-mono break-all">YES Token ID: {fetchedMarket.opinionInfo?.yesTokenId}</p>
                     <p className="font-mono break-all">NO Token ID: {fetchedMarket.opinionInfo?.noTokenId}</p>
@@ -571,14 +650,14 @@ const ManageMarketsPage: FunctionComponent = () => {
                   <div>
                     <button
                       onClick={handleAllowYesPolyNoOpinion}
-                      disabled={yesPolyNoOpinionInfo?.isAllowed || !earlyExitContractAddress}
+                      disabled={yesPolyNoOpinionInfo?.isAllowed || !earlyExitContractAddress || (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId)}
                       className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                        yesPolyNoOpinionInfo?.isAllowed || !earlyExitContractAddress
+                        yesPolyNoOpinionInfo?.isAllowed || !earlyExitContractAddress || (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId)
                           ? "bg-gray-600 cursor-not-allowed"
                           : "bg-green-600 hover:bg-green-700"
                       } text-white`}
                     >
-                      {yesPolyNoOpinionInfo?.isAllowed ? "✓ Already Allowed" : "Allow YES Poly + NO Opinion"}
+                      {yesPolyNoOpinionInfo?.isAllowed ? "✓ Already Allowed" : (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId) ? "Select submarket first" : "Allow YES Poly + NO Opinion"}
                     </button>
                     {yesPolyNoOpinionInfo?.isAllowed && (
                       <div className="mt-3 p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-sm text-white/80 space-y-1">
@@ -595,14 +674,14 @@ const ManageMarketsPage: FunctionComponent = () => {
                   <div>
                     <button
                       onClick={handleAllowNoPolyYesOpinion}
-                      disabled={noPolyYesOpinionInfo?.isAllowed || !earlyExitContractAddress}
+                      disabled={noPolyYesOpinionInfo?.isAllowed || !earlyExitContractAddress || (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId)}
                       className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                        noPolyYesOpinionInfo?.isAllowed || !earlyExitContractAddress
+                        noPolyYesOpinionInfo?.isAllowed || !earlyExitContractAddress || (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId)
                           ? "bg-gray-600 cursor-not-allowed"
                           : "bg-blue-600 hover:bg-blue-700"
                       } text-white`}
                     >
-                      {noPolyYesOpinionInfo?.isAllowed ? "✓ Already Allowed" : "Allow NO Poly + YES Opinion"}
+                      {noPolyYesOpinionInfo?.isAllowed ? "✓ Already Allowed" : (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId) ? "Select submarket first" : "Allow NO Poly + YES Opinion"}
                     </button>
                     {noPolyYesOpinionInfo?.isAllowed && (
                       <div className="mt-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-sm text-white/80 space-y-1">
