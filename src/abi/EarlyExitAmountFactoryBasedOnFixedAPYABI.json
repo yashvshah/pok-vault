@@ -1,0 +1,52 @@
+[
+    {
+      "type": "function",
+      "name": "createEarlyExitAmountContract",
+      "inputs": [
+        {
+          "name": "marketExpiryTime",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        { "name": "expectedApy", "type": "uint256", "internalType": "uint256" },
+        {
+          "name": "fixedTimeAfterExpiry",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "contract EarlyExitAmountBasedOnFixedAPY"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "event",
+      "name": "EarlyExitAmountContractCreated",
+      "inputs": [
+        {
+          "name": "marketExpiryTime",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "expectedApy",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "contractAddress",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    }
+  ]

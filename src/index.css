@@ -22,16 +22,10 @@ body {
   font-family: "DM Sans", sans-serif;
   color: white;
 }
-/* .gradiant-border {
-    border-image: linear-gradient(to right  ,#EC6769 20%, #863A3C 100%) 1;
-    border-radius: 50px;
-    border-style: solid;
-    border-width: 2px;
-} */
 
 @layer components {
   .gradiant-border {
-    @apply bg-linear-to-l from-primary to-[#863A3C] p-px rounded-lg;
+    @apply bg-linear-to-tl from-primary to-[#863A3C] p-px rounded-lg;
   }
   .box-of-gradiant-border {
     @apply bg-[#1c0e0e] rounded-lg p-3
