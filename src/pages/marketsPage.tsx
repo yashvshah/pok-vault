@@ -4,7 +4,7 @@ import { polygon, bsc } from "wagmi/chains";
 import { parseUnits, erc1155Abi, formatUnits } from "viem";
 import type { Address } from "viem";
 import EarlyExitVaultAbi from "../abi/EarlyExitVault.json";
-import { POLYGON_ERC1155_POLYGON_ADDRESS, POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, OPINION_ERC1155_ADDRESS, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, POLYMARKET_DECIMALS, VAULT_ADDRESS, OPINION_DECIMALS, USDT_ADDRESS } from "../config/addresses";
+import { POLYGON_ERC1155_POLYGON_ADDRESS, POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, OPINION_ERC1155_ADDRESS, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, POLYMARKET_DECIMALS, VAULT_ADDRESS, OPINION_DECIMALS, USDT_ADDRESS, USDT_DECIMALS } from "../config/addresses";
 import { useErc1155Balance } from "../hooks/useErc1155Balance";
 import MarketCard from "../components/MarketCard";
 import MarketActionCard from "../components/MarketActionCard";
@@ -212,8 +212,8 @@ function PairSplitAction({ pair, idx, amount, onInputChange }: { pair: Supported
   const tokenBName = !isPolyA ? "Polymarket (Bridged)" : "Opinion";
 
   const estSplitAmt: bigint = typeof estSplit === 'bigint' ? estSplit : 0n;
-  const tokenAmtA = formatUnits(estSplitAmt, pair.decimalsA);
-  const tokenAmtB = formatUnits(estSplitAmt, pair.decimalsB);
+  const tokenAmtA = formatUnits(estSplitAmt, USDT_DECIMALS);
+  const tokenAmtB = formatUnits(estSplitAmt, USDT_DECIMALS);
 
   return (
     <div className="border-b border-white/10 pb-4 last:border-0">
