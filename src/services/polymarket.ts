@@ -7,6 +7,7 @@ export interface PolymarketMarket {
   slug: string;
   endDate: string;
   liquidity: string;
+  image: string;
   volume: string;
   outcomes: string[];
   outcomePrices: string[];

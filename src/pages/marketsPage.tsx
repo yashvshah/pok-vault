@@ -115,7 +115,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
             return (
               <MarketCard
                 key={market.marketKey}
-                image={market.polymarketImage || market.opinionThumbnail || "📊"}
+                image={market.polymarketImage || market.opinionThumbnail || "/public/imageNotFound.png"}
                 question={market.question}
                 status={getStatusText(market.overallStatus)}
                 statusColor={getStatusColor(market.overallStatus)}

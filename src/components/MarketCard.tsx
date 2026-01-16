@@ -58,7 +58,10 @@ export default function MarketCard({
         <div className="relative flex items-start gap-4 p-5">
           {/* Image */}
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-2xl">
-            {image}
+            <img 
+            src={image}
+            alt="market image"
+            />
           </div>
 
           {/* Question */}

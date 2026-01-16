@@ -161,7 +161,7 @@ export function useSupportedMarkets() {
             question: polymarketData.question || opinionData.marketTitle || 'Unknown Market',
             polymarketQuestion: polymarketData.question,
             opinionQuestion: opinionData.marketTitle,
-            polymarketImage: polymarketData.outcomes?.[0], // Use first outcome as placeholder
+            polymarketImage: polymarketData.image, // Use first outcome as placeholder
             opinionThumbnail: opinionData.thumbnailUrl,
             polymarketYesTokenId: polymarketData.yesTokenId,
             polymarketNoTokenId: polymarketData.noTokenId,
