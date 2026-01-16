@@ -11,7 +11,7 @@ const Header = () => {
     <header>
       <div className="flex justify-between items-center px-28 py-6">
         <div className="w-44">
-          <img src="src/assets/images/POK - LOGO.svg" alt="logo" />
+          <img src="src/assets/images/POK_LOGO.svg" alt="logo" />
         </div>
 
         <nav className="flex gap-2 bg-cardDark p-1 rounded-xl">
