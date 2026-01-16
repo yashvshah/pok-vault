@@ -11,6 +11,8 @@ interface MarketActionCardProps {
   inputLabel: string;
   inputValue: string;
   maxValue?: string;
+  balanceInfo?: string; // Balance text to display
+  onMaxClick?: () => void; // Max button handler
   receiveItems: ReceiveItem[];
   buttonLabel: string;
   isLoading?: boolean;
@@ -26,6 +28,8 @@ const MarketActionCard: React.FC<MarketActionCardProps> = ({
   inputLabel,
   inputValue,
   maxValue,
+  balanceInfo,
+  onMaxClick,
   receiveItems,
   buttonLabel,
   disabled = false,
@@ -60,6 +64,22 @@ const MarketActionCard: React.FC<MarketActionCardProps> = ({
 
       {/* Input Label */}
       <label className="block text-sm text-gray-400 mb-2">{inputLabel}</label>
+
+      {/* Balance and Max Button */}
+      {balanceInfo && (
+        <div className="flex justify-between items-center mb-2">
+          <p className="text-xs text-gray-400">{balanceInfo}</p>
+          {onMaxClick && (
+            <button
+              onClick={onMaxClick}
+              disabled={disabled}
+              className="text-xs text-primary hover:text-primary/80 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+            >
+              MAX
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Input */}
       <div className="gradiant-border">

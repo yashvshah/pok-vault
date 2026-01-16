@@ -99,6 +99,14 @@ function PairMergeAction({ pair, idx, amount, onInputChange }: { pair: Supported
   const { data: balA } = useErc1155Balance({ tokenAddress: pair.outcomeTokenA as Address, tokenId: idA, chainId: bsc.id });
   const { data: balB } = useErc1155Balance({ tokenAddress: pair.outcomeTokenB as Address, tokenId: idB, chainId: bsc.id });
 
+  const balAFormatted = formatUnits(balA ?? 0n, pair.decimalsA);
+  const balBFormatted = formatUnits(balB ?? 0n, pair.decimalsB);
+  
+  // Max is the lesser of the two balances
+  const maxAmount = balA && balB 
+    ? (Number(balAFormatted) < Number(balBFormatted) ? balAFormatted : balBFormatted)
+    : '0';
+
   const amountUsdt = parseUnits(amount || '0', 18);
   const reqA = parseUnits(amount || '0', pair.decimalsA);
   const reqB = parseUnits(amount || '0', pair.decimalsB);
@@ -129,6 +137,10 @@ function PairMergeAction({ pair, idx, amount, onInputChange }: { pair: Supported
     });
   };
 
+  const onMaxClick = () => {
+    onInputChange(maxAmount);
+  };
+
   const isPolyA = pair.outcomeTokenA.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase();
   const tokenAName = isPolyA ? "Polymarket (Bridged)" : "Opinion";
   const tokenBName = !isPolyA ? "Polymarket (Bridged)" : "Opinion";
@@ -139,6 +151,8 @@ function PairMergeAction({ pair, idx, amount, onInputChange }: { pair: Supported
         title={`Pair ${idx + 1}: ${tokenAName} + ${tokenBName}`}
         inputLabel="Amount to Merge"
         inputValue={amount}
+        balanceInfo={`${tokenAName}: ${balAFormatted} | ${tokenBName}: ${balBFormatted}`}
+        onMaxClick={onMaxClick}
         receiveItems={[{ amount: receiveAmount, token: 'USDT', highlight: 'primary' }]}
         buttonLabel={!enough ? 'Insufficient balance to merge and exit' : currentChainId === bsc.id ? 'Merge & Exit' : 'Switch chain to merge and exit'}
         disabled={pair.status !== 'allowed'}
@@ -163,6 +177,7 @@ function PairSplitAction({ pair, idx, amount, onInputChange }: { pair: Supported
 
   const { data: usdtBal } = useBalance({ address, chainId: bsc.id, token: USDT_ADDRESS });
   const enoughUsdt = (usdtBal?.value ?? 0n) >= amountUsdt;
+  const usdtBalFormatted = formatUnits(usdtBal?.value ?? 0n, 18);
 
   const { data: estSplit } = useReadContract({
     abi: EarlyExitVaultAbi,
@@ -188,6 +203,10 @@ function PairSplitAction({ pair, idx, amount, onInputChange }: { pair: Supported
     });
   };
 
+  const onMaxClick = () => {
+    onInputChange(usdtBalFormatted);
+  };
+
   const isPolyA = pair.outcomeTokenA.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase();
   const tokenAName = isPolyA ? "Polymarket (Bridged)" : "Opinion";
   const tokenBName = !isPolyA ? "Polymarket (Bridged)" : "Opinion";
@@ -202,6 +221,8 @@ function PairSplitAction({ pair, idx, amount, onInputChange }: { pair: Supported
         title={`Pair ${idx + 1}: ${tokenAName} + ${tokenBName}`}
         inputLabel="Amount to Split"
         inputValue={amount}
+        balanceInfo={`USDT Balance: ${usdtBalFormatted}`}
+        onMaxClick={onMaxClick}
         receiveItems={[
           { amount: tokenAmtA, token: `Token A (${pair.decimalsA} decimals)`, highlight: 'yellow' },
           { amount: tokenAmtB, token: `Token B (${pair.decimalsB} decimals)`, highlight: 'yellow' },
