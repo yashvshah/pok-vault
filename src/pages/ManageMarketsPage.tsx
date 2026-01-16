@@ -49,6 +49,8 @@ const ManageMarketsPage: FunctionComponent = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [earlyExitContractAddress, setEarlyExitContractAddress] = useState("");
   const [showCreateContract, setShowCreateContract] = useState(false);
+
+  console.log("Fetched Market:", fetchedMarket);
   
   // Factory contract creation inputs
   const [newMarketExpiryDate, setNewMarketExpiryDate] = useState("");
@@ -234,7 +236,7 @@ const ManageMarketsPage: FunctionComponent = () => {
         question: market.question,
         yesTokenId: market.yesTokenId,
         noTokenId: market.noTokenId,
-        image: market.outcomes?.[0],
+        image: market.image,
         endDate: market.endDate,
       };
     } catch (error) {
