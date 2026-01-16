@@ -11,9 +11,25 @@ A React + TypeScript application for managing and interacting with POKVault on B
 - **Multi-Chain Support**: Seamless switching between Polygon and BSC networks
 
 ### Markets Page
-- **Supported Markets**: View all markets enabled for early exit arbitrage
-- **Market Details**: Display actual market questions, outcome tokens, and status
+- **Supported Markets**: View all active markets enabled for early exit arbitrage (defaults to showing "Allowed" status only)
+- **Market Details**: Display actual market questions, outcome tokens, and status (✅ Active, ⏸️ Paused, 🔴 Expired)
 - **Cross-Market Pairs**: See which Polymarket/Opinion pairs are configured
+- **Market Filtering**: Search markets and filter by status (All, Allowed, Paused, Expired)
+- **Token Balances**: View your Polymarket and Opinion token balances with automatic Gnosis Safe detection
+- **Cross-Chain Bridging**: Bridge Polymarket tokens between Polygon and BSC via Axelar GMP
+- **Merge & Exit**: Combine opposite outcome tokens and exit early for discounted USDT
+- **Split & Acquire**: Use USDT to acquire opposite outcome token pairs for arbitrage
+- **Gnosis Safe Support**: Automatic detection and support for Polymarket and Opinion Safe wallets
+  - Polymarket Safe (Polygon): Derived from EOA using known factory
+  - Opinion Safe (BSC): Fetched from Safe API and validated against Opinion factory
+  - Toggle between EOA and Safe for transactions
+
+### Markets Page - Owner Actions (Owner Only)
+When the connected wallet is the vault owner, an additional "Owner Actions" tab appears for each market, allowing:
+- **Remove Pair**: Remove an opposite outcome token pair from the vault
+- **Start Redeem Process**: Initiate redemption after market expiry
+- **Report Profit/Loss**: Report profit or loss amounts for a specific pair
+- **Report & Remove Pair**: Report profit/loss and remove the pair in one transaction
 
 ### Manage Markets Page (Owner Only)
 - **Add Market Pairs**: Configure new Polymarket/Opinion market pairs for arbitrage
@@ -46,39 +62,54 @@ A React + TypeScript application for managing and interacting with POKVault on B
 src/
 ├── pages/                # Application pages
 │   ├── valut.tsx                     # Main vault page (deposit/withdraw)
-│   ├── marketsPage.tsx               # Supported markets display
+│   ├── marketsPage.tsx               # Markets page with merge/exit, split/acquire, owner actions
 │   └── ManageMarketsPage.tsx         # Market management (owner only)
 ├── components/           # React components
 │   ├── Header.tsx                    # Navigation header
 │   ├── Footer.tsx                    # Page footer
-│   ├── MarketCard.tsx                # Market display card
+│   ├── MarketCard.tsx                # Market display card with dynamic tabs
 │   ├── MarketActionCard.tsx          # Market interaction card
 │   ├── MarketFilters.tsx             # Market filtering UI
+│   ├── BalanceItem.tsx               # Token balance display
+│   ├── ConnectButton.tsx             # Wallet connection button
 │   └── Tabs/                         # Tab components
 ├── hooks/                # Custom React hooks
 │   ├── useDeposits.ts                # Deposit data fetching
 │   ├── useWithdrawals.ts             # Withdrawal data fetching
 │   ├── useNewOutcomePairs.ts         # New outcome pairs data
+│   ├── usePausedOutcomePairs.ts      # Paused outcome pairs data
+│   ├── useRemovedOutcomePairs.ts     # Removed outcome pairs data
+│   ├── useProfitLossReported.ts      # Profit/loss reporting events
+│   ├── useEarlyExits.ts              # Early exit events
+│   ├── useSplitOutcomeTokens.ts      # Split outcome token events
+│   ├── useSupportedMarkets.ts        # Combined markets data with status
 │   ├── useMarketInfo.ts              # Single market info
 │   ├── useMarketInfos.ts             # Multiple market info fetching
 │   ├── useVaultActivities.ts         # Combined activities hook
-│   └── useAPY.ts                     # Vault APY calculation
+│   ├── useAPY.ts                     # Vault APY calculation
+│   ├── useSafeAddresses.ts           # Gnosis Safe detection hook
+│   ├── useSafeWrite.ts               # Safe transaction writing
+│   └── useErc1155Balance.ts          # ERC1155 balance reading
 ├── services/             # External service integrations
 │   ├── ctfExchange.ts                # CTF exchange contract calls
 │   ├── polymarket.ts                 # Polymarket API client
 │   ├── opinion.ts                    # Opinion API client
 │   └── marketInfo.ts                 # Market info utilities
+├── utils/                # Utility functions
+│   └── safe.ts                       # Gnosis Safe address derivation
 ├── types/                # TypeScript type definitions
 │   └── vault.ts                      # Vault activity types
 ├── config/               # Configuration files
 │   ├── subgraph.ts                   # GraphQL queries and client
-│   └── addresses.ts                  # Contract addresses and constants
+│   ├── addresses.ts                  # Contract addresses and constants
+│   └── safe.ts                       # Safe factory addresses
 ├── abi/                  # Contract ABIs
 │   ├── EarlyExitVault.json
 │   ├── EarlyExitAmountBasedOnFixedAPY.json
 │   ├── EarlyExitAmountFactoryBasedOnFixedAPY.json
 │   ├── CTFExchange.json
-│   └── NegRiskCTFExchange.json
+│   ├── NegRiskCTFExchange.json
+│   └── GnosisSafe.json
 ├── App.tsx               # Main app component with routing
 ├── Web3Provider.tsx      # Web3 context provider
 └── main.tsx              # Application entry point
@@ -166,6 +197,24 @@ API endpoints:
 2. **Withdrawals**: Users redeem their shares to receive back their USDT plus earned yield
 3. **APY Calculation**: Real-time APY calculation based on vault performance
 
+### Markets Page Features
+1. **View Markets**: Browse all configured prediction market pairs with filtering and search
+2. **Token Balances**: Automatic display of your ERC1155 token balances across Polygon and BSC
+3. **Gnosis Safe Integration**:
+   - Polymarket Safe (Polygon): Automatically derived from your EOA
+   - Opinion Safe (BSC): Fetched from Safe API and validated
+   - Toggle between EOA and Safe for each transaction
+4. **Cross-Chain Bridging**: Bridge Polymarket tokens between Polygon and BSC via Axelar GMP
+5. **Merge & Exit**: Arbitragers combine opposite outcome tokens to exit early at a discounted rate
+6. **Split & Acquire**: Use USDT to acquire opposite outcome token pairs for arbitrage opportunities
+
+### Owner Actions (Markets Page)
+When connected as vault owner, each market displays an "Owner Actions" tab with:
+1. **Remove Pair**: Remove an outcome pair from vault operations
+2. **Start Redeem Process**: Initiate post-expiry redemption for a pair
+3. **Report Profit/Loss**: Submit profit or loss amounts for vault accounting
+4. **Report & Remove**: Atomically report and remove a pair in one transaction
+
 ### Market Management (Owner Only)
 1. **Market Discovery**: Enter Polymarket market slug and Opinion market ID
 2. **Validation**: App fetches and validates market details from both APIs
@@ -213,6 +262,11 @@ API endpoints:
 - **Error Handling**: Graceful error handling with user-friendly messages
 - **Array Destructuring**: Contract tuple responses properly mapped to structured objects
 - **Decimal Handling**: Proper conversion for different token decimals (Polymarket: 6, Opinion: 18, USDT: 18)
+- **Owner Detection**: Automatic vault owner detection via `owner()` contract call
+- **Conditional UI**: Owner-specific actions only visible to vault owner
+- **Safe Integration**: Automatic Gnosis Safe detection and transaction routing
+- **Multi-Chain Operations**: Seamless chain switching for Polygon and BSC operations
+- **Status Management**: Market pair status tracking (allowed, paused, removed)
 
 ## Key Technical Details
 
@@ -224,11 +278,21 @@ API endpoints:
 
 ### Contract Integration
 The app interfaces with several contracts:
-- **EarlyExitVault**: Main vault contract (ERC4626)
-- **EarlyExitAmountBasedOnFixedAPY**: Calculates early exit amounts
+- **EarlyExitVault**: Main vault contract (ERC4626) with owner-controlled pair management
+  - `owner()`: Returns vault owner address
+  - `removeAllowedOppositeOutcomeTokens()`: Remove outcome pair (owner only)
+  - `startRedeemProcess()`: Start post-expiry redemption (owner only)
+  - `reportProfitOrLoss()`: Report profits/losses (owner only)
+  - `reportProfitOrLossAndRemovePair()`: Report and remove atomically (owner only)
+  - `earlyExit()`: Arbitragers merge opposite tokens for early exit
+  - `splitOppositeOutcomeTokens()`: Acquire opposite outcome pairs
+  - `estimateEarlyExitAmount()`: Calculate exit amount preview
+  - `estimateSplitOppositeOutcomeTokensAmount()`: Calculate split amount preview
+- **EarlyExitAmountBasedOnFixedAPY**: Calculates early exit amounts based on APY and time
 - **EarlyExitAmountFactoryBasedOnFixedAPY**: Creates new early exit contracts
 - **CTF Exchange**: Polymarket conditional token framework
 - **NegRisk CTF Exchange**: Negative risk CTF implementation
+- **Gnosis Safe**: Multi-sig wallet support for Polymarket and Opinion accounts
 
 ### Solidity Struct Mapping
 Smart contracts return structs as arrays. The app maps them to TypeScript interfaces:

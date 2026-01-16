@@ -561,8 +561,6 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   const { data: markets = [], isLoading, error } = useSupportedMarkets();
   const { address } = useAccount();
 
-  console.log("MarketsPage render - markets:", markets, "filters:", filters);
-
   // Read owner from contract
   const { data: ownerAddress } = useReadContract({
     address: VAULT_ADDRESS,
