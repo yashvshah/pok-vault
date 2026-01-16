@@ -1,10 +1,90 @@
 import { useState, type FunctionComponent } from "react";
+import { useAccount, useWriteContract, useChainId, useSwitchChain } from "wagmi";
+import { polygon, bsc } from "wagmi/chains";
+import { parseUnits, erc1155Abi, formatUnits } from "viem";
+import { POLYGON_ERC1155_POLYGON_ADDRESS, POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, OPINION_ERC1155_ADDRESS, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, POLYMARKET_DECIMALS } from "../config/addresses";
+import { useErc1155Balance } from "../hooks/useErc1155Balance";
 import MarketCard from "../components/MarketCard";
 import MarketActionCard from "../components/MarketActionCard";
+import BalanceItem from "../components/BalanceItem";
 import MarketFilters, { type MarketFilterState } from "../components/MarketFilters";
-import { useSupportedMarkets, type MarketStatus } from "../hooks/useSupportedMarkets";
+import { useSupportedMarkets, type MarketStatus, type SupportedMarket } from "../hooks/useSupportedMarkets";
+
 
 interface MarketsPageProps {}
+
+
+function TokenBalances({ market }: { market: SupportedMarket }) {
+  const { address } = useAccount();
+  const { writeContract } = useWriteContract();
+  const currentChainId = useChainId();
+  const { switchChain } = useSwitchChain();
+  const yesIdPoly = market.polymarketYesTokenId ? BigInt(market.polymarketYesTokenId) : 0n;
+  const noIdPoly = market.polymarketNoTokenId ? BigInt(market.polymarketNoTokenId) : 0n;
+  const yesIdOpinion = market.opinionYesTokenId ? BigInt(market.opinionYesTokenId) : 0n;
+  const noIdOpinion = market.opinionNoTokenId ? BigInt(market.opinionNoTokenId) : 0n;
+
+  const { data: balPolyYes } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_POLYGON_ADDRESS, tokenId: yesIdPoly, chainId: polygon.id });
+  const { data: balPolyNo } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_POLYGON_ADDRESS, tokenId: noIdPoly, chainId: polygon.id });
+  const { data: balOpinionYes } = useErc1155Balance({ tokenAddress: OPINION_ERC1155_ADDRESS, tokenId: yesIdOpinion, chainId: bsc.id });
+  const { data: balOpinionNo } = useErc1155Balance({ tokenAddress: OPINION_ERC1155_ADDRESS, tokenId: noIdOpinion, chainId: bsc.id });
+  const { data: balBridgedYes } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, tokenId: yesIdPoly, chainId: bsc.id });
+  const { data: balBridgedNo } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, tokenId: noIdPoly, chainId: bsc.id });
+
+  const [bridgeYesAmt, setBridgeYesAmt] = useState('0');
+  const [bridgeNoAmt, setBridgeNoAmt] = useState('0');
+
+
+  const onBridge = async (id: bigint, amtStr: string) => {
+    if (!address) return;
+    const value = parseUnits(amtStr || '0', POLYMARKET_DECIMALS);
+    await writeContract({
+      abi: erc1155Abi,
+      address: POLYGON_ERC1155_POLYGON_ADDRESS,
+      functionName: 'safeTransferFrom',
+      args: [address, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, id, value, '0x'],
+      chainId: polygon.id,
+    });
+  };
+
+  return (
+    <div className="text-xs text-white/80 space-y-3 mt-2">
+      <div className="grid grid-cols-2 gap-3">
+        <BalanceItem
+          title="Polymarket YES (Polygon)"
+          balance={formatUnits(balPolyYes ?? 0n, POLYMARKET_DECIMALS).toString()}
+          action={(
+            <div className="flex gap-2">
+              <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeYesAmt} onChange={e => setBridgeYesAmt(e.target.value)} placeholder="amt" />
+              <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40" onClick={() => (currentChainId === polygon.id ? onBridge(yesIdPoly, bridgeYesAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
+                {currentChainId === polygon.id ? 'Bridge' : 'Switch chain to bridge'}
+              </button>
+            </div>
+          )}
+        />
+        <BalanceItem
+          title="Polymarket NO (Polygon)"
+          balance={formatUnits(balPolyNo ?? 0n, POLYMARKET_DECIMALS).toString()}
+          action={(
+            <div className="flex gap-2">
+              <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeNoAmt} onChange={e => setBridgeNoAmt(e.target.value)} placeholder="amt" />
+              <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40" onClick={() => (currentChainId === polygon.id ? onBridge(noIdPoly, bridgeNoAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
+                {currentChainId === polygon.id ? 'Bridge' : 'Switch chain to bridge'}
+              </button>
+            </div>
+          )}
+        />
+        <BalanceItem title="Opinion YES (BSC)" balance={formatUnits(balOpinionYes ?? 0n, POLYMARKET_DECIMALS)} />
+        <BalanceItem title="Opinion NO (BSC)" balance={formatUnits(balOpinionNo ?? 0n, POLYMARKET_DECIMALS)} />
+        <BalanceItem title="Bridged Poly YES (BSC)" balance={formatUnits(balBridgedYes ?? 0n, POLYMARKET_DECIMALS)} />
+        <BalanceItem title="Bridged Poly NO (BSC)" balance={formatUnits(balBridgedNo ?? 0n, POLYMARKET_DECIMALS)} />
+        <BalanceItem title="Poly YES Pending Bridge" balance={"—"} action={<button className="rounded bg-white/10 px-2 py-1 border border-white/20">Complete Bridge</button>} />
+        <BalanceItem title="Poly NO Pending Bridge" balance={"—"} action={<button className="rounded bg-white/10 px-2 py-1 border border-white/20">Complete Bridge</button>} />
+      </div>
+      <div className="text-white/50">Note: Bridging requires calling bridge function and then calling complete bridge to pay gas fees</div>
+    </div>
+  );
+}
 
 const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   const [amount, setAmount] = useState("0.00");
@@ -97,7 +177,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
       <div className="mx-30 mb-10">
         <h1 className="text-5xl font-League-Spartan mt-10">Supported Markets</h1>
         <p className="text-gray-400 mt-5 max-w-lg">
-          Buy opposite outcome tokens in following markets for less than 1 dollar and get back USDC.e immediately.
+          Buy opposite outcome tokens in following markets for less than 1 dollar and get back USDT immediately.
         </p>
 
         <MarketFilters
@@ -120,11 +200,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                 status={getStatusText(market.overallStatus)}
                 statusColor={getStatusColor(market.overallStatus)}
                 markets={marketPlatforms}
-                balances={
-                  <div className="text-xs text-white/60 space-y-1 mt-2">
-                    {market.pairs.length} pair{market.pairs.length > 1 ? 's' : ''} configured
-                  </div>
-                }
+                balances={<TokenBalances market={market} />}
                 actionTabs={[
                   {
                     key: "merge",

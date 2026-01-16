@@ -33,7 +33,7 @@ A React + TypeScript application for managing and interacting with POKVault on P
 - **Web3**: Wagmi v2 + Viem + RainbowKit
 - **Data Fetching**: TanStack React Query
 - **Styling**: Tailwind CSS v4 (custom primary color: #EC6769)
-- **Routing**: React Router v6
+- **Routing**: React Router v7
 - **Blockchain Data**: The Graph protocol subgraph queries
 - **External APIs**: 
   - Polymarket Gamma API (market data)
@@ -109,7 +109,7 @@ npm install
 npm run dev
 ```
 
-4. Open [http://localhost:5174](http://localhost:5174) in your browser
+4. Open [http://localhost:5173](http://localhost:5173) in your browser
 
 ### Build for Production
 
@@ -127,14 +127,14 @@ npm run preview
 
 ### Network Configuration
 The app supports multiple networks:
-- **Polygon Mainnet**: Primary network for vault operations
-- **BSC Mainnet**: For Opinion market data and bridged tokens
-- Automatic network switching based on user actions
+- **BSC Mainnet**: Primary network for vault operations
+- **Polygon Mainnet**: Source chain for Polymarket ERC1155 tokens (bridged to BSC)
+- Automatic network switching based on user actions; Polymarket conditional ERC1155 tokens must be bridged from Polygon to BSC for early exit
 
 ### Contract Addresses (see `src/config/addresses.ts`)
 - **Vault Address**: Main ERC4626 vault contract
 - **Early Exit Factory**: Factory for creating early exit amount contracts
-- **Token Addresses**: USDT, Polymarket ERC1155 (bridged), Opinion ERC1155
+- **Token Addresses**: USDT (BSC), Polymarket ERC1155 (bridged from Polygon), Opinion ERC1155 (BSC)
 
 ### API Configuration
 The application uses a middleware proxy to avoid CORS issues:
