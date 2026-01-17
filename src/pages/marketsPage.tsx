@@ -1,7 +1,7 @@
 import { useState, type FunctionComponent } from "react";
 import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance, useWriteContract } from "wagmi";
 import { polygon, bsc } from "wagmi/chains";
-import { parseUnits, erc1155Abi, formatUnits, encodeAbiParameters } from "viem";
+import { parseUnits, erc1155Abi, formatUnits, encodeAbiParameters, erc20Abi } from "viem";
 import type { Address, Abi } from "viem";
 import EarlyExitVaultAbi from "../abi/EarlyExitVault.json";
 import GnosisSafeAbi from "../abi/GnosisSafe.json";
@@ -19,6 +19,7 @@ import BalanceItem from "../components/BalanceItem";
 import MarketFilters, { type MarketFilterState } from "../components/MarketFilters";
 import { useSupportedMarkets, type MarketStatus, type SupportedMarket } from "../hooks/useSupportedMarkets";
 import { createPolygonToBSCBridgeBatch, createBSCToPolygonBridgeBatch } from "../utils/bridgeBatch";
+import { createMergeBatchWithApprovals, createSplitBatchWithApproval } from "../utils/mergeSplitBatch";
 import { generateSingleOwnerSignature } from "../utils/safe";
 import { ZERO_ADDRESS } from "../config/safe";
 
@@ -336,6 +337,7 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
   const { address } = useAccount();
   const currentChainId = useChainId();
   const { switchChain } = useSwitchChain();
+  const { writeContract } = useWriteContract();
   
   const { opinionSafe, useOpinionSafe, writeBsc } = safeInfo;
 
@@ -344,8 +346,29 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
   
   // Use safe address for balance reads if applicable
   const bscOwner = (useOpinionSafe ? opinionSafe : null) as `0x${string}` | null | undefined;
+  const ownerAddress = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}` | undefined;
+  
   const { data: balA } = useErc1155Balance({ tokenAddress: pair.outcomeTokenA as Address, tokenId: idA, chainId: bsc.id, ownerAddress: bscOwner });
   const { data: balB } = useErc1155Balance({ tokenAddress: pair.outcomeTokenB as Address, tokenId: idB, chainId: bsc.id, ownerAddress: bscOwner });
+
+  // Check approvals for both tokens
+  const { data: isApprovedA } = useReadContract({
+    abi: erc1155Abi,
+    address: pair.outcomeTokenA as Address,
+    functionName: 'isApprovedForAll',
+    args: [ownerAddress as Address, VAULT_ADDRESS],
+    chainId: bsc.id,
+    query: { enabled: !!ownerAddress }
+  });
+
+  const { data: isApprovedB } = useReadContract({
+    abi: erc1155Abi,
+    address: pair.outcomeTokenB as Address,
+    functionName: 'isApprovedForAll',
+    args: [ownerAddress as Address, VAULT_ADDRESS],
+    chainId: bsc.id,
+    query: { enabled: !!ownerAddress }
+  });
 
   const balAFormatted = formatUnits(balA ?? 0n, pair.decimalsA);
   const balBFormatted = formatUnits(balB ?? 0n, pair.decimalsB);
@@ -369,6 +392,11 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
   });
   const receiveAmount = estimated ? formatUnits(estimated as bigint, 18) : '0.00';
 
+  const needsApprovalA = !isApprovedA;
+  const needsApprovalB = !isApprovedB;
+  
+  const [approvalStep, setApprovalStep] = useState<'tokenA' | 'tokenB' | 'done'>('tokenA');
+
   const onSubmit = async () => {
     if (!address) return;
     if (currentChainId !== bsc.id) {
@@ -376,7 +404,69 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
       return;
     }
     if (!enough) return;
+    
     const recipient = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}`;
+    
+    // If using Safe, batch everything
+    if (useOpinionSafe && opinionSafe) {
+      const multiSendParams = createMergeBatchWithApprovals({
+        tokenA: pair.outcomeTokenA as Address,
+        tokenB: pair.outcomeTokenB as Address,
+        tokenIdA: idA,
+        tokenIdB: idB,
+        amountUsdt,
+        recipient,
+        needsApprovalA,
+        needsApprovalB,
+      });
+      
+      const signatures = generateSingleOwnerSignature(address);
+      
+      await writeContract({
+        address: opinionSafe,
+        abi: GnosisSafeAbi as Abi,
+        functionName: "execTransaction",
+        args: [
+          multiSendParams.to,
+          multiSendParams.value,
+          multiSendParams.data,
+          multiSendParams.operation,
+          0n,
+          0n,
+          0n,
+          ZERO_ADDRESS,
+          ZERO_ADDRESS,
+          signatures,
+        ],
+        chainId: bsc.id,
+      });
+      return;
+    }
+    
+    // EOA: Handle approvals sequentially
+    if (needsApprovalA && approvalStep === 'tokenA') {
+      await writeBsc({
+        abi: erc1155Abi,
+        address: pair.outcomeTokenA as Address,
+        functionName: 'setApprovalForAll',
+        args: [VAULT_ADDRESS, true],
+      });
+      setApprovalStep('tokenB');
+      return;
+    }
+    
+    if (needsApprovalB && approvalStep === 'tokenB') {
+      await writeBsc({
+        abi: erc1155Abi,
+        address: pair.outcomeTokenB as Address,
+        functionName: 'setApprovalForAll',
+        args: [VAULT_ADDRESS, true],
+      });
+      setApprovalStep('done');
+      return;
+    }
+    
+    // If all approvals done or not needed, execute merge
     await writeBsc({
       abi: EarlyExitVaultAbi,
       address: VAULT_ADDRESS,
@@ -393,6 +483,31 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
   const tokenAName = isPolyA ? "Polymarket (Bridged)" : "Opinion";
   const tokenBName = !isPolyA ? "Polymarket (Bridged)" : "Opinion";
 
+  // Determine button label
+  let buttonLabel = '';
+  if (!enough) {
+    buttonLabel = 'Insufficient balance to merge and exit';
+  } else if (currentChainId !== bsc.id) {
+    buttonLabel = 'Switch chain to merge and exit';
+  } else if (useOpinionSafe && opinionSafe) {
+    // Safe: Show batch message
+    const approvalsNeeded = [needsApprovalA, needsApprovalB].filter(Boolean).length;
+    if (approvalsNeeded > 0) {
+      buttonLabel = `Merge`;
+    } else {
+      buttonLabel = 'Merge';
+    }
+  } else {
+    // EOA: Show sequential steps
+    if (needsApprovalA && approvalStep === 'tokenA') {
+      buttonLabel = `Approve ${tokenAName} before merging`;
+    } else if (needsApprovalB && approvalStep === 'tokenB') {
+      buttonLabel = `Approve ${tokenBName} before merging`;
+    } else {
+      buttonLabel = 'Merge';
+    }
+  }
+
   return (
     <div className="border-b border-white/10 pb-4 last:border-0">
       <MarketActionCard
@@ -402,7 +517,7 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
         balanceInfo={`${tokenAName}: ${balAFormatted} | ${tokenBName}: ${balBFormatted}`}
         onMaxClick={onMaxClick}
         receiveItems={[{ amount: receiveAmount, token: 'USDT', highlight: 'primary' }]}
-        buttonLabel={!enough ? 'Insufficient balance to merge and exit' : currentChainId === bsc.id ? 'Merge & Exit' : 'Switch chain to merge and exit'}
+        buttonLabel={buttonLabel}
         disabled={pair.status !== 'allowed'}
         buttonDisabled={!enough || pair.status !== 'allowed'}
         disabledReason={pair.status === 'paused' ? 'Pair is paused' : pair.status === 'removed' ? 'Pair has been removed' : undefined}
@@ -423,6 +538,7 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
   const { address } = useAccount();
   const currentChainId = useChainId();
   const { switchChain } = useSwitchChain();
+  const { writeContract } = useWriteContract();
   
   const { opinionSafe, useOpinionSafe, writeBsc } = safeInfo;
 
@@ -435,6 +551,18 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
   const { data: usdtBal } = useBalance({ address: bscOwner, chainId: bsc.id, token: USDT_ADDRESS });
   const enoughUsdt = (usdtBal?.value ?? 0n) >= amountUsdt;
   const usdtBalFormatted = formatUnits(usdtBal?.value ?? 0n, 18);
+
+  // Check USDT allowance
+  const { data: allowance } = useReadContract({
+    abi: erc20Abi,
+    address: USDT_ADDRESS,
+    functionName: 'allowance',
+    args: [bscOwner as Address, VAULT_ADDRESS],
+    chainId: bsc.id,
+    query: { enabled: !!bscOwner }
+  });
+
+  const needsApproval = (allowance as bigint | undefined ?? 0n) < amountUsdt;
 
   const { data: estSplit } = useReadContract({
     abi: EarlyExitVaultAbi,
@@ -451,7 +579,57 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
       return;
     }
     if (!enoughUsdt) return;
+    
     const recipient = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}`;
+    
+    // If using Safe, batch approve + split
+    if (useOpinionSafe && opinionSafe) {
+      const multiSendParams = createSplitBatchWithApproval({
+        usdtToken: USDT_ADDRESS,
+        amountUsdt,
+        tokenA: pair.outcomeTokenA as Address,
+        tokenB: pair.outcomeTokenB as Address,
+        tokenIdA: idA,
+        tokenIdB: idB,
+        recipient,
+        needsApproval,
+      });
+      
+      const signatures = generateSingleOwnerSignature(address);
+      
+      await writeContract({
+        address: opinionSafe,
+        abi: GnosisSafeAbi as Abi,
+        functionName: "execTransaction",
+        args: [
+          multiSendParams.to,
+          multiSendParams.value,
+          multiSendParams.data,
+          multiSendParams.operation,
+          0n,
+          0n,
+          0n,
+          ZERO_ADDRESS,
+          ZERO_ADDRESS,
+          signatures,
+        ],
+        chainId: bsc.id,
+      });
+      return;
+    }
+    
+    // EOA: Handle approval then split
+    if (needsApproval) {
+      await writeBsc({
+        abi: erc20Abi,
+        address: USDT_ADDRESS,
+        functionName: 'approve',
+        args: [VAULT_ADDRESS, amountUsdt],
+      });
+      return;
+    }
+    
+    // Execute split
     await writeBsc({
       abi: EarlyExitVaultAbi,
       address: VAULT_ADDRESS,
@@ -472,6 +650,28 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
   const tokenAmtA = formatUnits(estSplitAmt, USDT_DECIMALS);
   const tokenAmtB = formatUnits(estSplitAmt, USDT_DECIMALS);
 
+  // Determine button label
+  let buttonLabel = '';
+  if (!enoughUsdt) {
+    buttonLabel = 'Insufficient USDT balance to split and acquire';
+  } else if (currentChainId !== bsc.id) {
+    buttonLabel = 'Switch chain to split';
+  } else if (useOpinionSafe && opinionSafe) {
+    // Safe: Show batch message
+    if (needsApproval) {
+      buttonLabel = 'Approve + Split';
+    } else {
+      buttonLabel = 'Split';
+    }
+  } else {
+    // EOA: Show approval step or split
+    if (needsApproval) {
+      buttonLabel = 'Approve USDT before splitting';
+    } else {
+      buttonLabel = 'Split';
+    }
+  }
+
   return (
     <div className="border-b border-white/10 pb-4 last:border-0">
       <MarketActionCard
@@ -484,7 +684,7 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
           { amount: tokenAmtA, token: `Token A (${pair.decimalsA} decimals)`, highlight: 'yellow' },
           { amount: tokenAmtB, token: `Token B (${pair.decimalsB} decimals)`, highlight: 'yellow' },
         ]}
-        buttonLabel={!enoughUsdt ? 'Insufficient USDT balance to split and acquire' : currentChainId === bsc.id ? 'Split & Acquire' : 'Switch chain to split'}
+        buttonLabel={buttonLabel}
         disabled={pair.status !== 'allowed'}
         buttonDisabled={!enoughUsdt || pair.status !== 'allowed'}
         disabledReason={pair.status === 'paused' ? 'Pair is paused' : pair.status === 'removed' ? 'Pair has been removed' : undefined}
@@ -870,7 +1070,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
         <div className="grid grid-cols-2 gap-5 items-start mt-6">
           {filteredMarkets.map((market) => {
             const marketPlatforms = [
-              market.polymarketQuestion && { name: "Polymarket (Bridged)", question: market.polymarketQuestion },
+              market.polymarketQuestion && { name: "Polymarket", question: market.polymarketQuestion },
               market.opinionQuestion && { name: "Opinion", question: market.opinionQuestion },
             ].filter(Boolean) as { name: string; question: string }[];
 

@@ -17,12 +17,22 @@ A React + TypeScript application for managing and interacting with POKVault on B
 - **Market Filtering**: Search markets and filter by status (All, Allowed, Paused, Expired)
 - **Token Balances**: View your Polymarket and Opinion token balances with automatic Gnosis Safe detection
 - **Cross-Chain Bridging**: Bridge Polymarket tokens between Polygon and BSC via Axelar GMP
+  - Real-time bridge status tracking with Axelar SDK integration
+  - Pending bridge transaction detection and monitoring
+  - Gas fee estimation for both directions (Polygon→BSC, BSC→Polygon)
+  - Automatic gas payment batching for Safe wallets
 - **Merge & Exit**: Combine opposite outcome tokens and exit early for discounted USDT
+  - Automatic ERC1155 approval checking
+  - Smart approval batching for Safe wallets
+  - Sequential approval flow for EOA wallets
 - **Split & Acquire**: Use USDT to acquire opposite outcome token pairs for arbitrage
+  - Automatic USDT allowance checking
+  - Approval + split batching for Safe wallets
 - **Gnosis Safe Support**: Automatic detection and support for Polymarket and Opinion Safe wallets
   - Polymarket Safe (Polygon): Derived from EOA using known factory
-  - Opinion Safe (BSC): Fetched from Safe API and validated against Opinion factory
+  - Opinion Safe (BSC): Fetched from Opinion API user profile endpoint
   - Toggle between EOA and Safe for transactions
+  - MultiSend batching for atomic multi-step operations
 
 ### Markets Page - Owner Actions (Owner Only)
 When the connected wallet is the vault owner, an additional "Owner Actions" tab appears for each market, allowing:
@@ -51,9 +61,14 @@ When the connected wallet is the vault owner, an additional "Owner Actions" tab 
 - **Styling**: Tailwind CSS v4 (custom primary color: #EC6769)
 - **Routing**: React Router v7
 - **Blockchain Data**: The Graph protocol subgraph queries
+  - Vault events (Polygon): Deposits, withdrawals, outcome pairs
+  - Bridge events (Polygon): Polymarket source bridge tracking
+  - Bridge events (BSC): Polymarket receiver bridge tracking
 - **External APIs**: 
   - Polymarket Gamma API (market data)
-  - Opinion API (market data)
+  - Opinion API (market data and Safe wallet detection)
+  - Axelar GMP Recovery API (bridge status tracking)
+  - Axelar Query API (gas fee estimation)
   - Custom middleware for CORS handling
 
 ## Project Structure
@@ -89,6 +104,10 @@ src/
 │   ├── useAPY.ts                     # Vault APY calculation
 │   ├── useSafeAddresses.ts           # Gnosis Safe detection hook
 │   ├── useSafeWrite.ts               # Safe transaction writing
+│   ├── useMultiSendSafeWrite.ts      # MultiSend batched transactions
+│   ├── usePendingBridgeTransactions.ts # Bridge pending detection
+│   ├── useBridgeTransactionStatus.ts # Axelar bridge status checking
+│   ├── useBridgeGasEstimate.ts       # Axelar gas fee estimation
 │   └── useErc1155Balance.ts          # ERC1155 balance reading
 ├── services/             # External service integrations
 │   ├── ctfExchange.ts                # CTF exchange contract calls
@@ -96,7 +115,11 @@ src/
 │   ├── opinion.ts                    # Opinion API client
 │   └── marketInfo.ts                 # Market info utilities
 ├── utils/                # Utility functions
-│   └── safe.ts                       # Gnosis Safe address derivation
+│   ├── safe.ts                       # Gnosis Safe address derivation
+│   ├── multiSend.ts                  # MultiSend transaction packing
+│   ├── bridgeBatch.ts                # Bridge + gas payment batching
+│   ├── mergeSplitBatch.ts            # Merge/split approval batching
+│   └── bridgeGasEstimate.ts          # Axelar gas estimation utilities
 ├── types/                # TypeScript type definitions
 │   └── vault.ts                      # Vault activity types
 ├── config/               # Configuration files
@@ -187,8 +210,10 @@ API endpoints:
 - `/api/opinion/market/:id` - Fetch Opinion market by ID
 
 ### Subgraph Configuration
-- **Endpoint**: The Graph protocol endpoint for vault events
-- **Queries**: Deposits, withdrawals, and new opposite outcome token pairs
+- **Vault Events**: The Graph protocol endpoint for vault events (deposits, withdrawals, pairs)
+- **Bridge Events (Polygon)**: Polymarket source bridge subgraph for Polygon→BSC bridges
+- **Bridge Events (BSC)**: Polymarket receiver bridge subgraph for BSC→Polygon bridges
+- **Queries**: GraphQL queries for all event types with multi-address filtering support
 
 ## How It Works
 
@@ -202,11 +227,24 @@ API endpoints:
 2. **Token Balances**: Automatic display of your ERC1155 token balances across Polygon and BSC
 3. **Gnosis Safe Integration**:
    - Polymarket Safe (Polygon): Automatically derived from your EOA
-   - Opinion Safe (BSC): Fetched from Safe API and validated
+   - Opinion Safe (BSC): Fetched from Opinion API user profile
    - Toggle between EOA and Safe for each transaction
-4. **Cross-Chain Bridging**: Bridge Polymarket tokens between Polygon and BSC via Axelar GMP
-5. **Merge & Exit**: Arbitragers combine opposite outcome tokens to exit early at a discounted rate
-6. **Split & Acquire**: Use USDT to acquire opposite outcome token pairs for arbitrage opportunities
+4. **Cross-Chain Bridging**: 
+   - Bridge Polymarket tokens between Polygon and BSC via Axelar GMP
+   - Real-time status tracking with color-coded indicators
+   - Pending transaction detection across both directions
+   - Estimated gas fees displayed before bridging
+   - Safe wallets: Automatic batching of gas payment + bridge transfer
+   - EOA wallets: Manual gas payment required (shown in UI)
+5. **Merge & Exit**: 
+   - Arbitragers combine opposite outcome tokens to exit early at a discounted rate
+   - Safe wallets: Atomic approval + merge in one transaction
+   - EOA wallets: Sequential approval flow (Token A → Token B → Merge)
+   - Button labels dynamically update to show current step
+6. **Split & Acquire**: 
+   - Use USDT to acquire opposite outcome token pairs for arbitrage opportunities
+   - Safe wallets: Atomic approval + split in one transaction
+   - EOA wallets: Sequential approval flow (Approve USDT → Split)
 
 ### Owner Actions (Markets Page)
 When connected as vault owner, each market displays an "Owner Actions" tab with:
@@ -267,8 +305,50 @@ When connected as vault owner, each market displays an "Owner Actions" tab with:
 - **Safe Integration**: Automatic Gnosis Safe detection and transaction routing
 - **Multi-Chain Operations**: Seamless chain switching for Polygon and BSC operations
 - **Status Management**: Market pair status tracking (allowed, paused, removed)
+- **Bridge Transaction Tracking**: Pending bridge detection via subgraph event matching
+- **Gas Estimation**: Real-time gas fee calculation for cross-chain bridges
+- **MultiSend Batching**: Atomic multi-step operations for Safe wallets using Gnosis MultiSendCallOnly
+- **Approval Management**: Smart approval checking and batching for ERC1155 and ERC20 tokens
 
 ## Key Technical Details
+
+### Advanced Features
+
+#### Bridge Transaction Management
+- **Pending Detection**: Matches `ERC1155SingleReceived` events on source chain with `TransferBatch` events on destination
+- **Status Tracking**: Real-time bridge status via Axelar GMP Recovery API with auto-refresh
+- **Gas Estimation**: Pre-transaction gas fee calculation using Axelar Query API (gas limit: 120,000)
+- **Multi-Address Support**: Queries pending bridges for EOA + both Safe wallets simultaneously
+- **Axelar Integration**: Direct links to axelarscan.io for manual bridge completion if needed
+
+#### Transaction Batching (Safe Wallets)
+The app uses Gnosis Safe's MultiSendCallOnly contract to batch multiple operations atomically:
+
+**Bridge Batching** (Polygon→BSC or BSC→Polygon):
+1. Pay gas to Axelar Gas Service (native token value transfer)
+2. Transfer ERC1155 token to bridge contract (with encoded destination)
+
+**Merge Batching** (Early Exit):
+1. `setApprovalForAll` for Token A (if needed)
+2. `setApprovalForAll` for Token B (if needed)
+3. `earlyExit` to merge and receive USDT
+
+**Split Batching** (Acquire Pairs):
+1. `approve` USDT to vault (if needed)
+2. `splitOppositeOutcomeTokens` to acquire outcome tokens
+
+**Transaction Packing Format** (Gnosis MultiSend):
+```
+operation (1 byte) + to (20 bytes) + value (32 bytes) + dataLength (32 bytes) + data (variable bytes)
+```
+All fields are tightly packed using `abi.encodePacked` with no padding between fields.
+
+#### Approval Management
+- **ERC1155 Approval**: Checks `isApprovedForAll` before merge operations
+- **ERC20 Allowance**: Checks USDT `allowance` before split operations
+- **Smart Batching**: Only includes approval transactions if actually needed
+- **Sequential Flow (EOA)**: Step-by-step approval with clear button labels
+- **Atomic Flow (Safe)**: All approvals + action in single transaction
 
 ### Token Decimals
 - **Polymarket ERC1155**: 6 decimals
@@ -293,6 +373,24 @@ The app interfaces with several contracts:
 - **CTF Exchange**: Polymarket conditional token framework
 - **NegRisk CTF Exchange**: Negative risk CTF implementation
 - **Gnosis Safe**: Multi-sig wallet support for Polymarket and Opinion accounts
+- **MultiSendCallOnly**: Gnosis Safe MultiSend contract for batching transactions atomically
+- **Axelar Gateway**: Cross-chain messaging gateway for Polygon↔BSC bridges
+- **Axelar Gas Service**: Gas payment service for cross-chain transactions
+
+### Safe Wallet Detection
+
+**Polymarket Safe (Polygon)**:
+- Derived deterministically from EOA using CREATE2
+- Uses known Safe factory and singleton addresses
+- Verified on-chain via `getThreshold()` call
+
+**Opinion Safe (BSC)**:
+- Fetched from Opinion API: `https://proxy.opinion.trade:8443/api/bsc/api/v2/user/{address}/profile?chainId=56`
+- Extracted from `result.multiSignedWalletAddress['56']` in API response
+- More efficient than generic Safe API (single request vs. multiple)
+- **MultiSendCallOnly**: Gnosis Safe MultiSend contract for batching transactions atomically
+- **Axelar Gateway**: Cross-chain messaging gateway for Polygon↔BSC bridges
+- **Axelar Gas Service**: Gas payment service for cross-chain transactions
 
 ### Solidity Struct Mapping
 Smart contracts return structs as arrays. The app maps them to TypeScript interfaces:
