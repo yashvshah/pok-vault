@@ -4,6 +4,13 @@ export const SUBGRAPH_URL = 'https://api.goldsky.com/api/public/project_cmk8kaev
 
 export const subgraphClient = new GraphQLClient(SUBGRAPH_URL);
 
+// Bridge subgraph URLs
+export const POLYMARKET_SOURCE_BRIDGE_POLYGON_SUBGRAPH_URL = 'https://api.goldsky.com/api/public/project_cmk8kaeveu7zx01u72pajfmi5/subgraphs/pokVault-Polymarket-Source/1.0.0/gn';
+export const POLYMARKET_RECEIVER_BRIDGE_BSC_SUBGRAPH_URL = 'https://api.goldsky.com/api/public/project_cmk8kaeveu7zx01u72pajfmi5/subgraphs/pokVault-polymarket-BSC-Receiver/1.0.0/gn';
+
+export const polygonSourceBridgeClient = new GraphQLClient(POLYMARKET_SOURCE_BRIDGE_POLYGON_SUBGRAPH_URL);
+export const bscReceiverBridgeClient = new GraphQLClient(POLYMARKET_RECEIVER_BRIDGE_BSC_SUBGRAPH_URL);
+
 // GraphQL queries
 export const DEPOSITS_QUERY = `
   query GetDeposits($first: Int = 100, $orderBy: Deposit_orderBy = timestamp_, $orderDirection: OrderDirection = desc) {
@@ -125,6 +132,48 @@ export const SPLIT_OUTCOME_TOKENS_QUERY = `
       outcomeTokenA
       outcomeTokenB
       amount
+      block_number
+      timestamp_
+      transactionHash_
+    }
+  }
+`;
+
+// Bridge queries
+export const ERC1155_SINGLE_RECEIVED_QUERY = `
+  query GetERC1155SingleReceived($userAddresses: [String!]!, $first: Int = 1000) {
+    erc1155SingleReceiveds(
+      where: { to_in: $userAddresses }
+      first: $first
+      orderBy: timestamp_
+      orderDirection: desc
+    ) {
+      id
+      from
+      to
+      idParam
+      amount
+      block_number
+      timestamp_
+      transactionHash_
+    }
+  }
+`;
+
+export const TRANSFER_BATCH_QUERY = `
+  query GetTransferBatch($operator: String!, $from: String!, $userAddresses: [String!]!, $first: Int = 1000) {
+    transferBatches(
+      where: { operator: $operator, from: $from, to_in: $userAddresses }
+      first: $first
+      orderBy: timestamp_
+      orderDirection: desc
+    ) {
+      id
+      operator
+      from
+      to
+      ids
+      values
       block_number
       timestamp_
       transactionHash_

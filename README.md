@@ -1,48 +1,141 @@
 # POKVault Dashboard
 
-A React + TypeScript application for monitoring POKVault activities on Polygon. POKVault is an ERC4626 vault that enables early exits for prediction market arbitragers across Polymarket (Polygon) and Opinion (BSC, bridged via Axelar GMP).
+A React + TypeScript application for managing and interacting with POKVault on BSC. POKVault is an ERC4626 vault that enables early exits for prediction market arbitragers across Polymarket (Polygon) and Opinion (BSC, bridged via Axelar GMP).
 
 ## Features
 
-- **Real-time Vault Activities**: Monitor deposits, withdrawals, and new outcome token pairs
-- **Market Information**: Display actual market questions instead of token IDs using Polymarket API
-- **Web3 Integration**: Connect to Polygon network using Wagmi and RainbowKit
-- **Responsive Design**: Clean, modern UI built with Tailwind CSS
+### Vault Page
+- **Deposit & Withdraw**: Users can deposit USDT to earn yield and withdraw their shares
+- **Real-time Vault Stats**: Display APY, total assets, and vault performance metrics
+- **Activity History**: Monitor all vault deposits, withdrawals, and new outcome token pairs
+- **Multi-Chain Support**: Seamless switching between Polygon and BSC networks
+
+### Markets Page
+- **Supported Markets**: View all active markets enabled for early exit arbitrage (defaults to showing "Allowed" status only)
+- **Market Details**: Display actual market questions, outcome tokens, and status (✅ Active, ⏸️ Paused, 🔴 Expired)
+- **Cross-Market Pairs**: See which Polymarket/Opinion pairs are configured
+- **Market Filtering**: Search markets and filter by status (All, Allowed, Paused, Expired)
+- **Token Balances**: View your Polymarket and Opinion token balances with automatic Gnosis Safe detection
+- **Cross-Chain Bridging**: Bridge Polymarket tokens between Polygon and BSC via Axelar GMP
+  - Real-time bridge status tracking with Axelar SDK integration
+  - Pending bridge transaction detection and monitoring
+  - Gas fee estimation for both directions (Polygon→BSC, BSC→Polygon)
+  - Automatic gas payment batching for Safe wallets
+- **Merge & Exit**: Combine opposite outcome tokens and exit early for discounted USDT
+  - Automatic ERC1155 approval checking
+  - Smart approval batching for Safe wallets
+  - Sequential approval flow for EOA wallets
+- **Split & Acquire**: Use USDT to acquire opposite outcome token pairs for arbitrage
+  - Automatic USDT allowance checking
+  - Approval + split batching for Safe wallets
+- **Gnosis Safe Support**: Automatic detection and support for Polymarket and Opinion Safe wallets
+  - Polymarket Safe (Polygon): Derived from EOA using known factory
+  - Opinion Safe (BSC): Fetched from Opinion API user profile endpoint
+  - Toggle between EOA and Safe for transactions
+  - MultiSend batching for atomic multi-step operations
+
+### Markets Page - Owner Actions (Owner Only)
+When the connected wallet is the vault owner, an additional "Owner Actions" tab appears for each market, allowing:
+- **Remove Pair**: Remove an opposite outcome token pair from the vault
+- **Start Redeem Process**: Initiate redemption after market expiry
+- **Report Profit/Loss**: Report profit or loss amounts for a specific pair
+- **Report & Remove Pair**: Report profit/loss and remove the pair in one transaction
+
+### Manage Markets Page (Owner Only)
+- **Add Market Pairs**: Configure new Polymarket/Opinion market pairs for arbitrage
+- **Market Validation**: Automatically fetch and validate market details from both platforms
+- **Early Exit Contracts**: Create and configure early exit amount contracts with custom APY and expiry settings
+- **Token Pair Management**: Add opposite outcome token pairs (YES Poly + NO Opinion, NO Poly + YES Opinion)
+- **Real-time Status**: View isAllowed, isPaused, early exited amounts, and contract addresses for configured pairs
+
+### Web3 Integration
+- **Wallet Connection**: Connect via RainbowKit with support for MetaMask, WalletConnect, Coinbase Wallet, and more
+- **Multi-Network Support**: Automatic network switching for deposits and withdrawals
+- **Smart Contract Interactions**: Direct interaction with vault and early exit contracts
 
 ## Tech Stack
 
 - **Frontend**: React 19 + TypeScript + Vite
-- **Web3**: Wagmi + Viem + RainbowKit
+- **Web3**: Wagmi v2 + Viem + RainbowKit
 - **Data Fetching**: TanStack React Query
-- **Styling**: Tailwind CSS v4
+- **Styling**: Tailwind CSS v4 (custom primary color: #EC6769)
+- **Routing**: React Router v7
 - **Blockchain Data**: The Graph protocol subgraph queries
-- **External APIs**: Polymarket Gamma API
+  - Vault events (Polygon): Deposits, withdrawals, outcome pairs
+  - Bridge events (Polygon): Polymarket source bridge tracking
+  - Bridge events (BSC): Polymarket receiver bridge tracking
+- **External APIs**: 
+  - Polymarket Gamma API (market data)
+  - Opinion API (market data and Safe wallet detection)
+  - Axelar GMP Recovery API (bridge status tracking)
+  - Axelar Query API (gas fee estimation)
+  - Custom middleware for CORS handling
 
 ## Project Structure
 
 ```
 src/
-├── components/          # React components
-│   ├── VaultActivitiesTable.tsx    # Main activities table
-│   └── VaultActivitiesTest.tsx     # Test component (legacy)
-├── hooks/              # Custom React hooks
-│   ├── useDeposits.ts              # Deposit data fetching
-│   ├── useWithdrawals.ts           # Withdrawal data fetching
-│   ├── useNewOutcomePairs.ts       # New outcome pairs data
-│   ├── useMarketInfo.ts            # Single market info (legacy)
-│   ├── useMarketInfos.ts           # Multiple market info fetching
-│   └── useVaultActivities.ts       # Combined activities hook
-├── services/           # External service integrations
-│   ├── ctfExchange.ts               # CTF exchange contract calls
-│   └── polymarket.ts               # Polymarket API client
-├── types/              # TypeScript type definitions
-│   └── vault.ts                    # Vault activity types
-├── config/             # Configuration files
-│   └── subgraph.ts                 # GraphQL queries and client
-├── abi/                # Contract ABIs
+├── pages/                # Application pages
+│   ├── valut.tsx                     # Main vault page (deposit/withdraw)
+│   ├── marketsPage.tsx               # Markets page with merge/exit, split/acquire, owner actions
+│   └── ManageMarketsPage.tsx         # Market management (owner only)
+├── components/           # React components
+│   ├── Header.tsx                    # Navigation header
+│   ├── Footer.tsx                    # Page footer
+│   ├── MarketCard.tsx                # Market display card with dynamic tabs
+│   ├── MarketActionCard.tsx          # Market interaction card
+│   ├── MarketFilters.tsx             # Market filtering UI
+│   ├── BalanceItem.tsx               # Token balance display
+│   ├── ConnectButton.tsx             # Wallet connection button
+│   └── Tabs/                         # Tab components
+├── hooks/                # Custom React hooks
+│   ├── useDeposits.ts                # Deposit data fetching
+│   ├── useWithdrawals.ts             # Withdrawal data fetching
+│   ├── useNewOutcomePairs.ts         # New outcome pairs data
+│   ├── usePausedOutcomePairs.ts      # Paused outcome pairs data
+│   ├── useRemovedOutcomePairs.ts     # Removed outcome pairs data
+│   ├── useProfitLossReported.ts      # Profit/loss reporting events
+│   ├── useEarlyExits.ts              # Early exit events
+│   ├── useSplitOutcomeTokens.ts      # Split outcome token events
+│   ├── useSupportedMarkets.ts        # Combined markets data with status
+│   ├── useMarketInfo.ts              # Single market info
+│   ├── useMarketInfos.ts             # Multiple market info fetching
+│   ├── useVaultActivities.ts         # Combined activities hook
+│   ├── useAPY.ts                     # Vault APY calculation
+│   ├── useSafeAddresses.ts           # Gnosis Safe detection hook
+│   ├── useSafeWrite.ts               # Safe transaction writing
+│   ├── useMultiSendSafeWrite.ts      # MultiSend batched transactions
+│   ├── usePendingBridgeTransactions.ts # Bridge pending detection
+│   ├── useBridgeTransactionStatus.ts # Axelar bridge status checking
+│   ├── useBridgeGasEstimate.ts       # Axelar gas fee estimation
+│   └── useErc1155Balance.ts          # ERC1155 balance reading
+├── services/             # External service integrations
+│   ├── ctfExchange.ts                # CTF exchange contract calls
+│   ├── polymarket.ts                 # Polymarket API client
+│   ├── opinion.ts                    # Opinion API client
+│   └── marketInfo.ts                 # Market info utilities
+├── utils/                # Utility functions
+│   ├── safe.ts                       # Gnosis Safe address derivation
+│   ├── multiSend.ts                  # MultiSend transaction packing
+│   ├── bridgeBatch.ts                # Bridge + gas payment batching
+│   ├── mergeSplitBatch.ts            # Merge/split approval batching
+│   └── bridgeGasEstimate.ts          # Axelar gas estimation utilities
+├── types/                # TypeScript type definitions
+│   └── vault.ts                      # Vault activity types
+├── config/               # Configuration files
+│   ├── subgraph.ts                   # GraphQL queries and client
+│   ├── addresses.ts                  # Contract addresses and constants
+│   └── safe.ts                       # Safe factory addresses
+├── abi/                  # Contract ABIs
+│   ├── EarlyExitVault.json
+│   ├── EarlyExitAmountBasedOnFixedAPY.json
+│   ├── EarlyExitAmountFactoryBasedOnFixedAPY.json
 │   ├── CTFExchange.json
-│   └── NegRiskCTFExchange.json
-└── Web3Provider.tsx    # Web3 context provider
+│   ├── NegRiskCTFExchange.json
+│   └── GnosisSafe.json
+├── App.tsx               # Main app component with routing
+├── Web3Provider.tsx      # Web3 context provider
+└── main.tsx              # Application entry point
 ```
 
 ## Getting Started
@@ -65,12 +158,21 @@ cd pok-vault
 npm install
 ```
 
-3. Start the development server:
+3. Configure environment variables:
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and add:
+- `VITE_OPINION_API_KEY`: Your Opinion API key
+- `VITE_WALLETCONNECT_PROJECT_ID`: Your WalletConnect project ID from [cloud.walletconnect.com](https://cloud.walletconnect.com/)
+
+4. Start the development server:
 ```bash
 npm run dev
 ```
 
-4. Open [http://localhost:5174](http://localhost:5174) in your browser
+5. Open [http://localhost:5173](http://localhost:5173) in your browser
 
 ### Build for Production
 
@@ -86,29 +188,94 @@ npm run preview
 
 ## Configuration
 
-The app is configured to work with:
-- **Network**: Polygon Mainnet
-- **Subgraph**: The Graph protocol endpoint for vault events
-- **APIs**: Polymarket Gamma API (via proxy to avoid CORS issues)
+### Network Configuration
+The app supports multiple networks:
+- **BSC Mainnet**: Primary network for vault operations
+- **Polygon Mainnet**: Source chain for Polymarket ERC1155 tokens (bridged to BSC)
+- Automatic network switching based on user actions; Polymarket conditional ERC1155 tokens must be bridged from Polygon to BSC for early exit
 
-### Development Setup
+### Contract Addresses (see `src/config/addresses.ts`)
+- **Vault Address**: Main ERC4626 vault contract
+- **Early Exit Factory**: Factory for creating early exit amount contracts
+- **Token Addresses**: USDT (BSC), Polymarket ERC1155 (bridged from Polygon), Opinion ERC1155 (BSC)
 
-The application uses a backend proxy to avoid CORS issues when calling the Polymarket API:
+### API Configuration
+The application uses a middleware proxy to avoid CORS issues:
 
-- **Development**: `http://localhost:3001/api/polymarket` (local proxy server)
-- **Production**: `https://pokvault-middleware-server.vercel.app/api/polymarket` (deployed proxy)
+- **Development**: `http://localhost:3001` (local proxy server)
+- **Production**: `https://pokvault-middleware-server.vercel.app` (deployed proxy)
 
-Make sure to run the proxy server locally on port 3001 during development.
+API endpoints:
+- `/api/polymarket/markets/slug/:slug` - Fetch Polymarket market by slug
+- `/api/opinion/market/:id` - Fetch Opinion market by ID
+
+### Subgraph Configuration
+- **Vault Events**: The Graph protocol endpoint for vault events (deposits, withdrawals, pairs)
+- **Bridge Events (Polygon)**: Polymarket source bridge subgraph for Polygon→BSC bridges
+- **Bridge Events (BSC)**: Polymarket receiver bridge subgraph for BSC→Polygon bridges
+- **Queries**: GraphQL queries for all event types with multi-address filtering support
 
 ## How It Works
 
-1. **Data Fetching**: The app fetches vault activities from a The Graph subgraph including deposits, withdrawals, and new outcome token pairs.
+### Vault Operations
+1. **Deposits**: Users deposit USDT into the vault and receive vault shares (ERC4626 standard)
+2. **Withdrawals**: Users redeem their shares to receive back their USDT plus earned yield
+3. **APY Calculation**: Real-time APY calculation based on vault performance
 
-2. **Market Resolution**: For outcome token pairs, the app calls CTF exchange contracts on Polygon to get condition IDs, then queries the Polymarket API to retrieve actual market questions and outcomes.
+### Markets Page Features
+1. **View Markets**: Browse all configured prediction market pairs with filtering and search
+2. **Token Balances**: Automatic display of your ERC1155 token balances across Polygon and BSC
+3. **Gnosis Safe Integration**:
+   - Polymarket Safe (Polygon): Automatically derived from your EOA
+   - Opinion Safe (BSC): Fetched from Opinion API user profile
+   - Toggle between EOA and Safe for each transaction
+4. **Cross-Chain Bridging**: 
+   - Bridge Polymarket tokens between Polygon and BSC via Axelar GMP
+   - Real-time status tracking with color-coded indicators
+   - Pending transaction detection across both directions
+   - Estimated gas fees displayed before bridging
+   - Safe wallets: Automatic batching of gas payment + bridge transfer
+   - EOA wallets: Manual gas payment required (shown in UI)
+5. **Merge & Exit**: 
+   - Arbitragers combine opposite outcome tokens to exit early at a discounted rate
+   - Safe wallets: Atomic approval + merge in one transaction
+   - EOA wallets: Sequential approval flow (Token A → Token B → Merge)
+   - Button labels dynamically update to show current step
+6. **Split & Acquire**: 
+   - Use USDT to acquire opposite outcome token pairs for arbitrage opportunities
+   - Safe wallets: Atomic approval + split in one transaction
+   - EOA wallets: Sequential approval flow (Approve USDT → Split)
 
-3. **Real-time Updates**: Uses TanStack React Query for efficient data fetching and caching with automatic refetching.
+### Owner Actions (Markets Page)
+When connected as vault owner, each market displays an "Owner Actions" tab with:
+1. **Remove Pair**: Remove an outcome pair from vault operations
+2. **Start Redeem Process**: Initiate post-expiry redemption for a pair
+3. **Report Profit/Loss**: Submit profit or loss amounts for vault accounting
+4. **Report & Remove**: Atomically report and remove a pair in one transaction
 
-4. **Web3 Integration**: Users can connect their wallets to interact with the vault (future feature).
+### Market Management (Owner Only)
+1. **Market Discovery**: Enter Polymarket market slug and Opinion market ID
+2. **Validation**: App fetches and validates market details from both APIs
+3. **Contract Creation**: Create early exit amount contracts with:
+   - Market expiry timestamp
+   - Expected APY (basis points)
+   - Fixed time after expiry (hours)
+4. **Token Pair Configuration**: Add opposite outcome token pairs:
+   - YES Polymarket + NO Opinion
+   - NO Polymarket + YES Opinion
+5. **Monitoring**: View pair status (allowed/paused), early exited amounts, and contract addresses
+
+### Early Exit Flow
+1. Arbitragers acquire opposite outcome tokens across Polymarket and Opinion
+2. They redeem these tokens through the vault for discounted USDT
+3. Vault depositors earn yield from the arbitrage profit margins
+4. Early exit amount is calculated based on configured APY and time remaining
+
+### Data Fetching
+1. **Subgraph**: Fetches on-chain vault events (deposits, withdrawals, new pairs)
+2. **Market APIs**: Resolves token IDs to human-readable market questions
+3. **Contract Calls**: Reads vault state, balances, and configuration
+4. **React Query**: Efficient caching and automatic refetching for real-time data
 
 ## Development
 
@@ -131,6 +298,114 @@ Make sure to run the proxy server locally on port 3001 during development.
 - **Service Layer**: External API and contract interactions abstracted into services
 - **Type Safety**: Comprehensive TypeScript types for all data structures
 - **Error Handling**: Graceful error handling with user-friendly messages
+- **Array Destructuring**: Contract tuple responses properly mapped to structured objects
+- **Decimal Handling**: Proper conversion for different token decimals (Polymarket: 6, Opinion: 18, USDT: 18)
+- **Owner Detection**: Automatic vault owner detection via `owner()` contract call
+- **Conditional UI**: Owner-specific actions only visible to vault owner
+- **Safe Integration**: Automatic Gnosis Safe detection and transaction routing
+- **Multi-Chain Operations**: Seamless chain switching for Polygon and BSC operations
+- **Status Management**: Market pair status tracking (allowed, paused, removed)
+- **Bridge Transaction Tracking**: Pending bridge detection via subgraph event matching
+- **Gas Estimation**: Real-time gas fee calculation for cross-chain bridges
+- **MultiSend Batching**: Atomic multi-step operations for Safe wallets using Gnosis MultiSendCallOnly
+- **Approval Management**: Smart approval checking and batching for ERC1155 and ERC20 tokens
+
+## Key Technical Details
+
+### Advanced Features
+
+#### Bridge Transaction Management
+- **Pending Detection**: Matches `ERC1155SingleReceived` events on source chain with `TransferBatch` events on destination
+- **Status Tracking**: Real-time bridge status via Axelar GMP Recovery API with auto-refresh
+- **Gas Estimation**: Pre-transaction gas fee calculation using Axelar Query API (gas limit: 120,000)
+- **Multi-Address Support**: Queries pending bridges for EOA + both Safe wallets simultaneously
+- **Axelar Integration**: Direct links to axelarscan.io for manual bridge completion if needed
+
+#### Transaction Batching (Safe Wallets)
+The app uses Gnosis Safe's MultiSendCallOnly contract to batch multiple operations atomically:
+
+**Bridge Batching** (Polygon→BSC or BSC→Polygon):
+1. Pay gas to Axelar Gas Service (native token value transfer)
+2. Transfer ERC1155 token to bridge contract (with encoded destination)
+
+**Merge Batching** (Early Exit):
+1. `setApprovalForAll` for Token A (if needed)
+2. `setApprovalForAll` for Token B (if needed)
+3. `earlyExit` to merge and receive USDT
+
+**Split Batching** (Acquire Pairs):
+1. `approve` USDT to vault (if needed)
+2. `splitOppositeOutcomeTokens` to acquire outcome tokens
+
+**Transaction Packing Format** (Gnosis MultiSend):
+```
+operation (1 byte) + to (20 bytes) + value (32 bytes) + dataLength (32 bytes) + data (variable bytes)
+```
+All fields are tightly packed using `abi.encodePacked` with no padding between fields.
+
+#### Approval Management
+- **ERC1155 Approval**: Checks `isApprovedForAll` before merge operations
+- **ERC20 Allowance**: Checks USDT `allowance` before split operations
+- **Smart Batching**: Only includes approval transactions if actually needed
+- **Sequential Flow (EOA)**: Step-by-step approval with clear button labels
+- **Atomic Flow (Safe)**: All approvals + action in single transaction
+
+### Token Decimals
+- **Polymarket ERC1155**: 6 decimals
+- **Opinion ERC1155**: 18 decimals  
+- **USDT**: 18 decimals
+- **Early Exited Amounts**: Displayed with 18 decimal formatting
+
+### Contract Integration
+The app interfaces with several contracts:
+- **EarlyExitVault**: Main vault contract (ERC4626) with owner-controlled pair management
+  - `owner()`: Returns vault owner address
+  - `removeAllowedOppositeOutcomeTokens()`: Remove outcome pair (owner only)
+  - `startRedeemProcess()`: Start post-expiry redemption (owner only)
+  - `reportProfitOrLoss()`: Report profits/losses (owner only)
+  - `reportProfitOrLossAndRemovePair()`: Report and remove atomically (owner only)
+  - `earlyExit()`: Arbitragers merge opposite tokens for early exit
+  - `splitOppositeOutcomeTokens()`: Acquire opposite outcome pairs
+  - `estimateEarlyExitAmount()`: Calculate exit amount preview
+  - `estimateSplitOppositeOutcomeTokensAmount()`: Calculate split amount preview
+- **EarlyExitAmountBasedOnFixedAPY**: Calculates early exit amounts based on APY and time
+- **EarlyExitAmountFactoryBasedOnFixedAPY**: Creates new early exit contracts
+- **CTF Exchange**: Polymarket conditional token framework
+- **NegRisk CTF Exchange**: Negative risk CTF implementation
+- **Gnosis Safe**: Multi-sig wallet support for Polymarket and Opinion accounts
+- **MultiSendCallOnly**: Gnosis Safe MultiSend contract for batching transactions atomically
+- **Axelar Gateway**: Cross-chain messaging gateway for Polygon↔BSC bridges
+- **Axelar Gas Service**: Gas payment service for cross-chain transactions
+
+### Safe Wallet Detection
+
+**Polymarket Safe (Polygon)**:
+- Derived deterministically from EOA using CREATE2
+- Uses known Safe factory and singleton addresses
+- Verified on-chain via `getThreshold()` call
+
+**Opinion Safe (BSC)**:
+- Fetched from Opinion API: `https://proxy.opinion.trade:8443/api/bsc/api/v2/user/{address}/profile?chainId=56`
+- Extracted from `result.multiSignedWalletAddress['56']` in API response
+- More efficient than generic Safe API (single request vs. multiple)
+- **MultiSendCallOnly**: Gnosis Safe MultiSend contract for batching transactions atomically
+- **Axelar Gateway**: Cross-chain messaging gateway for Polygon↔BSC bridges
+- **Axelar Gas Service**: Gas payment service for cross-chain transactions
+
+### Solidity Struct Mapping
+Smart contracts return structs as arrays. The app maps them to TypeScript interfaces:
+```typescript
+// Contract returns: [bool, bool, uint8, uint8, address, uint256]
+// Mapped to:
+interface OppositeOutcomeTokensInfo {
+  isAllowed: boolean;      // [0]
+  isPaused: boolean;       // [1]
+  decimalsA: number;       // [2]
+  decimalsB: number;       // [3]
+  earlyExitAmountContract: string;  // [4]
+  earlyExitedAmount: bigint;       // [5]
+}
+```
 
 ## Contributing
 
@@ -138,6 +413,42 @@ Make sure to run the proxy server locally on port 3001 during development.
 2. Add TypeScript types for new data structures
 3. Write descriptive commit messages
 4. Test your changes thoroughly
+5. Ensure decimal handling is correct for all token types
+6. Maintain proper array-to-object mapping for contract responses
+
+## Domain-Specific Notes
+
+### POKVault Business Logic
+- **Depositors**: Earn yield by providing liquidity for arbitragers to exit early
+- **Arbitragers**: Pay a discount (based on APY) to exit positions immediately instead of waiting for market resolution
+- **Discount Calculation**: Based on expected APY and time remaining until market expiry plus fixed time
+- **Cross-Chain**: Polymarket operates on Polygon, Opinion on BSC (bridged via Axelar GMP)
+
+### Market Pairing Rules
+- Markets must represent the same real-world event
+- Opposite outcome tokens must be configured (YES/NO pairs)
+- Each pair requires a dedicated early exit amount contract
+- Contract addresses are sorted lexicographically before hashing for lookups
+
+## Troubleshooting
+
+### Common Issues
+
+**"Network not supported"**
+- Make sure wallet is connected to BSC for vault operations
+- Switch networks when prompted by the app
+
+**"Cannot read properties of undefined"**
+- Check that contract responses are properly destructured from arrays
+- Verify middleware server is running for API requests
+
+**Incorrect decimal display**
+- Verify token decimal constants match actual token implementations
+- Check formatEarlyExitedAmount uses 18 decimals (1e18)
+
+**Market info not loading**
+- Ensure middleware server has correct CORS configuration
+- Check that market IDs/slugs are valid and markets exist
 
 ## License
 

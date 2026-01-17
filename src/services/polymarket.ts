@@ -1,26 +1,47 @@
 // Service for fetching market information from Polymarket API
+import { MIDDLEWARE_BASE_URL } from '../config/addresses';
+
 export interface PolymarketMarket {
+  id: string;
   question: string;
   slug: string;
   endDate: string;
   liquidity: string;
+  image: string;
   volume: string;
   outcomes: string[];
   outcomePrices: string[];
   clobTokenIds: string[];
+  yesTokenId: string;
+  noTokenId: string;
   active: boolean;
   closed: boolean;
 }
 
 class PolymarketService {
-  private baseUrl = `https://pokvault-middleware-server.vercel.app/api/polymarket`;
+  private parseTokenIds(clobTokenIds: string[] | string): [string, string] {
+    try {
+      const tokenIds = typeof clobTokenIds === 'string' 
+        ? JSON.parse(clobTokenIds)
+        : clobTokenIds;
+      
+      if (Array.isArray(tokenIds) && tokenIds.length >= 2) {
+        return [tokenIds[0], tokenIds[1]];
+      }
+      
+      console.warn('Invalid clobTokenIds format:', clobTokenIds);
+      return ['', ''];
+    } catch (error) {
+      console.error('Error parsing clobTokenIds:', error);
+      return ['', ''];
+    }
+  }
 
   async getMarketByConditionId(conditionId: string): Promise<PolymarketMarket | null> {
     try {
       // Get markets by condition ID (include closed markets)
-      const marketsUrl = `${this.baseUrl}/markets?condition_ids=${encodeURIComponent(conditionId)}`;
+      const marketsUrl = `${MIDDLEWARE_BASE_URL}/polymarket/markets?condition_ids=${encodeURIComponent(conditionId)}`;
       const marketsResponse = await fetch(marketsUrl);
-      console.log('Fetched markets response for condition ID', conditionId, marketsResponse);
 
       if (!marketsResponse.ok) {
         throw new Error(`Failed to fetch markets: ${marketsResponse.status}`);
@@ -29,7 +50,14 @@ class PolymarketService {
       const markets = await marketsResponse.json();
 
       if (markets && markets.length > 0) {
-        return markets[0] as PolymarketMarket;
+        const rawMarket = markets[0];
+        const [yesTokenId, noTokenId] = this.parseTokenIds(rawMarket.clobTokenIds);
+        
+        return {
+          ...rawMarket,
+          yesTokenId,
+          noTokenId,
+        } as PolymarketMarket;
       }
 
       return null;
@@ -39,12 +67,32 @@ class PolymarketService {
     }
   }
 
+  async getMarketBySlug(slug: string): Promise<PolymarketMarket | null> {
+    try {
+      const response = await fetch(`${MIDDLEWARE_BASE_URL}/polymarket/markets/slug/${slug}`);
+      
+      if (!response.ok) {
+        throw new Error(`Polymarket API error: ${response.status}`);
+      }
+
+      const rawMarket = await response.json();
+      const [yesTokenId, noTokenId] = this.parseTokenIds(rawMarket.clobTokenIds);
+
+      return {
+        ...rawMarket,
+        yesTokenId,
+        noTokenId,
+      } as PolymarketMarket;
+    } catch (error) {
+      console.error('Error fetching market by slug:', error);
+      return null;
+    }
+  }
+
   async getMarketInfoFromOutcomeToken(outcomeTokenId: string): Promise<PolymarketMarket | null> {
     try {
       // Import contract service dynamically to avoid circular dependencies
       const { ctfExchangeService } = await import('./ctfExchange');
-
-      console.log('Fetching market info for outcome token:', outcomeTokenId);
 
       // Get condition ID from the outcome token
       const conditionId = await ctfExchangeService.getConditionId(outcomeTokenId);
