@@ -141,9 +141,9 @@ export const SPLIT_OUTCOME_TOKENS_QUERY = `
 
 // Bridge queries
 export const ERC1155_SINGLE_RECEIVED_QUERY = `
-  query GetERC1155SingleReceived($userAddress: String!, $first: Int = 1000) {
+  query GetERC1155SingleReceived($userAddresses: [String!]!, $first: Int = 1000) {
     erc1155SingleReceiveds(
-      where: { to: $userAddress }
+      where: { to_in: $userAddresses }
       first: $first
       orderBy: timestamp_
       orderDirection: desc
@@ -161,9 +161,9 @@ export const ERC1155_SINGLE_RECEIVED_QUERY = `
 `;
 
 export const TRANSFER_BATCH_QUERY = `
-  query GetTransferBatch($operator: String!, $from: String!, $to: String!, $first: Int = 1000) {
+  query GetTransferBatch($operator: String!, $from: String!, $userAddresses: [String!]!, $first: Int = 1000) {
     transferBatches(
-      where: { operator: $operator, from: $from, to: $to }
+      where: { operator: $operator, from: $from, to_in: $userAddresses }
       first: $first
       orderBy: timestamp_
       orderDirection: desc

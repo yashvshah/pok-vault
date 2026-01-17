@@ -31,11 +31,15 @@ async function resolveDuplicatePendingBridges(txHashes: string[]): Promise<strin
   return txHashes;
 }
 
-async function fetchPendingBridgesPolygonToBSC(userAddress: string): Promise<PendingBridgeTransaction[]> {
+async function fetchPendingBridgesPolygonToBSC(addresses: string[]): Promise<PendingBridgeTransaction[]> {
+  if (addresses.length === 0) return [];
+
+  const lowercaseAddresses = addresses.map(addr => addr.toLowerCase());
+  
   // Fetch ERC1155SingleReceived events from Polygon source bridge
   const polygonReceived = await polygonSourceBridgeClient.request<ERC1155SingleReceivedResponse>(
     ERC1155_SINGLE_RECEIVED_QUERY,
-    { userAddress: userAddress.toLowerCase() }
+    { userAddresses: lowercaseAddresses }
   );
 
   console.log('Polygon received events:', polygonReceived);
@@ -46,7 +50,7 @@ async function fetchPendingBridgesPolygonToBSC(userAddress: string): Promise<Pen
     {
       operator: AXELAR_GATEWAY_BSC_ADDRESS.toLowerCase(),
       from: '0x0000000000000000000000000000000000000000',
-      to: userAddress.toLowerCase()
+      userAddresses: lowercaseAddresses
     }
   );
 
@@ -104,14 +108,20 @@ async function fetchPendingBridgesPolygonToBSC(userAddress: string): Promise<Pen
     }
   }
 
+  console.log('Pending Polygon to BSC bridges:', pending);
+
   return pending;
 }
 
-async function fetchPendingBridgesBSCToPolygon(userAddress: string): Promise<PendingBridgeTransaction[]> {
+async function fetchPendingBridgesBSCToPolygon(addresses: string[]): Promise<PendingBridgeTransaction[]> {
+  if (addresses.length === 0) return [];
+
+  const lowercaseAddresses = addresses.map(addr => addr.toLowerCase());
+  
   // Fetch ERC1155SingleReceived events from BSC (bridged contract)
   const bscReceived = await bscReceiverBridgeClient.request<ERC1155SingleReceivedResponse>(
     ERC1155_SINGLE_RECEIVED_QUERY,
-    { userAddress: userAddress.toLowerCase() }
+    { userAddresses: lowercaseAddresses }
   );
 
   // Fetch TransferBatch events from Polygon source bridge
@@ -120,7 +130,7 @@ async function fetchPendingBridgesBSCToPolygon(userAddress: string): Promise<Pen
     {
       operator: POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS.toLowerCase(),
       from: POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS.toLowerCase(),
-      to: userAddress.toLowerCase()
+      userAddresses: lowercaseAddresses
     }
   );
 
@@ -179,20 +189,39 @@ async function fetchPendingBridgesBSCToPolygon(userAddress: string): Promise<Pen
   return pending;
 }
 
-export function usePendingBridgeTransactions(userAddress?: string) {
+export function usePendingBridgeTransactions(
+  userAddress?: string,
+  polymarketSafe?: string | null,
+  opinionSafe?: string | null,
+  isSafeLoading?: boolean
+) {
   return useQuery({
-    queryKey: ['pending-bridge-transactions', userAddress],
+    queryKey: ['pending-bridge-transactions', userAddress, polymarketSafe, opinionSafe],
     queryFn: async (): Promise<PendingBridgeTransaction[]> => {
-      if (!userAddress) return [];
+      // Collect all addresses to query
+      const addresses: string[] = [];
+      
+      if (userAddress) {
+        addresses.push(userAddress);
+      }
+      if (polymarketSafe) {
+        addresses.push(polymarketSafe);
+      }
+      if (opinionSafe) {
+        addresses.push(opinionSafe);
+      }
+
+      if (addresses.length === 0) return [];
 
       const [polygonToBSC, bscToPolygon] = await Promise.all([
-        fetchPendingBridgesPolygonToBSC(userAddress),
-        fetchPendingBridgesBSCToPolygon(userAddress)
+        fetchPendingBridgesPolygonToBSC(addresses),
+        fetchPendingBridgesBSCToPolygon(addresses)
       ]);
 
       return [...polygonToBSC, ...bscToPolygon];
     },
-    enabled: !!userAddress,
+    // Wait until safe detection is complete before querying
+    enabled: !!userAddress && !isSafeLoading,
     staleTime: 30000, // 30 seconds
   });
 }

@@ -547,7 +547,6 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   });
   const { data: markets = [], isLoading, error } = useSupportedMarkets();
   const { address } = useAccount();
-  const { data: allPendingBridges = [] } = usePendingBridgeTransactions(address);
 
   // Detect Gnosis Safe addresses (once for all markets)
   const { 
@@ -556,8 +555,17 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
     usePolymarketSafe, 
     useOpinionSafe,
     setUsePolymarketSafe,
-    setUseOpinionSafe 
+    setUseOpinionSafe,
+    isLoading: isSafeLoading
   } = useSafeAddresses(address);
+  
+  // Fetch pending bridges for all addresses (user EOA + safe addresses if they exist)
+  const { data: allPendingBridges = [] } = usePendingBridgeTransactions(
+    address,
+    polymarketSafe,
+    opinionSafe,
+    isSafeLoading
+  );
   
   // Use safe write hooks
   const { write: writePolygon } = useSafeWrite({ 
