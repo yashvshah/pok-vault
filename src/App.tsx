@@ -2,7 +2,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
-import VaultPage from "./pages/valut";
+import VaultPage from "./pages/vault";
 import MarketsPage from "./pages/marketsPage";
 import ManageMarketsPage from "./pages/ManageMarketsPage";
 
