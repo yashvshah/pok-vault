@@ -113,6 +113,8 @@ async function fetchPendingBridgesPolygonToBSC(addresses: string[]): Promise<Pen
   return pending;
 }
 
+//@dev there is bug where there is no way to know if the brdige was completed on the bridge receiver contract without tracking 
+// the events of polymarket tokenIds themselves. The source doesn't emit an event when bridge is completed.
 async function fetchPendingBridgesBSCToPolygon(addresses: string[]): Promise<PendingBridgeTransaction[]> {
   if (addresses.length === 0) return [];
 
@@ -125,26 +127,30 @@ async function fetchPendingBridgesBSCToPolygon(addresses: string[]): Promise<Pen
   );
 
   // Fetch TransferBatch events from Polygon source bridge
-  const polygonTransfers = await polygonSourceBridgeClient.request<TransferBatchResponse>(
-    TRANSFER_BATCH_QUERY,
-    {
-      operator: POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS.toLowerCase(),
-      from: POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS.toLowerCase(),
-      userAddresses: lowercaseAddresses
-    }
-  );
+  // This doesn't work because a succesful bridge doesn't emit an event in the source contract
+  // it emits the event in Polymarket conditional token and there no way to oeasily fetch those events
+  // const polygonTransfers = await polygonSourceBridgeClient.request<TransferBatchResponse>(
+  //   TRANSFER_BATCH_QUERY,
+  //   {
+  //     operator: POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS.toLowerCase(),
+  //     from: POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS.toLowerCase(),
+  //     userAddresses: lowercaseAddresses
+  //   }
+  // );
 
   const receivedEvents = bscReceived.erc1155SingleReceiveds || [];
-  const transferEvents = polygonTransfers.transferBatches || [];
+  // const transferEvents = polygonTransfers.transferBatches  || [];
 
   // Create a map to track completed transfers
+  // const completedTransfers = new Map<string, number>();
+  // transferEvents.forEach(transfer => {
+  //   transfer.ids.forEach((id, index) => {
+  //     const key = `${id}-${transfer.values[index]}`;
+  //     completedTransfers.set(key, (completedTransfers.get(key) || 0) + 1);
+  //   });
+  // });
+
   const completedTransfers = new Map<string, number>();
-  transferEvents.forEach(transfer => {
-    transfer.ids.forEach((id, index) => {
-      const key = `${id}-${transfer.values[index]}`;
-      completedTransfers.set(key, (completedTransfers.get(key) || 0) + 1);
-    });
-  });
 
   // Track pending transactions and duplicates
   const pending: PendingBridgeTransaction[] = [];

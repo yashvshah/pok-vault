@@ -181,8 +181,8 @@ function TokenBalances({
               title={`Polymarket ${outcomeType} Pending (${directionText})`} 
               balance={formatUnits(BigInt(bridge.amount), POLYMARKET_DECIMALS)}
               action={
-                <button className="rounded bg-white/10 px-2 py-1 border border-white/20 text-xs hover:bg-white/20">
-                  Complete Bridge
+                <button onClick={() => {window.open(`https://axelarscan.io/gmp/${bridge.transactionHash}`, '_blank')}} className="rounded bg-white/10 px-2 py-1 border border-white/20 text-xs hover:bg-white/20">
+                  View Status And Complete Bridge
                 </button>
               } 
             />
