@@ -16,6 +16,7 @@ import MarketActionCard from "../components/MarketActionCard";
 import BalanceItem from "../components/BalanceItem";
 import MarketFilters, { type MarketFilterState } from "../components/MarketFilters";
 import { useSupportedMarkets, type MarketStatus, type SupportedMarket } from "../hooks/useSupportedMarkets";
+import { useBridgeGasEstimates } from "../hooks/useBridgeGasEstimate";
 
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
