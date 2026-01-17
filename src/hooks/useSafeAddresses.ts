@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import type { Address } from "viem";
-import { polygon, bsc } from "wagmi/chains";
-import { deriveSafeAddress, checkSafeExists, fetchSafesFromAPI, getSafeCreationInfo } from "../utils/safe";
-import { OPINION_SAFE_FACTORY_ADDRESS } from "../config/safe";
+import { polygon } from "wagmi/chains";
+import { deriveSafeAddress, checkSafeExists } from "../utils/safe";
 
 interface SafeAddressesState {
   polymarketSafe: Address | null;
@@ -21,7 +20,7 @@ interface SafeAddressesActions {
  * Hook to derive and manage Gnosis Safe addresses for both Polymarket (Polygon) and Opinion (BSC)
  * 
  * - Polymarket (Polygon): Uses deriveSafe with known factory
- * - Opinion (BSC): Fetches from API and validates factory
+ * - Opinion (BSC): Fetches from Opinion API user profile endpoint
  */
 export function useSafeAddresses(
   eoaAddress?: Address
@@ -50,36 +49,35 @@ export function useSafeAddresses(
         const pmExists = await checkSafeExists(pmSafeAddress, polygon.id);
         setPolymarketSafe(pmExists ? pmSafeAddress : null);
 
-        // BSC (Opinion): Fetch from Safe Transaction Service API
-        const bscSafes = await fetchSafesFromAPI(eoaAddress, bsc.id);
-        
-        if (bscSafes.length > 0) {
-          console.log(`Found ${bscSafes.length} Safe(s) on BSC for ${eoaAddress}`);
+        // BSC (Opinion): Fetch from Opinion API
+        try {
+          const response = await fetch(
+            `https://proxy.opinion.trade:8443/api/bsc/api/v2/user/${eoaAddress}/profile?chainId=56`
+          );
           
-          // Find the safe created with Opinion factory
-          let opinionSafeAddress: Address | null = null;
-          
-          for (const safe of bscSafes) {
-            const creationInfo = await getSafeCreationInfo(safe, bsc.id);
-                        
-            if (
-              creationInfo.factoryAddress &&
-              creationInfo.factoryAddress.toLowerCase() === OPINION_SAFE_FACTORY_ADDRESS.toLowerCase()
-            ) {
-              opinionSafeAddress = safe;
-              break; // Found the correct safe, stop looking
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data.errno === 0 && data.result?.multiSignedWalletAddress) {
+              const bscSafeAddress = data.result.multiSignedWalletAddress['56'];
+              
+              if (bscSafeAddress && bscSafeAddress !== '0x0000000000000000000000000000000000000000') {
+                console.log(`✅ Found Opinion Safe on BSC: ${bscSafeAddress}`);
+                setOpinionSafe(bscSafeAddress as Address);
+              } else {
+                console.log(`No Opinion Safe found for ${eoaAddress} on BSC`);
+                setOpinionSafe(null);
+              }
             } else {
-              console.log(`❌ Safe ${safe} not created by Opinion factory, skipping`);
+              console.log(`Opinion API returned error or no safe: ${data.errmsg}`);
+              setOpinionSafe(null);
             }
+          } else {
+            console.log(`Opinion API request failed with status: ${response.status}`);
+            setOpinionSafe(null);
           }
-          
-          setOpinionSafe(opinionSafeAddress);
-          
-          if (!opinionSafeAddress && bscSafes.length > 0) {
-            console.log(`⚠️ No safe created by Opinion factory (${OPINION_SAFE_FACTORY_ADDRESS}) found`);
-          }
-        } else {
-          console.log(`No safes found on BSC for ${eoaAddress}`);
+        } catch (apiError) {
+          console.error("Error fetching Opinion Safe from API:", apiError);
           setOpinionSafe(null);
         }
       } catch (error) {

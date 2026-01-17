@@ -1,4 +1,4 @@
-import { AxelarQueryAPI, Environment, EvmChain, type AxelarQueryAPIFeeResponse } from '@axelar-network/axelarjs-sdk';
+import { AxelarQueryAPI, Environment, EvmChain } from '@axelar-network/axelarjs-sdk';
 import { formatEther } from 'viem';
 
 const queryAPI = new AxelarQueryAPI({
@@ -56,7 +56,7 @@ export async function estimateGasFeePolygonToBSC(): Promise<GasFeeEstimate> {
     console.log("fee response:", fee);
 
     // The fee is returned as a string in wei
-    const feeInWei = typeof fee === 'string' ? fee : BigInt(fee.baseFee) + BigInt(fee.executionFeeWithMultiplier);
+    const feeInWei = typeof fee === 'string' ? fee : (BigInt(fee.baseFee) + BigInt(fee.executionFeeWithMultiplier)).toString();
     
     // Convert wei to ether for display (1 ether = 10^18 wei)
     const feeInEther = formatEther(BigInt(feeInWei));
@@ -90,7 +90,9 @@ export async function estimateGasFeeBSCToPolygon(): Promise<GasFeeEstimate> {
     );
 
     // The fee is returned as a string in wei
-    const feeInWei = typeof fee === 'string' ? fee : fee.baseFee;
+    const feeInWei = typeof fee === 'string' 
+      ? fee 
+      : (BigInt(fee.baseFee) + BigInt(fee.executionFeeWithMultiplier)).toString();
     
     // Convert wei to ether for display (1 ether = 10^18 wei)
     const feeInEther = formatEther(BigInt(feeInWei));
