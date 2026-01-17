@@ -1,8 +1,8 @@
 const Footer = () => {
   return (
-    <footer className="bg-black/50 backdrop-blur-md border-t border-primary/20 py-8 mt-20">
-      <div className="max-w-6xl mx-auto px-6">
-          <div className="flex flex-wrap justify-center md:justify-end gap-6">
+    <footer className="bg-black/50 backdrop-blur-md border-t border-primary/20 py-6 sm:py-8 mt-12 sm:mt-16 md:mt-20">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-wrap justify-center md:justify-end gap-4 sm:gap-6">
             <a
               href="https://github.com/yashnaman/early-exit-vaults/blob/main/README.md"
               target="_blank"

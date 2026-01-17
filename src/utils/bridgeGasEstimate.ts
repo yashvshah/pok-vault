@@ -53,18 +53,12 @@ export async function estimateGasFeePolygonToBSC(): Promise<GasFeeEstimate> {
       { showDetailedFees: true, destinationContractAddress: '', sourceContractAddress: '', tokenSymbol: '' }
     );
 
-    console.log("fee response:", fee);
-
     // The fee is returned as a string in wei
     const feeInWei = typeof fee === 'string' ? fee : (BigInt(fee.baseFee) + BigInt(fee.executionFeeWithMultiplier)).toString();
     
     // Convert wei to ether for display (1 ether = 10^18 wei)
     const feeInEther = formatEther(BigInt(feeInWei));
 
-    console.log('Gas fee estimate (Polygon → BSC):', {
-      feeInWei,
-      feeInEther,
-    });
 
     return {
       feeInWei,

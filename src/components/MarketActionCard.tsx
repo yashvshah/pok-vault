@@ -52,28 +52,28 @@ const MarketActionCard: React.FC<MarketActionCardProps> = ({
   };
 
   return (
-    <div className="w-full rounded-2xl bg-secondry/5 p-6">
+    <div className="w-full rounded-2xl bg-secondry/5 p-4 sm:p-5 md:p-6">
       {/* Title */}
-      <h3 className="text-lg font-medium text-primary mb-4">{title}</h3>
+      <h3 className="text-base sm:text-lg font-medium text-primary mb-3 sm:mb-4">{title}</h3>
 
       {disabled && disabledReason && (
-        <div className="mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-sm">
+        <div className="mb-3 sm:mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 text-xs sm:text-sm">
           ⚠️ {disabledReason}
         </div>
       )}
 
       {/* Input Label */}
-      <label className="block text-sm text-gray-400 mb-2">{inputLabel}</label>
+      <label className="block text-xs sm:text-sm text-gray-400 mb-2">{inputLabel}</label>
 
       {/* Balance and Max Button */}
       {balanceInfo && (
         <div className="flex justify-between items-center mb-2">
-          <p className="text-xs text-gray-400">{balanceInfo}</p>
+          <p className="text-xs text-gray-400 truncate mr-2">{balanceInfo}</p>
           {onMaxClick && (
             <button
               onClick={onMaxClick}
               disabled={disabled}
-              className="text-xs text-primary hover:text-primary/80 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              className="text-xs text-primary hover:text-primary/80 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex-shrink-0 touch-manipulation min-h-[48px] sm:min-h-0 flex items-center"
             >
               MAX
             </button>
@@ -92,8 +92,8 @@ const MarketActionCard: React.FC<MarketActionCardProps> = ({
           className="
           w-full rounded-lg
          box-of-gradiant-border
-          px-4 py-3
-          text-lg text-gray-200
+          px-3 sm:px-4 py-2.5 sm:py-3
+          text-base sm:text-lg text-gray-200
           placeholder-gray-500
           focus:outline-none
           disabled:opacity-50 disabled:cursor-not-allowed
@@ -102,18 +102,18 @@ const MarketActionCard: React.FC<MarketActionCardProps> = ({
       </div>
       {/* Max */}
       {maxValue && (
-        <p className="mt-2 text-xs text-gray-500">Max: {maxValue}</p>
+        <p className="mt-2 text-xs text-gray-500 truncate">Max: {maxValue}</p>
       )}
 
       {/* Receive Box */}
-      <div className="gradiant-border mt-4">
-        <div className="rounded-lg box-of-gradiant-border p-4">
-          <p className="text-sm text-gray-400 mb-1">You'll Receive</p>
+      <div className="gradiant-border mt-3 sm:mt-4">
+        <div className="rounded-lg box-of-gradiant-border p-3 sm:p-4">
+          <p className="text-xs sm:text-sm text-gray-400 mb-1">You'll Receive</p>
           <div className="space-y-1">
             {receiveItems.map((item, idx) => (
               <p
                 key={idx}
-                className={`text-lg tracking-wide ${getHighlightColor(item.highlight)}`}
+                className={`text-base sm:text-lg tracking-wide break-words ${getHighlightColor(item.highlight)}`}
               >
                 {item.amount} {item.token}
               </p>
@@ -127,11 +127,12 @@ const MarketActionCard: React.FC<MarketActionCardProps> = ({
         onClick={onSubmit}
         disabled={buttonDisabled ?? disabled}
         className="
-          mt-6 w-full rounded-xl
+          mt-4 sm:mt-6 w-full rounded-xl
           bg-primary
-          py-3 text-lg font-medium text-white
+          py-3 sm:py-3.5 text-base sm:text-lg font-medium text-white
           disabled:opacity-50 disabled:cursor-not-allowed
-          hover:bg-primary/90 transition-colors"
+          hover:bg-primary/90 transition-colors
+          min-h-[48px] touch-manipulation"
       >
         {buttonLabel}
       </button>

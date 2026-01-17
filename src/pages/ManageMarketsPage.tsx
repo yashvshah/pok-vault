@@ -416,16 +416,16 @@ const ManageMarketsPage: FunctionComponent = () => {
 
   return (
     <div className="mx-30 mb-10">
-      <h1 className="text-5xl font-League-Spartan mt-10">Manage Markets</h1>
+      <h1 className="text-3xl sm:text-4xl md:text-5xl font-League-Spartan mt-6 sm:mt-8 md:mt-10">Manage Markets</h1>
       <p className="text-gray-400 mt-5 max-w-lg">
         Add new market pairs or view existing supported markets for early exit arbitrage.
       </p>
 
-      <div className="mt-10 p-6 gradiant-border">
+      <div className="mt-6 sm:mt-8 md:mt-10 p-4 sm:p-5 md:p-6 gradiant-border">
         <div className="box-of-gradiant-border">
-          <h2 className="text-2xl font-semibold mb-6">Add Market Pair</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">Add Market Pair</h2>
           
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-white/80 mb-2">
                 Polymarket Market Slug
@@ -435,7 +435,7 @@ const ManageMarketsPage: FunctionComponent = () => {
                 value={polymarketId}
                 onChange={(e) => setPolymarketId(e.target.value)}
                 placeholder="e.g., fed-decreases-interest-rates-by-50-bps"
-                className="w-full px-4 py-3 rounded-lg bg-black/30 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-primary"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-black/30 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-primary"
               />
             </div>
             
@@ -448,7 +448,7 @@ const ManageMarketsPage: FunctionComponent = () => {
                 value={opinionId}
                 onChange={(e) => setOpinionId(e.target.value)}
                 placeholder="Enter Opinion market ID"
-                className="w-full px-4 py-3 rounded-lg bg-black/30 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-primary"
+                className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-black/30 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-primary"
               />
             </div>
           </div>
@@ -464,7 +464,7 @@ const ManageMarketsPage: FunctionComponent = () => {
           {/* Fetched Market Display */}
           {fetchedMarket && (
             <div className="mt-6 p-5 rounded-lg bg-black/30 border border-white/10">
-              <h3 className="text-xl font-semibold mb-4">Market Information</h3>
+              <h3 className="text-lg sm:text-xl font-semibold mb-4">Market Information</h3>
               
               <div className="space-y-4 mb-6">
                 <div>
@@ -518,7 +518,7 @@ const ManageMarketsPage: FunctionComponent = () => {
                           <button
                             key={child.marketId}
                             onClick={() => handleSelectChildMarket(child.marketId)}
-                            className="w-full text-left px-4 py-3 rounded-lg bg-black/30 hover:bg-black/50 border border-white/10 hover:border-primary/50 transition-all"
+                            className="w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-black/30 hover:bg-black/50 border border-white/10 hover:border-primary/50 transition-all"
                           >
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
@@ -561,7 +561,7 @@ const ManageMarketsPage: FunctionComponent = () => {
                         value={earlyExitContractAddress}
                         onChange={(e) => setEarlyExitContractAddress(e.target.value)}
                         placeholder="0x..."
-                        className="flex-1 px-4 py-3 rounded-lg bg-black/30 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-primary"
+                        className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-black/30 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-primary"
                       />
                       <button
                         onClick={() => setShowCreateContract(!showCreateContract)}
@@ -646,7 +646,7 @@ const ManageMarketsPage: FunctionComponent = () => {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <button
                       onClick={handleAllowYesPolyNoOpinion}

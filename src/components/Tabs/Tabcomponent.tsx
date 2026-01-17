@@ -22,7 +22,7 @@ const TabComponent: React.FC<TabProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`px-4 py-2 cursor-pointer flex justify-center items-center gap-2 ${
+      className={`px-3 sm:px-4 py-2 cursor-pointer flex justify-center items-center gap-2 text-sm sm:text-base touch-manipulation min-h-[48px] sm:min-h-0 ${
         isActive
           ? activeClassName ?? "border-b-4 border-primary text-white"
           : inActiveClassName ?? "text-gray-400"
