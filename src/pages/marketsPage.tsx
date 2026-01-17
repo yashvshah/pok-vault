@@ -21,30 +21,38 @@ import { useSupportedMarkets, type MarketStatus, type SupportedMarket } from "..
 interface MarketsPageProps {}
 
 
-function TokenBalances({ market, pendingBridges }: { market: SupportedMarket; pendingBridges: PendingBridgeTransaction[] }) {
+interface SafeAddressesInfo {
+  polymarketSafe: `0x${string}` | null;
+  opinionSafe: `0x${string}` | null;
+  usePolymarketSafe: boolean;
+  useOpinionSafe: boolean;
+  setUsePolymarketSafe: (value: boolean) => void;
+  setUseOpinionSafe: (value: boolean) => void;
+  writePolygon: ReturnType<typeof useSafeWrite>['write'];
+  writeBsc: ReturnType<typeof useSafeWrite>['write'];
+}
+
+function TokenBalances({ 
+  market, 
+  pendingBridges, 
+  safeInfo 
+}: { 
+  market: SupportedMarket; 
+  pendingBridges: PendingBridgeTransaction[];
+  safeInfo: SafeAddressesInfo;
+}) {
   const { address } = useAccount();
   const currentChainId = useChainId();
   const { switchChain } = useSwitchChain();
   
-  // Detect Gnosis Safe addresses
   const { 
     polymarketSafe, 
     opinionSafe, 
     usePolymarketSafe, 
     useOpinionSafe,
-    setUsePolymarketSafe,
-    setUseOpinionSafe 
-  } = useSafeAddresses(address);
-  
-  // Use safe write hooks
-  const { write: writePolygon } = useSafeWrite({ 
-    safeAddress: usePolymarketSafe ? polymarketSafe : null, 
-    chainId: polygon.id 
-  });
-  const { write: writeBsc } = useSafeWrite({ 
-    safeAddress: useOpinionSafe ? opinionSafe : null, 
-    chainId: bsc.id 
-  });
+    writePolygon,
+    writeBsc
+  } = safeInfo;
   
   const yesIdPoly = market.polymarketYesTokenId ? BigInt(market.polymarketYesTokenId) : 0n;
   const noIdPoly = market.polymarketNoTokenId ? BigInt(market.polymarketNoTokenId) : 0n;
@@ -52,8 +60,8 @@ function TokenBalances({ market, pendingBridges }: { market: SupportedMarket; pe
   const noIdOpinion = market.opinionNoTokenId ? BigInt(market.opinionNoTokenId) : 0n;
 
   // Determine owner addresses based on safe usage
-  const polyOwner = usePolymarketSafe ? polymarketSafe : null;
-  const bscOwner = useOpinionSafe ? opinionSafe : null;
+  const polyOwner = (usePolymarketSafe ? polymarketSafe : null) as `0x${string}` | null | undefined;
+  const bscOwner = (useOpinionSafe ? opinionSafe : null) as `0x${string}` | null | undefined;
 
   const { data: balPolyYes } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_POLYGON_ADDRESS, tokenId: yesIdPoly, chainId: polygon.id, ownerAddress: polyOwner });
   const { data: balPolyNo } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_POLYGON_ADDRESS, tokenId: noIdPoly, chainId: polygon.id, ownerAddress: polyOwner });
@@ -69,8 +77,8 @@ function TokenBalances({ market, pendingBridges }: { market: SupportedMarket; pe
 
   const onBridgeToBsc = async (id: bigint, amtStr: string) => {
     if (!address) return;
-    const from = usePolymarketSafe && polymarketSafe ? polymarketSafe : address;
-    const to = useOpinionSafe && opinionSafe ? opinionSafe : address;
+    const from = (usePolymarketSafe && polymarketSafe ? polymarketSafe : address) as `0x${string}`;
+    const to = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}`;
     const value = parseUnits(amtStr || '0', POLYMARKET_DECIMALS);
     
     // Encode the destination address for the bridge
@@ -89,8 +97,8 @@ function TokenBalances({ market, pendingBridges }: { market: SupportedMarket; pe
 
   const onBridgeToPolygon = async (id: bigint, amtStr: string) => {
     if (!address) return;
-    const from = useOpinionSafe && opinionSafe ? opinionSafe : address;
-    const to = usePolymarketSafe && polymarketSafe ? polymarketSafe : address;
+    const from = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}`;
+    const to = (usePolymarketSafe && polymarketSafe ? polymarketSafe : address) as `0x${string}`;
     const value = parseUnits(amtStr || '0', POLYMARKET_DECIMALS);
     
     // Encode the destination address for the bridge
@@ -109,46 +117,6 @@ function TokenBalances({ market, pendingBridges }: { market: SupportedMarket; pe
 
   return (
     <div className="text-xs text-white/80 space-y-3 mt-2">
-      {/* Safe Detection Notices */}
-      {polymarketSafe && (
-        <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-blue-400">Polymarket Account (Gnosis Safe) Detected</div>
-              <div className="text-xs text-white/60 mt-1">Address: {polymarketSafe}</div>
-              <div className="text-xs text-white/60">
-                {usePolymarketSafe ? 'Using Safe for transactions' : 'Using EOA for transactions'}
-              </div>
-            </div>
-            <button
-              className="rounded bg-blue-500/20 px-3 py-1.5 border border-blue-500/40 text-xs hover:bg-blue-500/30"
-              onClick={() => setUsePolymarketSafe(!usePolymarketSafe)}
-            >
-              {usePolymarketSafe ? 'Switch to EOA' : 'Switch to Safe'}
-            </button>
-          </div>
-        </div>
-      )}
-      {opinionSafe && (
-        <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium text-blue-400">Opinion Gnosis Safe Detected (BSC)</div>
-              <div className="text-xs text-white/60 mt-1">Address: {opinionSafe}</div>
-              <div className="text-xs text-white/60">
-                {useOpinionSafe ? 'Using Safe for transactions' : 'Using EOA for transactions'}
-              </div>
-            </div>
-            <button
-              className="rounded bg-blue-500/20 px-3 py-1.5 border border-blue-500/40 text-xs hover:bg-blue-500/30"
-              onClick={() => setUseOpinionSafe(!useOpinionSafe)}
-            >
-              {useOpinionSafe ? 'Switch to EOA' : 'Switch to Safe'}
-            </button>
-          </div>
-        </div>
-      )}
-      
       <div className="grid grid-cols-2 gap-3">
         <BalanceItem
           title="Polymarket YES (Polygon)"
@@ -157,7 +125,7 @@ function TokenBalances({ market, pendingBridges }: { market: SupportedMarket; pe
             <div className="flex gap-2">
               <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscYesAmt} onChange={e => setBridgeToBscYesAmt(e.target.value)} placeholder="amt" />
               <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(yesIdPoly, bridgeToBscYesAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
-                {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch to Polygon'}
+                {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch connected wallet to Polygon'}
               </button>
             </div>
           )}
@@ -169,7 +137,7 @@ function TokenBalances({ market, pendingBridges }: { market: SupportedMarket; pe
             <div className="flex gap-2">
               <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscNoAmt} onChange={e => setBridgeToBscNoAmt(e.target.value)} placeholder="amt" />
               <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(noIdPoly, bridgeToBscNoAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
-                {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch to Polygon'}
+                {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch connected wallet to Polygon'}
               </button>
             </div>
           )}
@@ -181,7 +149,7 @@ function TokenBalances({ market, pendingBridges }: { market: SupportedMarket; pe
             <div className="flex gap-2">
               <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonYesAmt} onChange={e => setBridgeToPolygonYesAmt(e.target.value)} placeholder="amt" />
               <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(yesIdPoly, bridgeToPolygonYesAmt) : switchChain({ chainId: bsc.id }))} disabled={!address}>
-                {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch to BSC'}
+                {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch connected wallet to BSC'}
               </button>
             </div>
           )}
@@ -193,7 +161,7 @@ function TokenBalances({ market, pendingBridges }: { market: SupportedMarket; pe
             <div className="flex gap-2">
               <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonNoAmt} onChange={e => setBridgeToPolygonNoAmt(e.target.value)} placeholder="amt" />
               <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(noIdPoly, bridgeToPolygonNoAmt) : switchChain({ chainId: bsc.id }))} disabled={!address}>
-                {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch to BSC'}
+                {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch connected wallet to BSC'}
               </button>
             </div>
           )}
@@ -226,23 +194,24 @@ function TokenBalances({ market, pendingBridges }: { market: SupportedMarket; pe
   );
 }
 
-function PairMergeAction({ pair, idx, amount, onInputChange }: { pair: SupportedMarket["pairs"][number]; idx: number; amount: string; onInputChange: (v: string) => void }) {
+function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: { 
+  pair: SupportedMarket["pairs"][number]; 
+  idx: number; 
+  amount: string; 
+  onInputChange: (v: string) => void;
+  safeInfo: SafeAddressesInfo;
+}) {
   const { address } = useAccount();
   const currentChainId = useChainId();
   const { switchChain } = useSwitchChain();
   
-  // Detect safe and use safe write
-  const { opinionSafe, useOpinionSafe } = useSafeAddresses(address);
-  const { write: writeBsc } = useSafeWrite({ 
-    safeAddress: useOpinionSafe ? opinionSafe : null, 
-    chainId: bsc.id 
-  });
+  const { opinionSafe, useOpinionSafe, writeBsc } = safeInfo;
 
   const idA = BigInt(pair.outcomeIdA);
   const idB = BigInt(pair.outcomeIdB);
   
   // Use safe address for balance reads if applicable
-  const bscOwner = useOpinionSafe ? opinionSafe : null;
+  const bscOwner = (useOpinionSafe ? opinionSafe : null) as `0x${string}` | null | undefined;
   const { data: balA } = useErc1155Balance({ tokenAddress: pair.outcomeTokenA as Address, tokenId: idA, chainId: bsc.id, ownerAddress: bscOwner });
   const { data: balB } = useErc1155Balance({ tokenAddress: pair.outcomeTokenB as Address, tokenId: idB, chainId: bsc.id, ownerAddress: bscOwner });
 
@@ -275,7 +244,7 @@ function PairMergeAction({ pair, idx, amount, onInputChange }: { pair: Supported
       return;
     }
     if (!enough) return;
-    const recipient = useOpinionSafe && opinionSafe ? opinionSafe : address;
+    const recipient = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}`;
     await writeBsc({
       abi: EarlyExitVaultAbi,
       address: VAULT_ADDRESS,
@@ -312,24 +281,25 @@ function PairMergeAction({ pair, idx, amount, onInputChange }: { pair: Supported
   );
 }
 
-function PairSplitAction({ pair, idx, amount, onInputChange }: { pair: SupportedMarket["pairs"][number]; idx: number; amount: string; onInputChange: (v: string) => void }) {
+function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: { 
+  pair: SupportedMarket["pairs"][number]; 
+  idx: number; 
+  amount: string; 
+  onInputChange: (v: string) => void;
+  safeInfo: SafeAddressesInfo;
+}) {
   const { address } = useAccount();
   const currentChainId = useChainId();
   const { switchChain } = useSwitchChain();
   
-  // Detect safe and use safe write
-  const { opinionSafe, useOpinionSafe } = useSafeAddresses(address);
-  const { write: writeBsc } = useSafeWrite({ 
-    safeAddress: useOpinionSafe ? opinionSafe : null, 
-    chainId: bsc.id 
-  });
+  const { opinionSafe, useOpinionSafe, writeBsc } = safeInfo;
 
   const idA = BigInt(pair.outcomeIdA);
   const idB = BigInt(pair.outcomeIdB);
   const amountUsdt = parseUnits(amount || '0', 18);
 
   // Use safe address for USDT balance if applicable
-  const bscOwner = useOpinionSafe && opinionSafe ? opinionSafe : address;
+  const bscOwner = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}` | undefined;
   const { data: usdtBal } = useBalance({ address: bscOwner, chainId: bsc.id, token: USDT_ADDRESS });
   const enoughUsdt = (usdtBal?.value ?? 0n) >= amountUsdt;
   const usdtBalFormatted = formatUnits(usdtBal?.value ?? 0n, 18);
@@ -349,7 +319,7 @@ function PairSplitAction({ pair, idx, amount, onInputChange }: { pair: Supported
       return;
     }
     if (!enoughUsdt) return;
-    const recipient = useOpinionSafe && opinionSafe ? opinionSafe : address;
+    const recipient = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}`;
     await writeBsc({
       abi: EarlyExitVaultAbi,
       address: VAULT_ADDRESS,
@@ -579,6 +549,38 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   const { address } = useAccount();
   const { data: allPendingBridges = [] } = usePendingBridgeTransactions(address);
 
+  // Detect Gnosis Safe addresses (once for all markets)
+  const { 
+    polymarketSafe, 
+    opinionSafe, 
+    usePolymarketSafe, 
+    useOpinionSafe,
+    setUsePolymarketSafe,
+    setUseOpinionSafe 
+  } = useSafeAddresses(address);
+  
+  // Use safe write hooks
+  const { write: writePolygon } = useSafeWrite({ 
+    safeAddress: usePolymarketSafe ? polymarketSafe : null, 
+    chainId: polygon.id 
+  });
+  const { write: writeBsc } = useSafeWrite({ 
+    safeAddress: useOpinionSafe ? opinionSafe : null, 
+    chainId: bsc.id 
+  });
+
+  // Create safe info object to pass to child components
+  const safeInfo: SafeAddressesInfo = {
+    polymarketSafe,
+    opinionSafe,
+    usePolymarketSafe,
+    useOpinionSafe,
+    setUsePolymarketSafe,
+    setUseOpinionSafe,
+    writePolygon,
+    writeBsc
+  };
+
   // Read owner from contract
   const { data: ownerAddress } = useReadContract({
     address: VAULT_ADDRESS,
@@ -678,6 +680,50 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
           onChange={(newFilters) => setFilters(newFilters)}
         />
 
+        {/* Safe Detection Notices */}
+        {(polymarketSafe || opinionSafe) && (
+          <div className="space-y-3 mt-5">
+            {polymarketSafe && (
+              <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-blue-400">Polymarket Account (Gnosis Safe) Detected</div>
+                    <div className="text-xs text-white/60 mt-1">Address: {polymarketSafe}</div>
+                    <div className="text-xs text-white/60">
+                      {usePolymarketSafe ? 'Using Safe for transactions' : 'Using EOA for transactions'}
+                    </div>
+                  </div>
+                  <button
+                    className="rounded bg-blue-500/20 px-3 py-1.5 border border-blue-500/40 text-xs hover:bg-blue-500/30"
+                    onClick={() => setUsePolymarketSafe(!usePolymarketSafe)}
+                  >
+                    {usePolymarketSafe ? 'Switch to EOA' : 'Switch to Safe'}
+                  </button>
+                </div>
+              </div>
+            )}
+            {opinionSafe && (
+              <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-blue-400">Opinion Gnosis Safe Detected (BSC)</div>
+                    <div className="text-xs text-white/60 mt-1">Address: {opinionSafe}</div>
+                    <div className="text-xs text-white/60">
+                      {useOpinionSafe ? 'Using Safe for transactions' : 'Using EOA for transactions'}
+                    </div>
+                  </div>
+                  <button
+                    className="rounded bg-blue-500/20 px-3 py-1.5 border border-blue-500/40 text-xs hover:bg-blue-500/30"
+                    onClick={() => setUseOpinionSafe(!useOpinionSafe)}
+                  >
+                    {useOpinionSafe ? 'Switch to EOA' : 'Switch to Safe'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-5 items-start mt-6">
           {filteredMarkets.map((market) => {
             const marketPlatforms = [
@@ -692,7 +738,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                 content: (
                   <div className="space-y-4">
                     {market.pairs.map((pair, idx) => (
-                      <PairMergeAction key={pair.key} pair={pair} idx={idx} amount={amount} onInputChange={setAmount} />
+                      <PairMergeAction key={pair.key} pair={pair} idx={idx} amount={amount} onInputChange={setAmount} safeInfo={safeInfo} />
                     ))}
                   </div>
                 ),
@@ -703,7 +749,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                 content: (
                   <div className="space-y-4">
                     {market.pairs.map((pair, idx) => (
-                      <PairSplitAction key={pair.key} pair={pair} idx={idx} amount={amount} onInputChange={setAmount} />
+                      <PairSplitAction key={pair.key} pair={pair} idx={idx} amount={amount} onInputChange={setAmount} safeInfo={safeInfo} />
                     ))}
                   </div>
                 ),
@@ -739,7 +785,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                 status={getStatusText(market.overallStatus)}
                 statusColor={getStatusColor(market.overallStatus)}
                 markets={marketPlatforms}
-                balances={<TokenBalances market={market} pendingBridges={marketPendingBridges} />}
+                balances={<TokenBalances market={market} pendingBridges={marketPendingBridges} safeInfo={safeInfo} />}
                 actionTabs={actionTabs}
               />
             );
