@@ -16,6 +16,9 @@ export const POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS = "0x77b0052A346B22Ea1F311
 // send the Polymarket tokens to destination bridge address to bridge from BSC to Polygon
 export const POLYMARKET_DESTINATION_BRIDGE_BSC_ADDRESS = POLYGON_ERC1155_BRIDGED_BSC_ADDRESS;
 
+export const AXELAR_GATEWAY_BSC_ADDRESS = "0x304acf330bbE08d1e512eefaa92F6a57871fD895" as const;
+export const AXELAR_GATEWAY_POLYGON_ADDRESS = "0x6f015F16De9fC8791b234eF68D486d2bF203FBA8" as const;
+
 // Token decimals
 export const POLYMARKET_DECIMALS = 6;
 export const OPINION_DECIMALS = 18;

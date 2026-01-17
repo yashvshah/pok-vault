@@ -65,7 +65,6 @@ function TokenBalances({ market }: { market: SupportedMarket }) {
   const [bridgeToPolygonYesAmt, setBridgeToPolygonYesAmt] = useState('0');
   const [bridgeToPolygonNoAmt, setBridgeToPolygonNoAmt] = useState('0');
 
-
   const onBridgeToBsc = async (id: bigint, amtStr: string) => {
     if (!address) return;
     const from = usePolymarketSafe && polymarketSafe ? polymarketSafe : address;

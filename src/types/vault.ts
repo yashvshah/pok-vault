@@ -94,6 +94,40 @@ export interface SubgraphSplitOppositeOutcomeTokens {
   transactionHash_: string;
 }
 
+// Bridge event types
+export interface SubgraphERC1155SingleReceived {
+  id: string;
+  from: string;
+  to: string;
+  idParam: string;
+  amount: string;
+  block_number: string;
+  timestamp_: string;
+  transactionHash_: string;
+}
+
+export interface SubgraphTransferBatch {
+  id: string;
+  operator: string;
+  from: string;
+  to: string;
+  ids: string[];
+  values: string[];
+  block_number: string;
+  timestamp_: string;
+  transactionHash_: string;
+}
+
+export interface PendingBridgeTransaction {
+  direction: 'polygon-to-bsc' | 'bsc-to-polygon';
+  tokenId: string;
+  amount: string;
+  to: string;
+  timestamp: string;
+  transactionHash: string;
+  from: string;
+}
+
 // Types for table display
 export interface VaultActivity {
   id: string;
