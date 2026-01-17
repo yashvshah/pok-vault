@@ -128,6 +128,11 @@ export interface PendingBridgeTransaction {
   from: string;
 }
 
+export interface BridgeTransactionWithStatus extends PendingBridgeTransaction {
+  status?: string;
+  isActuallyPending: boolean;
+}
+
 // Types for table display
 export interface VaultActivity {
   id: string;

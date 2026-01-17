@@ -9,6 +9,7 @@ import { useErc1155Balance } from "../hooks/useErc1155Balance";
 import { useSafeAddresses } from "../hooks/useSafeAddresses";
 import { useSafeWrite } from "../hooks/useSafeWrite";
 import { usePendingBridgeTransactions } from "../hooks/usePendingBridgeTransactions";
+import { useBridgeTransactionStatus, getStatusText, getStatusButtonStyle } from "../hooks/useBridgeTransactionStatus";
 import type { PendingBridgeTransaction } from "../types/vault";
 import MarketCard from "../components/MarketCard";
 import MarketActionCard from "../components/MarketActionCard";
@@ -53,6 +54,9 @@ function TokenBalances({
     writePolygon,
     writeBsc
   } = safeInfo;
+
+  // Check status of pending bridges and filter out completed ones
+  const { transactionsWithStatus, isLoading: isStatusLoading } = useBridgeTransactionStatus(pendingBridges);
   
   const yesIdPoly = market.polymarketYesTokenId ? BigInt(market.polymarketYesTokenId) : 0n;
   const noIdPoly = market.polymarketNoTokenId ? BigInt(market.polymarketNoTokenId) : 0n;
@@ -169,11 +173,18 @@ function TokenBalances({
         <BalanceItem title="Opinion YES (BSC)" balance={formatUnits(balOpinionYes ?? 0n, OPINION_DECIMALS)} />
         <BalanceItem title="Opinion NO (BSC)" balance={formatUnits(balOpinionNo ?? 0n, OPINION_DECIMALS)} />
         
-        {/* Dynamic Pending Bridges */}
-        {pendingBridges.map((bridge, idx) => {
+        {/* Dynamic Pending Bridges with Status */}
+        {isStatusLoading && pendingBridges.length > 0 && (
+          <div className="col-span-2 text-center text-xs text-white/60 py-2">
+            Checking bridge statuses...
+          </div>
+        )}
+        {transactionsWithStatus.map((bridge, idx) => {
           const isYes = bridge.tokenId === market.polymarketYesTokenId;
           const outcomeType = isYes ? 'YES' : 'NO';
           const directionText = bridge.direction === 'polygon-to-bsc' ? 'Polygon → BSC' : 'BSC → Polygon';
+          const statusText = getStatusText(bridge.status);
+          const buttonStyle = getStatusButtonStyle(bridge.status);
           
           return (
             <BalanceItem 
@@ -181,8 +192,12 @@ function TokenBalances({
               title={`Polymarket ${outcomeType} Pending (${directionText})`} 
               balance={formatUnits(BigInt(bridge.amount), POLYMARKET_DECIMALS)}
               action={
-                <button onClick={() => {window.open(`https://axelarscan.io/gmp/${bridge.transactionHash}`, '_blank')}} className="rounded bg-white/10 px-2 py-1 border border-white/20 text-xs hover:bg-white/20">
-                  View Status And Complete Bridge
+                <button 
+                  onClick={() => {window.open(`https://axelarscan.io/gmp/${bridge.transactionHash}`, '_blank')}} 
+                  className={`rounded px-2 py-1 border text-xs ${buttonStyle}`}
+                  title={`Status: ${statusText}`}
+                >
+                  {statusText}
                 </button>
               } 
             />
