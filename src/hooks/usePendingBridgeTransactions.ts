@@ -141,7 +141,7 @@ async function fetchPendingBridgesBSCToPolygon(userAddress: string): Promise<Pen
   const duplicateMap = new Map<string, string[]>();
 
   receivedEvents.forEach(event => {
-    const key = `${event.tokenId}-${event.amount}`;
+    const key = `${event.idParam}-${event.amount}`;
     const currentCount = completedTransfers.get(key) || 0;
 
     if (!duplicateMap.has(key)) {
@@ -153,7 +153,7 @@ async function fetchPendingBridgesBSCToPolygon(userAddress: string): Promise<Pen
       // No matching transfer found - this is pending
       pending.push({
         direction: 'bsc-to-polygon',
-        tokenId: event.tokenId,
+        tokenId: event.idParam,
         amount: event.amount,
         to: event.to,
         timestamp: event.timestamp_,

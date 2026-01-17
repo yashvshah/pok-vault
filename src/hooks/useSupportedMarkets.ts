@@ -90,17 +90,26 @@ export function useSupportedMarkets() {
   return useQuery({
     queryKey: ['supported-markets', newPairs, pausedPairs, removedPairs],
     queryFn: async (): Promise<SupportedMarket[]> => {
-      // Create lookup sets for paused and removed pairs
-      const pausedKeys = new Set(
-        pausedPairs.map(p => 
-          createPairKey(p.outcomeTokenA, p.outcomeIdA, p.outcomeTokenB, p.outcomeIdB)
-        )
-      );
-      const removedKeys = new Set(
-        removedPairs.map(p => 
-          createPairKey(p.outcomeTokenA, p.outcomeIdA, p.outcomeTokenB, p.outcomeIdB)
-        )
-      );
+      // Create lookup maps for paused and removed pairs with timestamps
+      const pausedMap = new Map<string, number>();
+      pausedPairs.forEach(p => {
+        const key = createPairKey(p.outcomeTokenA, p.outcomeIdA, p.outcomeTokenB, p.outcomeIdB);
+        const timestamp = parseInt(p.timestamp_);
+        // Keep the most recent paused event for this pair
+        if (!pausedMap.has(key) || pausedMap.get(key)! < timestamp) {
+          pausedMap.set(key, timestamp);
+        }
+      });
+
+      const removedMap = new Map<string, number>();
+      removedPairs.forEach(p => {
+        const key = createPairKey(p.outcomeTokenA, p.outcomeIdA, p.outcomeTokenB, p.outcomeIdB);
+        const timestamp = parseInt(p.timestamp_);
+        // Keep the most recent removed event for this pair
+        if (!removedMap.has(key) || removedMap.get(key)! < timestamp) {
+          removedMap.set(key, timestamp);
+        }
+      });
 
       // Map to store markets by their key
       const marketsMap = new Map<string, SupportedMarket>();
@@ -114,12 +123,19 @@ export function useSupportedMarkets() {
           pair.outcomeIdB
         );
 
-        // Determine status
+        // Determine status based on most recent event
+        const addedTimestamp = parseInt(pair.timestamp_);
+        const pausedTimestamp = pausedMap.get(pairKey) || 0;
+        const removedTimestamp = removedMap.get(pairKey) || 0;
+
+        // Find the most recent event
         let status: MarketStatus = 'allowed';
-        if (removedKeys.has(pairKey)) {
+        if (removedTimestamp > addedTimestamp && removedTimestamp > pausedTimestamp) {
           status = 'removed';
-        } else if (pausedKeys.has(pairKey)) {
+        } else if (pausedTimestamp > addedTimestamp && pausedTimestamp > removedTimestamp) {
           status = 'paused';
+        } else {
+          status = 'allowed';
         }
 
         // Fetch market info for both outcome tokens
