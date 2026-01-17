@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { estimateBridgeGasFee, type GasFeeEstimate } from '../utils/bridgeGasEstimate';
 
-interface UseBridgeGasEstimateResult {
+export interface UseBridgeGasEstimateResult {
   gasFee: GasFeeEstimate | undefined;
   isLoading: boolean;
   error: Error | null;

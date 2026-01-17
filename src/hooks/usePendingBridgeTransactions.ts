@@ -41,7 +41,6 @@ async function fetchPendingBridgesPolygonToBSC(addresses: string[]): Promise<Pen
     { userAddresses: lowercaseAddresses }
   );
 
-  console.log('Polygon received events:', polygonReceived);
 
   // Fetch TransferBatch events from BSC receiver bridge
   const bscTransfers = await bscReceiverBridgeClient.request<TransferBatchResponse>(
@@ -52,8 +51,6 @@ async function fetchPendingBridgesPolygonToBSC(addresses: string[]): Promise<Pen
       userAddresses: lowercaseAddresses
     }
   );
-
-  console.log('BSC transfer events:', bscTransfers);
 
   const receivedEvents = polygonReceived.erc1155SingleReceiveds || [];
   const transferEvents = bscTransfers.transferBatches || [];
@@ -106,8 +103,6 @@ async function fetchPendingBridgesPolygonToBSC(addresses: string[]): Promise<Pen
       console.log('Duplicate bridges that need resolution:', needsResolution);
     }
   }
-
-  console.log('Pending Polygon to BSC bridges:', pending);
 
   return pending;
 }

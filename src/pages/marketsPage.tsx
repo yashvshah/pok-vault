@@ -2,22 +2,25 @@ import { useState, type FunctionComponent } from "react";
 import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance, useWriteContract } from "wagmi";
 import { polygon, bsc } from "wagmi/chains";
 import { parseUnits, erc1155Abi, formatUnits, encodeAbiParameters } from "viem";
-import type { Address } from "viem";
+import type { Address, Abi } from "viem";
 import EarlyExitVaultAbi from "../abi/EarlyExitVault.json";
+import GnosisSafeAbi from "../abi/GnosisSafe.json";
 import { POLYGON_ERC1155_POLYGON_ADDRESS, POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, OPINION_ERC1155_ADDRESS, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, POLYMARKET_DESTINATION_BRIDGE_BSC_ADDRESS, POLYMARKET_DECIMALS, VAULT_ADDRESS, OPINION_DECIMALS, USDT_ADDRESS, USDT_DECIMALS } from "../config/addresses";
 import { useErc1155Balance } from "../hooks/useErc1155Balance";
 import { useSafeAddresses } from "../hooks/useSafeAddresses";
 import { useSafeWrite } from "../hooks/useSafeWrite";
 import { usePendingBridgeTransactions } from "../hooks/usePendingBridgeTransactions";
 import { useBridgeTransactionStatus, getStatusText, getStatusButtonStyle } from "../hooks/useBridgeTransactionStatus";
+import { useBridgeGasEstimates, type UseBridgeGasEstimateResult } from "../hooks/useBridgeGasEstimate";
 import type { PendingBridgeTransaction } from "../types/vault";
 import MarketCard from "../components/MarketCard";
 import MarketActionCard from "../components/MarketActionCard";
 import BalanceItem from "../components/BalanceItem";
 import MarketFilters, { type MarketFilterState } from "../components/MarketFilters";
 import { useSupportedMarkets, type MarketStatus, type SupportedMarket } from "../hooks/useSupportedMarkets";
-import { useBridgeGasEstimates } from "../hooks/useBridgeGasEstimate";
-
+import { createPolygonToBSCBridgeBatch, createBSCToPolygonBridgeBatch } from "../utils/bridgeBatch";
+import { generateSingleOwnerSignature } from "../utils/safe";
+import { ZERO_ADDRESS } from "../config/safe";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface MarketsPageProps {}
@@ -37,15 +40,20 @@ interface SafeAddressesInfo {
 function TokenBalances({ 
   market, 
   pendingBridges, 
-  safeInfo 
+  safeInfo,
+  polygonToBSCGas,
+  bscToPolygonGas
 }: { 
   market: SupportedMarket; 
   pendingBridges: PendingBridgeTransaction[];
   safeInfo: SafeAddressesInfo;
+  polygonToBSCGas: UseBridgeGasEstimateResult;
+  bscToPolygonGas: UseBridgeGasEstimateResult;
 }) {
   const { address } = useAccount();
   const currentChainId = useChainId();
   const { switchChain } = useSwitchChain();
+  const { writeContract } = useWriteContract();
   
   const { 
     polymarketSafe, 
@@ -86,18 +94,57 @@ function TokenBalances({
     const to = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}`;
     const value = parseUnits(amtStr || '0', POLYMARKET_DECIMALS);
     
-    // Encode the destination address for the bridge
-    const data = encodeAbiParameters(
-      [{ type: 'address' }],
-      [to]
-    );
-    
-    await writePolygon({
-      abi: erc1155Abi,
-      address: POLYGON_ERC1155_POLYGON_ADDRESS,
-      functionName: 'safeTransferFrom',
-      args: [from, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, id, value, data],
-    });
+    // If using Safe, batch gas payment + bridge transfer
+    if (usePolymarketSafe && polymarketSafe) {
+      const gasPaymentAmount = polygonToBSCGas.gasFee?.feeInWei ? BigInt(polygonToBSCGas.gasFee.feeInWei) : 0n;
+      console.log("gas payment amount:", gasPaymentAmount);
+      
+      const multiSendParams = createPolygonToBSCBridgeBatch({
+        fromAddress: from,
+        refundAddress: address,//EOA should be the refund address
+        toAddress: to,
+        tokenId: id,
+        amount: value,
+        gasPaymentAmount,
+      });
+      
+      // Generate signature for single owner
+      const signatures = generateSingleOwnerSignature(address);
+      
+      // Execute batched transaction via Safe
+      writeContract({
+        address: polymarketSafe,
+        abi: GnosisSafeAbi as Abi,
+        value: gasPaymentAmount,
+        functionName: "execTransaction",
+        args: [
+          multiSendParams.to,
+          multiSendParams.value,
+          multiSendParams.data,
+          multiSendParams.operation,
+          0n,
+          0n,
+          0n,
+          ZERO_ADDRESS,
+          ZERO_ADDRESS,
+          signatures,
+        ],
+        chainId: polygon.id,
+      });
+    } else {
+      // EOA: just do the bridge transfer (user pays gas separately)
+      const data = encodeAbiParameters(
+        [{ type: 'address' }],
+        [to]
+      );
+      
+      await writePolygon({
+        abi: erc1155Abi,
+        address: POLYGON_ERC1155_POLYGON_ADDRESS,
+        functionName: 'safeTransferFrom',
+        args: [from, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, id, value, data],
+      });
+    }
   };
 
   const onBridgeToPolygon = async (id: bigint, amtStr: string) => {
@@ -106,18 +153,55 @@ function TokenBalances({
     const to = (usePolymarketSafe && polymarketSafe ? polymarketSafe : address) as `0x${string}`;
     const value = parseUnits(amtStr || '0', POLYMARKET_DECIMALS);
     
-    // Encode the destination address for the bridge
-    const data = encodeAbiParameters(
-      [{ type: 'address' }],
-      [to]
-    );
-    
-    await writeBsc({
-      abi: erc1155Abi,
-      address: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
-      functionName: 'safeTransferFrom',
-      args: [from, POLYMARKET_DESTINATION_BRIDGE_BSC_ADDRESS, id, value, data],
-    });
+    // If using Safe, batch gas payment + bridge transfer
+    if (useOpinionSafe && opinionSafe) {
+      const gasPaymentAmount = bscToPolygonGas.gasFee?.feeInWei ? BigInt(bscToPolygonGas.gasFee.feeInWei) : 0n;
+      
+      const multiSendParams = createBSCToPolygonBridgeBatch({
+        fromAddress: from,
+        refundAddress: address,//EOA should be the refund address
+        toAddress: to,
+        tokenId: id,
+        amount: value,
+        gasPaymentAmount,
+      });
+      
+      // Generate signature for single owner
+      const signatures = generateSingleOwnerSignature(address);
+      
+      // Execute batched transaction via Safe
+       writeContract({
+        address: opinionSafe,
+        abi: GnosisSafeAbi as Abi,
+        functionName: "execTransaction",
+        args: [
+          multiSendParams.to,
+          multiSendParams.value,
+          multiSendParams.data,
+          multiSendParams.operation,
+          0n,
+          0n,
+          0n,
+          ZERO_ADDRESS,
+          ZERO_ADDRESS,
+          signatures,
+        ],
+        chainId: bsc.id,
+      });
+    } else {
+      // EOA: just do the bridge transfer (user pays gas separately)
+      const data = encodeAbiParameters(
+        [{ type: 'address' }],
+        [to]
+      );
+      
+      await writeBsc({
+        abi: erc1155Abi,
+        address: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
+        functionName: 'safeTransferFrom',
+        args: [from, POLYMARKET_DESTINATION_BRIDGE_BSC_ADDRESS, id, value, data],
+      });
+    }
   };
 
   return (
@@ -127,11 +211,18 @@ function TokenBalances({
           title="Polymarket YES (Polygon)"
           balance={formatUnits(balPolyYes ?? 0n, POLYMARKET_DECIMALS).toString()}
           action={(
-            <div className="flex gap-2">
-              <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscYesAmt} onChange={e => setBridgeToBscYesAmt(e.target.value)} placeholder="amt" />
-              <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(yesIdPoly, bridgeToBscYesAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
-                {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch connected wallet to Polygon'}
-              </button>
+            <div className="flex flex-col gap-1">
+              <div className="flex gap-2">
+                <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscYesAmt} onChange={e => setBridgeToBscYesAmt(e.target.value)} placeholder="amt" />
+                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(yesIdPoly, bridgeToBscYesAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
+                  {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch to Polygon'}
+                </button>
+              </div>
+              {polygonToBSCGas.gasFee && (
+                <div className="text-[10px] text-white/50">
+                  Est. gas: ~{Number(polygonToBSCGas.gasFee.feeInEther).toFixed(4)} MATIC
+                </div>
+              )}
             </div>
           )}
         />
@@ -139,11 +230,18 @@ function TokenBalances({
           title="Polymarket NO (Polygon)"
           balance={formatUnits(balPolyNo ?? 0n, POLYMARKET_DECIMALS).toString()}
           action={(
-            <div className="flex gap-2">
-              <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscNoAmt} onChange={e => setBridgeToBscNoAmt(e.target.value)} placeholder="amt" />
-              <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(noIdPoly, bridgeToBscNoAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
-                {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch connected wallet to Polygon'}
-              </button>
+            <div className="flex flex-col gap-1">
+              <div className="flex gap-2">
+                <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscNoAmt} onChange={e => setBridgeToBscNoAmt(e.target.value)} placeholder="amt" />
+                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(noIdPoly, bridgeToBscNoAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
+                  {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch to Polygon'}
+                </button>
+              </div>
+              {polygonToBSCGas.gasFee && (
+                <div className="text-[10px] text-white/50">
+                  Est. gas: ~{Number(polygonToBSCGas.gasFee.feeInEther).toFixed(4)} MATIC
+                </div>
+              )}
             </div>
           )}
         />
@@ -151,11 +249,18 @@ function TokenBalances({
           title="Bridged Polymarket YES (BSC)" 
           balance={formatUnits(balBridgedYes ?? 0n, POLYMARKET_DECIMALS)}
           action={(
-            <div className="flex gap-2">
-              <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonYesAmt} onChange={e => setBridgeToPolygonYesAmt(e.target.value)} placeholder="amt" />
-              <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(yesIdPoly, bridgeToPolygonYesAmt) : switchChain({ chainId: bsc.id }))} disabled={!address}>
-                {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch connected wallet to BSC'}
-              </button>
+            <div className="flex flex-col gap-1">
+              <div className="flex gap-2">
+                <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonYesAmt} onChange={e => setBridgeToPolygonYesAmt(e.target.value)} placeholder="amt" />
+                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(yesIdPoly, bridgeToPolygonYesAmt) : switchChain({ chainId: bsc.id }))} disabled={!address}>
+                  {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch to BSC'}
+                </button>
+              </div>
+              {bscToPolygonGas.gasFee && (
+                <div className="text-[10px] text-white/50">
+                  Est. gas: ~{Number(bscToPolygonGas.gasFee.feeInEther).toFixed(4)} BNB
+                </div>
+              )}
             </div>
           )}
         />
@@ -163,11 +268,18 @@ function TokenBalances({
           title="Bridged Polymarket NO (BSC)" 
           balance={formatUnits(balBridgedNo ?? 0n, POLYMARKET_DECIMALS)}
           action={(
-            <div className="flex gap-2">
-              <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonNoAmt} onChange={e => setBridgeToPolygonNoAmt(e.target.value)} placeholder="amt" />
-              <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(noIdPoly, bridgeToPolygonNoAmt) : switchChain({ chainId: bsc.id }))} disabled={!address}>
-                {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch connected wallet to BSC'}
-              </button>
+            <div className="flex flex-col gap-1">
+              <div className="flex gap-2">
+                <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonNoAmt} onChange={e => setBridgeToPolygonNoAmt(e.target.value)} placeholder="amt" />
+                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(noIdPoly, bridgeToPolygonNoAmt) : switchChain({ chainId: bsc.id }))} disabled={!address}>
+                  {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch to BSC'}
+                </button>
+              </div>
+              {bscToPolygonGas.gasFee && (
+                <div className="text-[10px] text-white/50">
+                  Est. gas: ~{Number(bscToPolygonGas.gasFee.feeInEther).toFixed(4)} BNB
+                </div>
+              )}
             </div>
           )}
         />
@@ -205,7 +317,11 @@ function TokenBalances({
           );
         })}
       </div>
-      <div className="text-white/50">Note: Bridging requires calling bridge function and then calling complete bridge to pay gas fees</div>
+      <div className="text-white/50">
+        {(usePolymarketSafe && polymarketSafe) || (useOpinionSafe && opinionSafe) 
+          ? "Note: Safe transactions automatically batch gas payment + bridge transfer"
+          : "Note: Bridging requires calling bridge function and then calling complete bridge to pay gas fees"}
+      </div>
     </div>
   );
 }
@@ -612,6 +728,9 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
     functionName: "owner",
   }) as { data: string | undefined };
 
+    // Get gas estimates for both bridge directions
+  const { polygonToBSC: polygonToBSCGas, bscToPolygon: bscToPolygonGas } = useBridgeGasEstimates();
+
   const isOwner = address && ownerAddress && address.toLowerCase() === ownerAddress.toLowerCase();
 
   // Apply filters to markets
@@ -809,7 +928,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                 status={getStatusText(market.overallStatus)}
                 statusColor={getStatusColor(market.overallStatus)}
                 markets={marketPlatforms}
-                balances={<TokenBalances market={market} pendingBridges={marketPendingBridges} safeInfo={safeInfo} />}
+                balances={<TokenBalances market={market} pendingBridges={marketPendingBridges} safeInfo={safeInfo} polygonToBSCGas={polygonToBSCGas} bscToPolygonGas={bscToPolygonGas} />}
                 actionTabs={actionTabs}
               />
             );

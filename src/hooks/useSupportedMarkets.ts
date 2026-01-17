@@ -111,6 +111,8 @@ export function useSupportedMarkets() {
         }
       });
 
+      console.log("fetched outcome token pairs:");
+
       // Map to store markets by their key
       const marketsMap = new Map<string, SupportedMarket>();
 
@@ -189,6 +191,7 @@ export function useSupportedMarkets() {
           marketsMap.set(marketKey, market);
         }
 
+       
         // Add this pair to the market
         market.pairs.push({
           key: pairKey,
@@ -210,6 +213,8 @@ export function useSupportedMarkets() {
           market.overallStatus = 'paused';
         }
       }
+
+      console.log("processed everything");
 
       // Convert map to array and sort by timestamp (newest first)
       return Array.from(marketsMap.values()).sort((a, b) => {

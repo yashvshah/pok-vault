@@ -61,15 +61,12 @@ export function useSafeAddresses(
           
           for (const safe of bscSafes) {
             const creationInfo = await getSafeCreationInfo(safe, bsc.id);
-            
-            console.log(`Safe ${safe} created by factory:`, creationInfo.factoryAddress);
-            
+                        
             if (
               creationInfo.factoryAddress &&
               creationInfo.factoryAddress.toLowerCase() === OPINION_SAFE_FACTORY_ADDRESS.toLowerCase()
             ) {
               opinionSafeAddress = safe;
-              console.log(`✅ Found Opinion Safe: ${safe}`);
               break; // Found the correct safe, stop looking
             } else {
               console.log(`❌ Safe ${safe} not created by Opinion factory, skipping`);
