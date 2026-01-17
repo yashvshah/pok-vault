@@ -7,7 +7,6 @@ import {
 } from '../config/subgraph';
 import { 
   POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS,
-  POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
   AXELAR_GATEWAY_BSC_ADDRESS
 } from '../config/addresses';
 import type { 

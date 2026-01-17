@@ -8,6 +8,8 @@ import { POLYGON_ERC1155_POLYGON_ADDRESS, POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, O
 import { useErc1155Balance } from "../hooks/useErc1155Balance";
 import { useSafeAddresses } from "../hooks/useSafeAddresses";
 import { useSafeWrite } from "../hooks/useSafeWrite";
+import { usePendingBridgeTransactions } from "../hooks/usePendingBridgeTransactions";
+import type { PendingBridgeTransaction } from "../types/vault";
 import MarketCard from "../components/MarketCard";
 import MarketActionCard from "../components/MarketActionCard";
 import BalanceItem from "../components/BalanceItem";
@@ -19,7 +21,7 @@ import { useSupportedMarkets, type MarketStatus, type SupportedMarket } from "..
 interface MarketsPageProps {}
 
 
-function TokenBalances({ market }: { market: SupportedMarket }) {
+function TokenBalances({ market, pendingBridges }: { market: SupportedMarket; pendingBridges: PendingBridgeTransaction[] }) {
   const { address } = useAccount();
   const currentChainId = useChainId();
   const { switchChain } = useSwitchChain();
@@ -198,10 +200,26 @@ function TokenBalances({ market }: { market: SupportedMarket }) {
         />
         <BalanceItem title="Opinion YES (BSC)" balance={formatUnits(balOpinionYes ?? 0n, OPINION_DECIMALS)} />
         <BalanceItem title="Opinion NO (BSC)" balance={formatUnits(balOpinionNo ?? 0n, OPINION_DECIMALS)} />
-        <BalanceItem title="Polymarket YES Pending (Polygon → BSC)" balance={"—"} action={<button className="rounded bg-white/10 px-2 py-1 border border-white/20 text-xs">Complete Bridge</button>} />
-        <BalanceItem title="Polymarket NO Pending (Polygon → BSC)" balance={"—"} action={<button className="rounded bg-white/10 px-2 py-1 border border-white/20 text-xs">Complete Bridge</button>} />
-        <BalanceItem title="Polymarket YES Pending (BSC → Polygon)" balance={"—"} action={<button className="rounded bg-white/10 px-2 py-1 border border-white/20 text-xs">Complete Bridge</button>} />
-        <BalanceItem title="Polymarket NO Pending (BSC → Polygon)" balance={"—"} action={<button className="rounded bg-white/10 px-2 py-1 border border-white/20 text-xs">Complete Bridge</button>} />
+        
+        {/* Dynamic Pending Bridges */}
+        {pendingBridges.map((bridge, idx) => {
+          const isYes = bridge.tokenId === market.polymarketYesTokenId;
+          const outcomeType = isYes ? 'YES' : 'NO';
+          const directionText = bridge.direction === 'polygon-to-bsc' ? 'Polygon → BSC' : 'BSC → Polygon';
+          
+          return (
+            <BalanceItem 
+              key={`${bridge.transactionHash}-${idx}`}
+              title={`Polymarket ${outcomeType} Pending (${directionText})`} 
+              balance={formatUnits(BigInt(bridge.amount), POLYMARKET_DECIMALS)}
+              action={
+                <button className="rounded bg-white/10 px-2 py-1 border border-white/20 text-xs hover:bg-white/20">
+                  Complete Bridge
+                </button>
+              } 
+            />
+          );
+        })}
       </div>
       <div className="text-white/50">Note: Bridging requires calling bridge function and then calling complete bridge to pay gas fees</div>
     </div>
@@ -559,6 +577,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   });
   const { data: markets = [], isLoading, error } = useSupportedMarkets();
   const { address } = useAccount();
+  const { data: allPendingBridges = [] } = usePendingBridgeTransactions(address);
 
   // Read owner from contract
   const { data: ownerAddress } = useReadContract({
@@ -706,6 +725,12 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
               });
             }
 
+            // Filter pending bridges for this specific market
+            const marketPendingBridges = allPendingBridges.filter(bridge => 
+              bridge.tokenId === market.polymarketYesTokenId || 
+              bridge.tokenId === market.polymarketNoTokenId
+            );
+
             return (
               <MarketCard
                 key={market.marketKey}
@@ -714,7 +739,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                 status={getStatusText(market.overallStatus)}
                 statusColor={getStatusColor(market.overallStatus)}
                 markets={marketPlatforms}
-                balances={<TokenBalances market={market} />}
+                balances={<TokenBalances market={market} pendingBridges={marketPendingBridges} />}
                 actionTabs={actionTabs}
               />
             );
