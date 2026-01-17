@@ -214,7 +214,7 @@ function TokenBalances({
           action={(
             <div className="flex flex-col gap-1">
               <div className="flex gap-2">
-                <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscYesAmt} onChange={e => setBridgeToBscYesAmt(e.target.value)} placeholder="amt" />
+                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscYesAmt} onChange={e => setBridgeToBscYesAmt(e.target.value)} placeholder="amt" />
                 <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(yesIdPoly, bridgeToBscYesAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
                   {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch to Polygon'}
                 </button>
@@ -233,7 +233,7 @@ function TokenBalances({
           action={(
             <div className="flex flex-col gap-1">
               <div className="flex gap-2">
-                <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscNoAmt} onChange={e => setBridgeToBscNoAmt(e.target.value)} placeholder="amt" />
+                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscNoAmt} onChange={e => setBridgeToBscNoAmt(e.target.value)} placeholder="amt" />
                 <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(noIdPoly, bridgeToBscNoAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
                   {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch to Polygon'}
                 </button>
@@ -252,7 +252,7 @@ function TokenBalances({
           action={(
             <div className="flex flex-col gap-1">
               <div className="flex gap-2">
-                <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonYesAmt} onChange={e => setBridgeToPolygonYesAmt(e.target.value)} placeholder="amt" />
+                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonYesAmt} onChange={e => setBridgeToPolygonYesAmt(e.target.value)} placeholder="amt" />
                 <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(yesIdPoly, bridgeToPolygonYesAmt) : switchChain({ chainId: bsc.id }))} disabled={!address}>
                   {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch to BSC'}
                 </button>
@@ -271,7 +271,7 @@ function TokenBalances({
           action={(
             <div className="flex flex-col gap-1">
               <div className="flex gap-2">
-                <input className="w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonNoAmt} onChange={e => setBridgeToPolygonNoAmt(e.target.value)} placeholder="amt" />
+                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonNoAmt} onChange={e => setBridgeToPolygonNoAmt(e.target.value)} placeholder="amt" />
                 <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(noIdPoly, bridgeToPolygonNoAmt) : switchChain({ chainId: bsc.id }))} disabled={!address}>
                   {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch to BSC'}
                 </button>
@@ -977,7 +977,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   if (isLoading) {
     return (
       <div className="mx-30 mb-10">
-        <h1 className="text-5xl font-League-Spartan mt-10">Supported Markets</h1>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-League-Spartan mt-6 sm:mt-8 md:mt-10">Supported Markets</h1>
         <p className="text-gray-400 mt-5 max-w-lg">
           Loading supported markets...
         </p>
@@ -991,7 +991,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   if (error) {
     return (
       <div className="mx-30 mb-10">
-        <h1 className="text-5xl font-League-Spartan mt-10">Supported Markets</h1>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-League-Spartan mt-6 sm:mt-8 md:mt-10">Supported Markets</h1>
         <p className="text-red-400 mt-5 max-w-lg">
           Error loading markets. Please try again later.
         </p>
@@ -1002,7 +1002,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   if (markets.length === 0) {
     return (
       <div className="mx-30 mb-10">
-        <h1 className="text-5xl font-League-Spartan mt-10">Supported Markets</h1>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-League-Spartan mt-6 sm:mt-8 md:mt-10">Supported Markets</h1>
         <p className="text-gray-400 mt-5 max-w-lg">
           No supported markets found. Check back later!
         </p>
@@ -1013,7 +1013,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   return (
     <>
       <div className="mx-30 mb-10">
-        <h1 className="text-5xl font-League-Spartan mt-10">Supported Markets</h1>
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-League-Spartan mt-6 sm:mt-8 md:mt-10">Supported Markets</h1>
         <p className="text-gray-400 mt-5 max-w-lg">
           Buy opposite outcome tokens in following markets for less than 1 dollar and get back USDT immediately.
         </p>

@@ -18,7 +18,7 @@ const TabsComponent: React.FC<TabsProps> = ({
 
   return (
     <>
-      <div className="flex border-b border-primary/20">
+      <div className="flex flex-wrap border-b border-primary/20 overflow-x-auto">
         {tabs.map((tab, i) => (
           <Tab
             key={i}
@@ -31,7 +31,7 @@ const TabsComponent: React.FC<TabsProps> = ({
         ))}
       </div>
 
-      <div className="mt-4">{children[active]}</div>
+      <div className="mt-3 sm:mt-4">{children[active]}</div>
     </>
   );
 };

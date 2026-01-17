@@ -42,7 +42,7 @@ const ConnectWallets: React.FC<ConnectWalletsProps> = () => {
                     <button
                       onClick={openConnectModal}
                       type="button"
-                      className="bg-primary px-14 py-2 font-semibold rounded-xl"
+                      className="bg-primary px-6 sm:px-10 md:px-14 py-2 font-semibold rounded-xl text-sm sm:text-base whitespace-nowrap"
                     >
                       Connect Wallet
                     </button>
@@ -58,10 +58,10 @@ const ConnectWallets: React.FC<ConnectWalletsProps> = () => {
                 }
 
                 return (
-                  <div style={{ display: "flex", gap: 12 }}>
+                  <div className="flex flex-wrap gap-2 sm:gap-3 items-center justify-center">
                     <button
                       onClick={openChainModal}
-                      style={{ display: "flex", alignItems: "center" }}
+                      className="flex items-center px-3 py-1.5 bg-white/10 rounded-lg text-xs sm:text-sm hover:bg-white/20 transition-colors"
                       type="button"
                     >
                       {chain.hasIcon && (
@@ -84,14 +84,21 @@ const ConnectWallets: React.FC<ConnectWalletsProps> = () => {
                           )}
                         </div>
                       )}
-                      {chain.name}
+                      <span className="hidden sm:inline">{chain.name}</span>
+                      <span className="sm:hidden">{chain.name?.substring(0, 3) ?? ''}</span>
                     </button>
 
-                    <button onClick={openAccountModal} type="button">
+                    <button 
+                      onClick={openAccountModal} 
+                      type="button"
+                      className="px-3 py-1.5 bg-primary/20 rounded-lg text-xs sm:text-sm hover:bg-primary/30 transition-colors"
+                    >
                       {account.displayName}
-                      {account.displayBalance
-                        ? ` (${account.displayBalance})`
-                        : ""}
+                      {account.displayBalance && (
+                        <span className="hidden md:inline">
+                          {` (${account.displayBalance})`}
+                        </span>
+                      )}
                     </button>
                   </div>
                 );

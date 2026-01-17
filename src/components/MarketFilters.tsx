@@ -36,15 +36,15 @@ export default function MarketFilters({
   };
 
   return (
-    <div className="flex flex-wrap gap-3 my-5">
+    <div className="flex flex-col sm:flex-row flex-wrap gap-3 my-4 sm:my-5">
       {/* ================= SEARCH ================= */}
-      <div className="flex-1 min-w-60">
+      <div className="flex-1 min-w-full sm:min-w-60">
         <input
           type="text"
           placeholder="Search prediction questions..."
           value={filters.search}
           onChange={(e) => updateFilters({ search: e.target.value })}
-          className="w-full rounded-xl bg-black/40 px-4 py-3 text-sm text-white placeholder-white/40 outline-none ring-1 ring-white/10 focus:ring-primary"
+          className="w-full rounded-xl bg-black/40 px-3 sm:px-4 py-2.5 sm:py-3 text-sm text-white placeholder-white/40 outline-none ring-1 ring-white/10 focus:ring-primary"
         />
       </div>
 
@@ -54,7 +54,7 @@ export default function MarketFilters({
         onChange={(e) =>
           updateFilters({ status: e.target.value as MarketStatus })
         }
-        className="rounded-xl bg-black/40 px-3 py-2 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-primary"
+        className="w-full sm:w-auto rounded-xl bg-black/40 px-3 py-2.5 sm:py-2 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-primary"
       >
         <option value="All">All Status</option>
         <option value="Allowed">Allowed</option>

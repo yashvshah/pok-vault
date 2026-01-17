@@ -299,29 +299,30 @@ const VaultPage = () => {
   };
 
   return (
-    <main className="px-24 mt-14">
-      <div className="flex justify-around items-center gap-10">
+    <main className="px-4 sm:px-6 md:px-12 lg:px-24 mt-8 md:mt-14">
+      <div className="flex flex-col lg:flex-row justify-around items-start lg:items-center gap-8 lg:gap-10">
         {/* LEFT SECTION */}
-        <div>
-          <h1 className="text-7xl text-white leading-tight font-League-Spartan">
+        <div className="w-full lg:flex-1">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white leading-tight font-League-Spartan">
             Earn Passive Income From
-            <br />
+            <br className="hidden sm:block" />
+            <span className="sm:hidden"> </span>
             Prediction Market Arbitrage
           </h1>
 
-          <p className="text-gray-400 mt-5 max-w-lg">
+          <p className="text-gray-400 mt-4 sm:mt-5 max-w-lg text-sm sm:text-base">
             Provide capital to cross market arbitragers who profit from
             market inefficiencies and generate yield without actually running the bots.
           </p>
 
-          <div className="flex justify-between items-center w-fit border border-primary/40 rounded-xl p-4 mt-10">
-            <div className="px-6 flex items-center gap-4">
-              <div className="border border-primary/70 bg-[#1c0e0e] p-2 rounded-md">
-                <GrMoney />
+          <div className="flex flex-col sm:flex-row sm:flex-wrap lg:flex-nowrap justify-between items-stretch sm:items-center w-full border border-primary/40 rounded-xl p-3 sm:p-4 mt-6 sm:mt-8 lg:mt-10 gap-4 sm:gap-0">
+            <div className="px-3 sm:px-4 lg:px-6 flex items-center gap-3 sm:gap-4 min-w-0">
+              <div className="border border-primary/70 bg-[#1c0e0e] p-2 rounded-md flex-shrink-0">
+                <GrMoney className="text-sm sm:text-base" />
               </div>
-              <div>
-                <p className="text-secondry">Total Assets</p>
-                <p className="text-xl">
+              <div className="min-w-0">
+                <p className="text-secondry text-xs sm:text-sm">Total Assets</p>
+                <p className="text-base sm:text-lg lg:text-xl truncate">
                   {vaultTotalAssets
                     ? Number(
                         formatUnits(vaultTotalAssets, USDT_DECIMALS)
@@ -330,47 +331,47 @@ const VaultPage = () => {
                 </p>
               </div>
             </div>
-            <div className="px-6 border-l border-primary/50 flex items-center gap-4">
-              <div className="border border-primary/70 bg-[#1c0e0e] p-2 rounded-md">
-                <FaPercent />
+            <div className="px-3 sm:px-4 lg:px-6 sm:border-l border-primary/50 flex items-center gap-3 sm:gap-4 min-w-0">
+              <div className="border border-primary/70 bg-[#1c0e0e] p-2 rounded-md flex-shrink-0">
+                <FaPercent className="text-sm sm:text-base" />
               </div>
-              <div>
-                <p className="text-secondry">APY</p>
-                <p className="text-xl">{apy.toFixed(2)}%</p>
+              <div className="min-w-0">
+                <p className="text-secondry text-xs sm:text-sm">APY</p>
+                <p className="text-base sm:text-lg lg:text-xl">{apy.toFixed(2)}%</p>
               </div>
             </div>
-            <div className="px-6 border-l border-primary/50 flex items-center gap-4">
-              <div className="border border-primary/70 bg-[#1c0e0e] p-2 rounded-md">
-                <GrMoney />
+            <div className="px-3 sm:px-4 lg:px-6 sm:border-l border-primary/50 flex items-center gap-3 sm:gap-4 min-w-0">
+              <div className="border border-primary/70 bg-[#1c0e0e] p-2 rounded-md flex-shrink-0">
+                <GrMoney className="text-sm sm:text-base" />
               </div>
-              <div>
-                <p className="text-secondry">Vault Utilization</p>
-                <p className="text-xl">{utilisation.toFixed(2)}%</p>
+              <div className="min-w-0">
+                <p className="text-secondry text-xs sm:text-sm">Vault Utilization</p>
+                <p className="text-base sm:text-lg lg:text-xl">{utilisation.toFixed(2)}%</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* RIGHT SECTION */}
-        <div className="reletive">
-          <div className="absolute right-36 top-34 gradiant-border rounded-xl -z-10 blur-xs">
+        <div className="reletive w-full lg:w-auto lg:flex-shrink-0">
+          <div className="absolute right-4 sm:right-10 lg:right-36 top-34 gradiant-border rounded-xl -z-10 blur-xs hidden md:block">
             <div className="box-of-gradiant-border rounded-xl w-95 h-95 backdrop-blur-xs"></div>
           </div>
           <div className="gradiant-border rounded-xl z-10">
-            <div className="box-of-gradiant-border rounded-xl p-6 w-95">
+            <div className="box-of-gradiant-border rounded-xl p-4 sm:p-5 md:p-6 w-full lg:w-95">
               <Tabs
                 tabs={[{ label: "Deposit" }, { label: "Withdraw" }]}
-                xClassName="w-full"
+                xClassName="w-full text-sm sm:text-base"
               >
                 {/* DEPOSIT */}
-                <div className="space-y-4">
-                  <div className="flex gap-3">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
                         From Wallet
                       </label>
                       <div className="gradiant-border">
-                        <div className="box-of-gradiant-border flex items-center justify-between">
+                        <div className="box-of-gradiant-border flex items-center justify-between text-sm sm:text-base">
                           <span className="text-gray-400">USDT</span>
                           <span className="text-sm">💰</span>
                         </div>
@@ -387,11 +388,11 @@ const VaultPage = () => {
                             placeholder="0"
                             value={depositAmount}
                             onChange={(e) => setDepositAmount(e.target.value)}
-                            className="flex-1 focus:outline-none"
+                            className="flex-1 focus:outline-none text-sm sm:text-base"
                           />
                           <button
                             onClick={handleMaxClick}
-                            className="px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded text-xs font-semibold transition-colors"
+                            className="px-2 sm:px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded text-xs font-semibold transition-colors"
                             disabled={!isConnected || chainId !== bsc.id}
                           >
                             MAX
@@ -399,7 +400,7 @@ const VaultPage = () => {
                         </div>
                       </div>
                       {isConnected && chainId === bsc.id && (
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-400 mt-1 truncate">
                           Balance:{" "}
                           {formatUnits(USDTBalance?.value || 0n, USDT_DECIMALS)}{" "}
                           USDT
@@ -408,15 +409,15 @@ const VaultPage = () => {
                     </span>
                   </div>
                   <span className="flex items-center justify-center text-primary/60">
-                    <FaRegArrowAltCircleDown size={25} />
+                    <FaRegArrowAltCircleDown size={20} className="sm:w-6 sm:h-6" />
                   </span>
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
                         To Vault
                       </label>
                       <div className="gradiant-border">
-                        <div className="box-of-gradiant-border flex items-center justify-between">
+                        <div className="box-of-gradiant-border flex items-center justify-between text-sm sm:text-base">
                           <span className="text-gray-400">POK-USDT</span>
                           <span className="text-sm">🏦</span>
                         </div>
@@ -427,7 +428,7 @@ const VaultPage = () => {
                         You will receive
                       </label>
                       <div className="gradiant-border">
-                        <div className="box-of-gradiant-border text-gray-400">
+                        <div className="box-of-gradiant-border text-gray-400 text-sm sm:text-base truncate">
                           {previewDepositAmount ? formatUnits(previewDepositAmount, USDT_DECIMALS) : "0"} POK-USDT
                         </div>
                       </div>
@@ -442,7 +443,7 @@ const VaultPage = () => {
                       isDepositPending ||
                       (!isDepositSuccess && depositHash != undefined)
                     }
-                    className="w-full bg-primary py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-primary py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isApprovePending || (!isApproveSuccess && approveHash != undefined)
                       ? "Approving..."
@@ -453,14 +454,14 @@ const VaultPage = () => {
                 </div>
 
                 {/* WITHDRAW */}
-                <div className="space-y-4">
-                  <div className="flex gap-3">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
                         From Vault
                       </label>
                       <div className="gradiant-border">
-                        <div className="box-of-gradiant-border flex items-center justify-between">
+                        <div className="box-of-gradiant-border flex items-center justify-between text-sm sm:text-base">
                           <span className="text-gray-400">POK-USDT</span>
                           <span className="text-sm">🏦</span>
                         </div>
@@ -477,11 +478,11 @@ const VaultPage = () => {
                             placeholder="0"
                             value={withdrawAmount}
                             onChange={(e) => setWithdrawAmount(e.target.value)}
-                            className="flex-1 focus:outline-none"
+                            className="flex-1 focus:outline-none text-sm sm:text-base"
                           />
                           <button
                             onClick={handleMaxWithdrawClick}
-                            className="px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded text-xs font-semibold transition-colors"
+                            className="px-2 sm:px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded text-xs font-semibold transition-colors"
                             disabled={!isConnected || chainId !== bsc.id}
                           >
                             MAX
@@ -489,7 +490,7 @@ const VaultPage = () => {
                         </div>
                       </div>
                       {isConnected && chainId === bsc.id && (
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-400 mt-1 truncate">
                           Balance: {formatUnits(vaultBalance?.value || 0n, USDT_DECIMALS)}{" "}
                           POK-USDT
                         </p>
@@ -497,15 +498,15 @@ const VaultPage = () => {
                     </span>
                   </div>
                   <span className="flex items-center justify-center text-primary/60">
-                    <FaRegArrowAltCircleDown size={25} />
+                    <FaRegArrowAltCircleDown size={20} className="sm:w-6 sm:h-6" />
                   </span>
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
                         To Wallet
                       </label>
                       <div className="gradiant-border">
-                        <div className="box-of-gradiant-border flex items-center justify-between">
+                        <div className="box-of-gradiant-border flex items-center justify-between text-sm sm:text-base">
                           <span className="text-gray-400">USDT</span>
                           <span className="text-sm">💰</span>
                         </div>
@@ -516,7 +517,7 @@ const VaultPage = () => {
                         You will receive
                       </label>
                       <div className="gradiant-border">
-                        <div className="box-of-gradiant-border text-gray-400">
+                        <div className="box-of-gradiant-border text-gray-400 text-sm sm:text-base truncate">
                           {previewRedeemAmount
                             ? formatUnits(previewRedeemAmount, USDT_DECIMALS)
                             : "0"}{" "}
@@ -532,7 +533,7 @@ const VaultPage = () => {
                       isWithdrawPending ||
                       (!isWithdrawSuccess && withdrawHash != undefined)
                     }
-                    className="w-full bg-primary py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-primary py-2.5 sm:py-3 rounded-lg font-semibold text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isWithdrawPending || (!isWithdrawSuccess && withdrawHash != undefined)
                       ? "Withdrawing..."
@@ -544,23 +545,23 @@ const VaultPage = () => {
           </div>
         </div>
       </div>
-      <div className="bg-linear-to-b from-primary to-[#863A3C] p-px rounded-xl my-18 mx-10">
-        <div className="box-of-gradiant-border rounded-xl bg-[#0f0f0f] p-5">
+      <div className="bg-linear-to-b from-primary to-[#863A3C] p-px rounded-xl my-10 sm:my-14 md:my-18 mx-2 sm:mx-6 md:mx-10">
+        <div className="box-of-gradiant-border rounded-xl bg-[#0f0f0f] p-3 sm:p-4 md:p-5">
           <Tabs tabs={[{ label: "INFO" }, { label: "ACTIVITY" }]}>
             <div>
-              <div className="space-y-4 ml-5">
+              <div className="space-y-3 sm:space-y-4 ml-2 sm:ml-4 md:ml-5 text-sm sm:text-base">
                 <div>
-                  <p className="text-gray-300 leading-relaxed">
+                  <p className="text-gray-300 leading-relaxed break-all">
                     <strong className="text-secondry">Vault Address:</strong> {VAULT_ADDRESS}
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-300 leading-relaxed">
+                  <p className="text-gray-300 leading-relaxed break-all">
                     <strong className="text-secondry">Underlying asset address:</strong> {USDT_ADDRESS} (USDT)
                   </p>
                 </div>
                 <div>
-                  <p className="text-gray-300 leading-relaxed">
+                  <p className="text-gray-300 leading-relaxed break-all">
                     <strong className="text-secondry">Vault Owner Address:</strong> 0x8A7f538B6f6Bdab69edD0E311aeDa9214bC5384A
                   </p>
                 </div>
@@ -577,16 +578,16 @@ const VaultPage = () => {
               </div>
             </div>
             {/* table */}
-            <div className="overflow-hidden rounded-xl border border-white/10 bg-black/40 backdrop-blur-md">
-              <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto rounded-xl border border-white/10 bg-black/40 backdrop-blur-md">
+              <table className="w-full text-left text-xs sm:text-sm min-w-[640px]">
                 <thead className="bg-white/5 text-gray-400">
                   <tr>
-                    <th className="px-4 py-3">Type</th>
-                    <th className="px-4 py-3">Market</th>
-                    <th className="px-4 py-3">Amount</th>
-                    <th className="px-4 py-3">User</th>
-                    <th className="px-4 py-3">Tx Hash</th>
-                    <th className="px-4 py-3">Timestamp</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3">Type</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3">Market</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3">Amount</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3">User</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3">Tx Hash</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3">Timestamp</th>
                   </tr>
                 </thead>
 
@@ -595,7 +596,7 @@ const VaultPage = () => {
                     <tr>
                       <td
                         colSpan={6}
-                        className="px-4 py-8 text-center text-gray-400"
+                        className="px-2 sm:px-4 py-6 sm:py-8 text-center text-gray-400"
                       >
                         Loading activities...
                       </td>
@@ -604,7 +605,7 @@ const VaultPage = () => {
                     <tr>
                       <td
                         colSpan={6}
-                        className="px-4 py-8 text-center text-red-400"
+                        className="px-2 sm:px-4 py-6 sm:py-8 text-center text-red-400"
                       >
                         Error loading activities: {error.message}
                       </td>
@@ -613,7 +614,7 @@ const VaultPage = () => {
                     <tr>
                       <td
                         colSpan={6}
-                        className="px-4 py-8 text-center text-gray-400"
+                        className="px-2 sm:px-4 py-6 sm:py-8 text-center text-gray-400"
                       >
                         No activities found
                       </td>
@@ -624,31 +625,31 @@ const VaultPage = () => {
                         key={activity.id}
                         className="border-t border-white/5 hover:bg-white/5 transition"
                       >
-                        <td className="px-4 py-3 capitalize">
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 capitalize">
                           {activity.type.replace(/-/g, " ")}
                         </td>
 
-                        <td className="px-4 py-3 max-w-[320px] truncate">
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 max-w-[200px] sm:max-w-[320px] truncate">
                           {activity.market || "N/A"}
                         </td>
 
-                        <td className="px-4 py-3">{formatAmount(activity)}</td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3">{formatAmount(activity)}</td>
 
                         <td
-                          className="px-4 py-3 font-mono text-primary"
+                          className="px-2 sm:px-4 py-2 sm:py-3 font-mono text-primary"
                           title={activity.user}
                         >
                           {activity.user ? shorten(activity.user) : "—"}
                         </td>
 
                         <td
-                          className="px-4 py-3 font-mono text-primary"
+                          className="px-2 sm:px-4 py-2 sm:py-3 font-mono text-primary"
                           title={activity.transactionHash}
                         >
                           {shorten(activity.transactionHash)}
                         </td>
 
-                        <td className="px-4 py-3 text-gray-400">
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-400 whitespace-nowrap">
                           {formatTimestamp(activity.timestamp)}
                         </td>
                       </tr>
