@@ -3,11 +3,6 @@ import type { Address } from 'viem';
 import { providerRegistry, type MarketData, type PredictionMarketProvider } from './providers';
 import { POLYGON_ERC1155_BRIDGED_BSC_OLD_BUGGY_ADDRESS } from '../config/addresses';
 
-// Legacy type exports for backward compatibility
-import type { PolymarketMarket } from './providers/polymarketProvider';
-import type { OpinionMarket } from './providers/opinionProvider';
-export type { PolymarketMarket, OpinionMarket };
-
 /**
  * Unified market info returned by the service
  * Extends MarketData with provider information
@@ -17,9 +12,6 @@ export interface UnifiedMarketInfo {
   platform: string; // Provider ID (e.g., 'polymarket', 'opinion')
   provider: PredictionMarketProvider;
   marketData: MarketData;
-  // Legacy fields for backward compatibility
-  polymarketData?: PolymarketMarket;
-  opinionData?: OpinionMarket;
 }
 
 class MarketInfoService {
@@ -69,21 +61,12 @@ class MarketInfoService {
       }
 
       // Build unified response
-      const result: UnifiedMarketInfo = {
+      return {
         question: marketData.question,
         platform: provider.id,
         provider,
         marketData,
       };
-
-      // Add legacy fields for backward compatibility
-      if (provider.id === 'polymarket') {
-        result.polymarketData = marketData.rawData as PolymarketMarket;
-      } else if (provider.id === 'opinion') {
-        result.opinionData = marketData.rawData as OpinionMarket;
-      }
-
-      return result;
     } catch (error) {
       console.error('Error getting market info from outcome token:', error);
       return null;

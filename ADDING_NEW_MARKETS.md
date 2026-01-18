@@ -35,20 +35,16 @@ src/
 - `src/hooks/useSupportedMarkets.ts` - Dynamic market key generation
 - `src/hooks/useVaultActivities.ts` - Uses provider names dynamically
 - `src/hooks/usePendingBridgeTransactions.ts` - Uses Safe addresses map
+- `src/pages/marketsPage.tsx` - Uses provider registry for all market data
+- `src/pages/ManageMarketsPage.tsx` - Uses provider registry
 
-### ⚠️ Partially Abstracted (Legacy Compatibility)
-These files still contain hardcoded references for backward compatibility but use the new abstractions internally:
+### ⚠️ Bridge-Specific Logic
+These files contain bridge-specific logic that is inherently tied to each bridge implementation:
 
-| File | Hardcoded Items | Notes |
-|------|-----------------|-------|
-| `src/pages/marketsPage.tsx` | UI labels, balance displays, Safe toggles | Large file - needs UI refactor |
-| `src/pages/ManageMarketsPage.tsx` | Market pairing UI, form inputs | Admin-only page |
-| `src/utils/bridgeBatch.ts` | Polymarket bridge addresses | Bridge-specific logic |
-| `src/config/subgraph.ts` | Polymarket bridge subgraph URLs | Subgraph per bridge |
-
-### 📝 Files That Reference Old Services (Can Be Deprecated)
-- `src/services/polymarket.ts` - Old service (use `polymarketProvider` instead)
-- `src/services/opinion.ts` - Old service (use `opinionProvider` instead)
+| File | Notes |
+|------|-------|
+| `src/utils/bridgeBatch.ts` | Bridge transaction batching (each bridge needs custom logic) |
+| `src/config/subgraph.ts` | Subgraph URLs per bridge |
 
 ## Step-by-Step Guide
 

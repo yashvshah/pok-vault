@@ -12,6 +12,7 @@ import type { VaultActivity, SubgraphDeposit, SubgraphWithdrawal, SubgraphNewOpp
 import { formatUnits } from 'viem';
 import { VAULT_OWNER_ADDRESS } from '../config/addresses';
 import { providerRegistry } from '../services/providers';
+import type { UnifiedMarketInfo } from '../services/marketInfo';
 
 /**
  * Get display name for a platform ID using provider registry
@@ -89,7 +90,7 @@ export function useVaultActivities(limit = 100) {
 
   // Create a map of outcome ID + token address to market info for easy lookup
   const marketInfoMap = useMemo(() => {
-    const map = new Map<string, any>();
+    const map = new Map<string, UnifiedMarketInfo>();
     marketInfoInputs.forEach((input, index) => {
       if (marketInfos?.[index]) {
         const key = `${input.tokenAddress}-${input.outcomeId}`;

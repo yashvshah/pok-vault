@@ -31,16 +31,6 @@ export interface SupportedMarket {
   providerTokenIds: Map<string, { yesTokenId: string; noTokenId: string }>;
   // Provider-specific URLs
   providerUrls: Map<string, string>;
-  // Legacy fields for backward compatibility
-  polymarketQuestion?: string;
-  opinionQuestion?: string;
-  polymarketImage?: string;
-  opinionThumbnail?: string;
-  polymarketYesTokenId?: string;
-  polymarketNoTokenId?: string;
-  opinionYesTokenId?: string;
-  opinionNoTokenId?: string;
-  polymarketUrl?: string;
   pairs: OutcomeTokenPair[]; // Can have up to 2 pairs (YES A + NO B, NO A + YES B)
   overallStatus: MarketStatus; // The "best" status among all pairs (allowed > paused > removed)
 }
@@ -199,10 +189,6 @@ export function useSupportedMarkets() {
           populateProviderData(market, marketInfoA);
           populateProviderData(market, marketInfoB);
 
-          // Set legacy fields for backward compatibility
-          setLegacyFields(market, marketInfoA);
-          setLegacyFields(market, marketInfoB);
-
           marketsMap.set(marketKey, market);
         }
 
@@ -265,25 +251,5 @@ function populateProviderData(market: SupportedMarket, marketInfo: UnifiedMarket
   
   if (data.url) {
     market.providerUrls.set(providerId, data.url);
-  }
-}
-
-/**
- * Set legacy fields for backward compatibility with existing UI
- */
-function setLegacyFields(market: SupportedMarket, marketInfo: UnifiedMarketInfo): void {
-  const data = marketInfo.marketData;
-
-  if (marketInfo.platform === 'polymarket') {
-    market.polymarketQuestion = data.question;
-    market.polymarketImage = data.thumbnailUrl;
-    market.polymarketYesTokenId = data.yesTokenId;
-    market.polymarketNoTokenId = data.noTokenId;
-    market.polymarketUrl = data.url;
-  } else if (marketInfo.platform === 'opinion') {
-    market.opinionQuestion = data.question;
-    market.opinionThumbnail = data.thumbnailUrl;
-    market.opinionYesTokenId = data.yesTokenId;
-    market.opinionNoTokenId = data.noTokenId;
   }
 }
