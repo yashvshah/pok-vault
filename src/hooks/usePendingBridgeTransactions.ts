@@ -189,14 +189,25 @@ async function fetchPendingBridgesBSCToPolygon(addresses: string[]): Promise<Pen
   return pending;
 }
 
+/**
+ * Hook to fetch pending bridge transactions
+ * 
+ * @param userAddress - The user's EOA address
+ * @param safeAddresses - Map of provider ID to Safe address (from useSafeAddresses hook)
+ * @param isSafeLoading - Whether Safe detection is still in progress
+ */
 export function usePendingBridgeTransactions(
   userAddress?: string,
-  polymarketSafe?: string | null,
-  opinionSafe?: string | null,
+  safeAddresses?: Map<string, string | null>,
   isSafeLoading?: boolean
 ) {
+  // Extract Safe addresses from the map for the query key
+  const safeAddressesArray = safeAddresses 
+    ? Array.from(safeAddresses.values()).filter(Boolean) 
+    : [];
+
   return useQuery({
-    queryKey: ['pending-bridge-transactions', userAddress, polymarketSafe, opinionSafe],
+    queryKey: ['pending-bridge-transactions', userAddress, ...safeAddressesArray],
     queryFn: async (): Promise<PendingBridgeTransaction[]> => {
       // Collect all addresses to query
       const addresses: string[] = [];
@@ -204,11 +215,14 @@ export function usePendingBridgeTransactions(
       if (userAddress) {
         addresses.push(userAddress);
       }
-      if (polymarketSafe) {
-        addresses.push(polymarketSafe);
-      }
-      if (opinionSafe) {
-        addresses.push(opinionSafe);
+      
+      // Add all Safe addresses from the map
+      if (safeAddresses) {
+        for (const safeAddr of safeAddresses.values()) {
+          if (safeAddr) {
+            addresses.push(safeAddr);
+          }
+        }
       }
 
       if (addresses.length === 0) return [];

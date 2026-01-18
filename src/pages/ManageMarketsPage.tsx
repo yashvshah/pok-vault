@@ -4,8 +4,8 @@ import { keccak256, encodePacked, isAddress } from "viem";
 import EarlyExitVaultABI from "../abi/EarlyExitVault.json";
 import EarlyExitAmountBasedOnFixedAPYABI from "../abi/EarlyExitAmountBasedOnFixedAPY.json";
 import EarlyExitAmountFactoryBasedOnFixedAPYABI from "../abi/EarlyExitAmountFactoryBasedOnFixedAPYABI.json";
-import { opinionService } from "../services/opinion";
-import { polymarketService } from "../services/polymarket";
+import { providerRegistry } from "../services/providers";
+import { getPolymarketBySlug } from "../services/providers/polymarketProvider";
 import {
   VAULT_ADDRESS,
   EARLY_EXIT_FACTORY_ADDRESS,
@@ -265,7 +265,7 @@ const ManageMarketsPage: FunctionComponent = () => {
 
   const fetchPolymarketInfo = async (slug: string) => {
     try {
-      const market = await polymarketService.getMarketBySlug(slug);
+      const market = await getPolymarketBySlug(slug);
       
       if (!market) {
         throw new Error("Failed to fetch Polymarket market data");
@@ -275,7 +275,7 @@ const ManageMarketsPage: FunctionComponent = () => {
         question: market.question,
         yesTokenId: market.yesTokenId,
         noTokenId: market.noTokenId,
-        image: market.image,
+        image: market.thumbnailUrl,
         endDate: market.endDate,
       };
     } catch (error) {
@@ -286,22 +286,40 @@ const ManageMarketsPage: FunctionComponent = () => {
 
   const fetchOpinionInfo = async (marketId: string) => {
     try {
-      const opinionData = await opinionService.getMarketById(marketId);
+      const opinionProvider = providerRegistry.getById('opinion');
+      if (!opinionProvider) {
+        throw new Error("Opinion provider not registered");
+      }
+      
+      const opinionData = await opinionProvider.getMarketById(marketId);
       
       if (!opinionData) {
         throw new Error("Failed to fetch Opinion market data");
       }
 
-      const hasChildMarkets = opinionData.childMarkets && opinionData.childMarkets.length > 0;
+      // Access rawData for Opinion-specific fields
+      const rawData = opinionData.rawData as {
+        childMarkets?: Array<{
+          marketId: number;
+          marketTitle: string;
+          status: number;
+          yesTokenId: string;
+          noTokenId: string;
+        }>;
+        parentThumbnailUrl?: string;
+        isCategorical?: boolean;
+      } | undefined;
+
+      const hasChildMarkets = rawData?.childMarkets && rawData.childMarkets.length > 0;
 
       return {
-        question: opinionData.marketTitle,
+        question: opinionData.question,
         yesTokenId: opinionData.yesTokenId,
         noTokenId: opinionData.noTokenId,
         thumbnailUrl: opinionData.thumbnailUrl,
-        parentThumbnailUrl: opinionData.parentThumbnailUrl,
-        isCategorical: opinionData.isCategorical,
-        childMarkets: hasChildMarkets ? opinionData.childMarkets : undefined,
+        parentThumbnailUrl: rawData?.parentThumbnailUrl,
+        isCategorical: rawData?.isCategorical,
+        childMarkets: hasChildMarkets ? rawData?.childMarkets : undefined,
       };
     } catch (error) {
       console.error("Error fetching Opinion info:", error);

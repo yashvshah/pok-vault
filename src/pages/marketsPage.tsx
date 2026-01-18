@@ -22,18 +22,17 @@ import { createPolygonToBSCBridgeBatch, createBSCToPolygonBridgeBatch } from "..
 import { createMergeBatchWithApprovals, createSplitBatchWithApproval } from "../utils/mergeSplitBatch";
 import { generateSingleOwnerSignature } from "../utils/safe";
 import { ZERO_ADDRESS } from "../config/safe";
+import { providerRegistry } from "../services/providers";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface MarketsPageProps {}
 
-
 interface SafeAddressesInfo {
-  polymarketSafe: `0x${string}` | null;
-  opinionSafe: `0x${string}` | null;
-  usePolymarketSafe: boolean;
-  useOpinionSafe: boolean;
-  setUsePolymarketSafe: (value: boolean) => void;
-  setUseOpinionSafe: (value: boolean) => void;
+  safeAddresses: Map<string, Address | null>;
+  useSafeFor: Map<string, boolean>;
+  setUseSafeFor: (providerId: string, use: boolean) => void;
+  getSafeForProvider: (providerId: string) => Address | null;
+  shouldUseSafeFor: (providerId: string) => boolean;
   writePolygon: ReturnType<typeof useSafeWrite>['write'];
   writeBsc: ReturnType<typeof useSafeWrite>['write'];
 }
@@ -57,21 +56,29 @@ function TokenBalances({
   const { writeContract } = useWriteContract();
   
   const { 
-    polymarketSafe, 
-    opinionSafe, 
-    usePolymarketSafe, 
-    useOpinionSafe,
+    getSafeForProvider,
+    shouldUseSafeFor,
     writePolygon,
     writeBsc
   } = safeInfo;
 
+  // Get Safe addresses for each provider
+  const polymarketSafe = getSafeForProvider('polymarket');
+  const opinionSafe = getSafeForProvider('opinion');
+  const usePolymarketSafe = shouldUseSafeFor('polymarket');
+  const useOpinionSafe = shouldUseSafeFor('opinion');
+
   // Check status of pending bridges and filter out completed ones
   const { transactionsWithStatus, isLoading: isStatusLoading } = useBridgeTransactionStatus(pendingBridges);
   
-  const yesIdPoly = market.polymarketYesTokenId ? BigInt(market.polymarketYesTokenId) : 0n;
-  const noIdPoly = market.polymarketNoTokenId ? BigInt(market.polymarketNoTokenId) : 0n;
-  const yesIdOpinion = market.opinionYesTokenId ? BigInt(market.opinionYesTokenId) : 0n;
-  const noIdOpinion = market.opinionNoTokenId ? BigInt(market.opinionNoTokenId) : 0n;
+  // Get token IDs from provider data
+  const polymarketTokens = market.providerTokenIds.get('polymarket');
+  const opinionTokens = market.providerTokenIds.get('opinion');
+  
+  const yesIdPoly = polymarketTokens?.yesTokenId ? BigInt(polymarketTokens.yesTokenId) : 0n;
+  const noIdPoly = polymarketTokens?.noTokenId ? BigInt(polymarketTokens.noTokenId) : 0n;
+  const yesIdOpinion = opinionTokens?.yesTokenId ? BigInt(opinionTokens.yesTokenId) : 0n;
+  const noIdOpinion = opinionTokens?.noTokenId ? BigInt(opinionTokens.noTokenId) : 0n;
 
   // Determine owner addresses based on safe usage
   const polyOwner = (usePolymarketSafe ? polymarketSafe : null) as `0x${string}` | null | undefined;
@@ -294,7 +301,9 @@ function TokenBalances({
           </div>
         )}
         {transactionsWithStatus.map((bridge, idx) => {
-          const isYes = bridge.tokenId === market.polymarketYesTokenId;
+          // Get token IDs from provider data to determine if this is a YES or NO token
+          const polymarketTokens = market.providerTokenIds.get('polymarket');
+          const isYes = polymarketTokens && bridge.tokenId === polymarketTokens.yesTokenId;
           const outcomeType = isYes ? 'YES' : 'NO';
           const directionText = bridge.direction === 'polygon-to-bsc' ? 'Polygon → BSC' : 'BSC → Polygon';
           const statusText = getStatusText(bridge.status);
@@ -339,7 +348,9 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
   const { switchChain } = useSwitchChain();
   const { writeContract } = useWriteContract();
   
-  const { opinionSafe, useOpinionSafe, writeBsc } = safeInfo;
+  const { getSafeForProvider, shouldUseSafeFor, writeBsc } = safeInfo;
+  const opinionSafe = getSafeForProvider('opinion');
+  const useOpinionSafe = shouldUseSafeFor('opinion');
 
   const idA = BigInt(pair.outcomeIdA);
   const idB = BigInt(pair.outcomeIdB);
@@ -540,7 +551,9 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
   const { switchChain } = useSwitchChain();
   const { writeContract } = useWriteContract();
   
-  const { opinionSafe, useOpinionSafe, writeBsc } = safeInfo;
+  const { getSafeForProvider, shouldUseSafeFor, writeBsc } = safeInfo;
+  const opinionSafe = getSafeForProvider('opinion');
+  const useOpinionSafe = shouldUseSafeFor('opinion');
 
   const idA = BigInt(pair.outcomeIdA);
   const idB = BigInt(pair.outcomeIdB);
@@ -882,20 +895,24 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
 
   // Detect Gnosis Safe addresses (once for all markets)
   const { 
-    polymarketSafe, 
-    opinionSafe, 
-    usePolymarketSafe, 
-    useOpinionSafe,
-    setUsePolymarketSafe,
-    setUseOpinionSafe,
+    safeAddresses,
+    useSafeFor,
+    setUseSafeFor,
+    getSafeForProvider,
+    shouldUseSafeFor,
     isLoading: isSafeLoading
   } = useSafeAddresses(address);
+  
+  // Get Safe addresses for display
+  const polymarketSafe = getSafeForProvider('polymarket');
+  const opinionSafe = getSafeForProvider('opinion');
+  const usePolymarketSafe = shouldUseSafeFor('polymarket');
+  const useOpinionSafe = shouldUseSafeFor('opinion');
   
   // Fetch pending bridges for all addresses (user EOA + safe addresses if they exist)
   const { data: allPendingBridges = [] } = usePendingBridgeTransactions(
     address,
-    polymarketSafe,
-    opinionSafe,
+    safeAddresses,
     isSafeLoading
   );
   
@@ -911,12 +928,11 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
 
   // Create safe info object to pass to child components
   const safeInfo: SafeAddressesInfo = {
-    polymarketSafe,
-    opinionSafe,
-    usePolymarketSafe,
-    useOpinionSafe,
-    setUsePolymarketSafe,
-    setUseOpinionSafe,
+    safeAddresses,
+    useSafeFor,
+    setUseSafeFor,
+    getSafeForProvider,
+    shouldUseSafeFor,
     writePolygon,
     writeBsc
   };
@@ -1038,7 +1054,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                   </div>
                   <button
                     className="rounded bg-blue-500/20 px-3 py-1.5 border border-blue-500/40 text-xs hover:bg-blue-500/30"
-                    onClick={() => setUsePolymarketSafe(!usePolymarketSafe)}
+                    onClick={() => setUseSafeFor('polymarket', !usePolymarketSafe)}
                   >
                     {usePolymarketSafe ? 'Switch to EOA' : 'Switch to Safe'}
                   </button>
@@ -1057,7 +1073,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                   </div>
                   <button
                     className="rounded bg-blue-500/20 px-3 py-1.5 border border-blue-500/40 text-xs hover:bg-blue-500/30"
-                    onClick={() => setUseOpinionSafe(!useOpinionSafe)}
+                    onClick={() => setUseSafeFor('opinion', !useOpinionSafe)}
                   >
                     {useOpinionSafe ? 'Switch to EOA' : 'Switch to Safe'}
                   </button>
@@ -1069,10 +1085,14 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
 
         <div className="grid grid-cols-2 gap-5 items-start mt-6">
           {filteredMarkets.map((market) => {
-            const marketPlatforms = [
-              market.polymarketQuestion && { name: "Polymarket", question: market.polymarketQuestion },
-              market.opinionQuestion && { name: "Opinion", question: market.opinionQuestion },
-            ].filter(Boolean) as { name: string; question: string }[];
+            // Build platforms list dynamically from providers
+            const marketPlatforms: { name: string; question: string }[] = [];
+            for (const [providerId, question] of market.providerQuestions.entries()) {
+              const provider = providerRegistry.getById(providerId);
+              if (provider && question) {
+                marketPlatforms.push({ name: provider.name, question });
+              }
+            }
 
             const actionTabs = [
               {
@@ -1114,18 +1134,31 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
               });
             }
 
+            // Get token IDs from provider data
+            const polymarketTokens = market.providerTokenIds.get('polymarket');
+            
             // Filter pending bridges for this specific market
             const marketPendingBridges = allPendingBridges.filter(bridge => 
-              bridge.tokenId === market.polymarketYesTokenId || 
-              bridge.tokenId === market.polymarketNoTokenId
+              polymarketTokens && (
+                bridge.tokenId === polymarketTokens.yesTokenId || 
+                bridge.tokenId === polymarketTokens.noTokenId
+              )
             );
+
+            // Get image from any available provider
+            const marketImage = market.providerImages.get('polymarket') || 
+                               market.providerImages.get('opinion') || 
+                               "/public/imageNotFound.png";
+            
+            // Get Polymarket URL if available
+            const polymarketUrl = market.providerUrls.get('polymarket');
 
             return (
               <MarketCard
                 key={market.marketKey}
-                image={market.polymarketImage || market.opinionThumbnail || "/public/imageNotFound.png"}
+                image={marketImage}
                 question={market.question}
-                polyMarketQuestionLink={market.polymarketUrl}
+                polyMarketQuestionLink={polymarketUrl}
                 status={getStatusText(market.overallStatus)}
                 statusColor={getStatusColor(market.overallStatus)}
                 markets={marketPlatforms}

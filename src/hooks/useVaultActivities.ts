@@ -11,6 +11,16 @@ import { useMarketInfos } from './useMarketInfos';
 import type { VaultActivity, SubgraphDeposit, SubgraphWithdrawal, SubgraphNewOppositeOutcomeTokenPairAdded, SubgraphOppositeOutcomeTokenPairRemoved, SubgraphOppositeOutcomeTokenPairPaused, SubgraphProfitOrLossReported, SubgraphEarlyExit, SubgraphSplitOppositeOutcomeTokens } from '../types/vault';
 import { formatUnits } from 'viem';
 import { VAULT_OWNER_ADDRESS } from '../config/addresses';
+import { providerRegistry } from '../services/providers';
+import type { UnifiedMarketInfo } from '../services/marketInfo';
+
+/**
+ * Get display name for a platform ID using provider registry
+ */
+function getPlatformDisplayName(platformId: string): string {
+  const provider = providerRegistry.getById(platformId);
+  return provider?.name || platformId;
+}
 
 export function useVaultActivities(limit = 100) {
   const { data: deposits = [], isLoading: depositsLoading, error: depositsError } = useDeposits(limit);
@@ -80,7 +90,7 @@ export function useVaultActivities(limit = 100) {
 
   // Create a map of outcome ID + token address to market info for easy lookup
   const marketInfoMap = useMemo(() => {
-    const map = new Map<string, any>();
+    const map = new Map<string, UnifiedMarketInfo>();
     marketInfoInputs.forEach((input, index) => {
       if (marketInfos?.[index]) {
         const key = `${input.tokenAddress}-${input.outcomeId}`;
@@ -123,11 +133,11 @@ export function useVaultActivities(limit = 100) {
 
       // Build market string with both platform info
       if (marketInfoA?.question && marketInfoB?.question) {
-        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'}) ↔️ ${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoA.question} (${getPlatformDisplayName(marketInfoA.platform)}) ↔️ ${marketInfoB.question} (${getPlatformDisplayName(marketInfoB.platform)})`;
       } else if (marketInfoA?.question) {
-        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoA.question} (${getPlatformDisplayName(marketInfoA.platform)})`;
       } else if (marketInfoB?.question) {
-        marketString = `${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoB.question} (${getPlatformDisplayName(marketInfoB.platform)})`;
       }
 
       return {
@@ -152,11 +162,11 @@ export function useVaultActivities(limit = 100) {
       let marketString = `Token A (ID: ${pair.outcomeIdA}) ↔️ Token B (ID: ${pair.outcomeIdB})`;
 
       if (marketInfoA?.question && marketInfoB?.question) {
-        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'}) ↔️ ${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoA.question} (${getPlatformDisplayName(marketInfoA.platform)}) ↔️ ${marketInfoB.question} (${getPlatformDisplayName(marketInfoB.platform)})`;
       } else if (marketInfoA?.question) {
-        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoA.question} (${getPlatformDisplayName(marketInfoA.platform)})`;
       } else if (marketInfoB?.question) {
-        marketString = `${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoB.question} (${getPlatformDisplayName(marketInfoB.platform)})`;
       }
 
       return {
@@ -181,11 +191,11 @@ export function useVaultActivities(limit = 100) {
       let marketString = `Token A (ID: ${pair.outcomeIdA}) ↔️ Token B (ID: ${pair.outcomeIdB})`;
 
       if (marketInfoA?.question && marketInfoB?.question) {
-        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'}) ↔️ ${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoA.question} (${getPlatformDisplayName(marketInfoA.platform)}) ↔️ ${marketInfoB.question} (${getPlatformDisplayName(marketInfoB.platform)})`;
       } else if (marketInfoA?.question) {
-        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoA.question} (${getPlatformDisplayName(marketInfoA.platform)})`;
       } else if (marketInfoB?.question) {
-        marketString = `${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoB.question} (${getPlatformDisplayName(marketInfoB.platform)})`;
       }
 
       return {
@@ -210,11 +220,11 @@ export function useVaultActivities(limit = 100) {
       let marketString = `Token A (ID: ${event.outcomeIdA}) ↔️ Token B (ID: ${event.outcomeIdB})`;
 
       if (marketInfoA?.question && marketInfoB?.question) {
-        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'}) ↔️ ${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoA.question} (${getPlatformDisplayName(marketInfoA.platform)}) ↔️ ${marketInfoB.question} (${getPlatformDisplayName(marketInfoB.platform)})`;
       } else if (marketInfoA?.question) {
-        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoA.question} (${getPlatformDisplayName(marketInfoA.platform)})`;
       } else if (marketInfoB?.question) {
-        marketString = `${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoB.question} (${getPlatformDisplayName(marketInfoB.platform)})`;
       }
 
       return {
@@ -239,11 +249,11 @@ export function useVaultActivities(limit = 100) {
       let marketString = `Token A (ID: ${event.outcomeIdA}) ↔️ Token B (ID: ${event.outcomeIdB})`;
 
       if (marketInfoA?.question && marketInfoB?.question) {
-        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'}) ↔️ ${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoA.question} (${getPlatformDisplayName(marketInfoA.platform)}) ↔️ ${marketInfoB.question} (${getPlatformDisplayName(marketInfoB.platform)})`;
       } else if (marketInfoA?.question) {
-        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoA.question} (${getPlatformDisplayName(marketInfoA.platform)})`;
       } else if (marketInfoB?.question) {
-        marketString = `${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoB.question} (${getPlatformDisplayName(marketInfoB.platform)})`;
       }
 
       return {
@@ -267,11 +277,11 @@ export function useVaultActivities(limit = 100) {
       let marketString = `Token A (ID: ${event.outcomeIdA}) ↔️ Token B (ID: ${event.outcomeIdB})`;
 
       if (marketInfoA?.question && marketInfoB?.question) {
-        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'}) ↔️ ${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoA.question} (${getPlatformDisplayName(marketInfoA.platform)}) ↔️ ${marketInfoB.question} (${getPlatformDisplayName(marketInfoB.platform)})`;
       } else if (marketInfoA?.question) {
-        marketString = `${marketInfoA.question} (${marketInfoA.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoA.question} (${getPlatformDisplayName(marketInfoA.platform)})`;
       } else if (marketInfoB?.question) {
-        marketString = `${marketInfoB.question} (${marketInfoB.platform === 'polymarket' ? 'Polymarket' : 'Opinion'})`;
+        marketString = `${marketInfoB.question} (${getPlatformDisplayName(marketInfoB.platform)})`;
       }
 
       return {
