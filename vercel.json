@@ -1,5 +1,7 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
+    { "source": "/vault", "destination": "/api/vault" },
+    { "source": "/markets", "destination": "/api/markets" },
+    { "source": "/((?!api|assets|og-logo|pokvault|imageNotFound).*)", "destination": "/" }
   ]
 }

@@ -10,6 +10,7 @@ import { useSplitOutcomeTokens } from './activities/useSplitOutcomeTokens';
 import { useMarketInfos } from './useMarketInfos';
 import type { VaultActivity, SubgraphDeposit, SubgraphWithdrawal, SubgraphNewOppositeOutcomeTokenPairAdded, SubgraphOppositeOutcomeTokenPairRemoved, SubgraphOppositeOutcomeTokenPairPaused, SubgraphProfitOrLossReported, SubgraphEarlyExit, SubgraphSplitOppositeOutcomeTokens } from '../types/vault';
 import { formatUnits } from 'viem';
+import { VAULT_OWNER_ADDRESS } from '../config/addresses';
 
 export function useVaultActivities(limit = 100) {
   const { data: deposits = [], isLoading: depositsLoading, error: depositsError } = useDeposits(limit);
@@ -135,7 +136,8 @@ export function useVaultActivities(limit = 100) {
         market: marketString,
         outcomeTokensAmount: '', // null for new-outcome-pair
         USDTAmount: '', // null for new-outcome-pair
-        user: '', // not available in subgraph for this event
+        user: VAULT_OWNER_ADDRESS,
+        userLabel: 'Owner',
         transactionHash: pair.transactionHash_,
         timestamp: parseInt(pair.timestamp_),
       };
@@ -163,7 +165,8 @@ export function useVaultActivities(limit = 100) {
         market: marketString,
         outcomeTokensAmount: '',
         USDTAmount: '',
-        user: '',
+        user: VAULT_OWNER_ADDRESS,
+        userLabel: 'Owner',
         transactionHash: pair.transactionHash_,
         timestamp: parseInt(pair.timestamp_),
       };
@@ -191,7 +194,8 @@ export function useVaultActivities(limit = 100) {
         market: marketString,
         outcomeTokensAmount: '',
         USDTAmount: '',
-        user: '',
+        user: VAULT_OWNER_ADDRESS,
+        userLabel: 'Owner',
         transactionHash: pair.transactionHash_,
         timestamp: parseInt(pair.timestamp_),
       };
@@ -219,7 +223,8 @@ export function useVaultActivities(limit = 100) {
         market: marketString,
         outcomeTokensAmount: '',
         USDTAmount: event.profitOrLoss, // profit/loss amount in USDT
-        user: '',
+        user: VAULT_OWNER_ADDRESS,
+        userLabel: 'Owner',
         transactionHash: event.transactionHash_,
         timestamp: parseInt(event.timestamp_),
       };
@@ -247,7 +252,7 @@ export function useVaultActivities(limit = 100) {
         market: marketString,
         outcomeTokensAmount: event.amount, // outcome token amount
         USDTAmount: event.exitAmount, // USDT exit amount
-        user: '',
+        user: '', // not available in subgraph
         transactionHash: event.transactionHash_,
         timestamp: parseInt(event.timestamp_),
       };
@@ -275,7 +280,7 @@ export function useVaultActivities(limit = 100) {
         market: marketString,
         outcomeTokensAmount: event.amount, // outcome token amount
         USDTAmount: '', // no USDT amount for split
-        user: '',
+        user: '', // not available in subgraph
         transactionHash: event.transactionHash_,
         timestamp: parseInt(event.timestamp_),
       };

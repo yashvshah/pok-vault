@@ -13,7 +13,7 @@ class ContractService {
   constructor() {
     this.client = createPublicClient({
       chain: polygon,
-      transport: http(),
+      transport: http(import.meta.env.VITE_POLYGON_RPC_URL || undefined),
     });
   }
 

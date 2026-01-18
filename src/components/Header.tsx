@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import ConnectWallets from "./ConnectButton";
 import { useAccount } from "wagmi";
 import { VAULT_OWNER_ADDRESS } from "../config/addresses";
+import pokLogo from "../assets/images/POK_LOGO.svg";
 
 const linkClass = "px-3 sm:px-4 py-2 rounded-lg text-gray-400 hover:text-white whitespace-nowrap";
 
@@ -10,9 +11,9 @@ const Header = () => {
   return (
     <header>
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 px-4 sm:px-6 md:px-12 lg:px-28 py-4 md:py-6">
-        <div className="w-32 sm:w-36 md:w-44">
-          <img src="src/assets/images/POK_LOGO.svg" alt="logo" className="w-full h-auto" />
-        </div>
+        <NavLink to="/vault" className="w-32 sm:w-36 md:w-44">
+          <img src={pokLogo} alt="logo" className="w-full h-auto" />
+        </NavLink>
 
         <nav className="flex flex-wrap justify-center gap-1 sm:gap-2 bg-cardDark p-1 rounded-xl text-sm sm:text-base">
           <NavLink

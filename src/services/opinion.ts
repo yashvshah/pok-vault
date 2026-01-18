@@ -27,32 +27,35 @@ export interface OpinionMarket {
 class OpinionService {
   async getMarketByOutcomeToken(outcomeTokenId: string): Promise<OpinionMarket | null> {
     try {
-      const apiKey = import.meta.env.VITE_OPINION_API_KEY;
-
-      if (!apiKey) {
-        throw new Error("OPINION_API_KEY not found in environment variables");
-      }
-
-      // First, get the market ID from outcome token ID
-      const marketIdResponse = await fetch(
+      // Middleware now directly returns OpinionMarket for given outcomeTokenId
+      const response = await fetch(
         `${MIDDLEWARE_BASE_URL}/market?outcomeTokenId=${outcomeTokenId}`
       );
 
-      if (!marketIdResponse.ok) {
-        console.log('Failed to fetch Opinion market ID for outcome token:', outcomeTokenId);
+      if (!response.ok) {
+        console.log('Failed to fetch Opinion market for outcome token:', outcomeTokenId);
         return null;
       }
 
-      const marketIdData = await marketIdResponse.json();
-      const marketId = marketIdData?.marketId;
+      const marketData = await response.json();
 
-      if (!marketId) {
-        console.log('No market ID found for Opinion outcome token:', outcomeTokenId);
+      if (!marketData) {
+        console.log('No market data found for Opinion outcome token:', outcomeTokenId);
         return null;
       }
 
-      // Then, get the full market info using the market ID
-      return await this.getMarketById(marketId);
+      // Return the OpinionMarket directly from middleware
+      return {
+        marketId: marketData.marketId,
+        marketTitle: marketData.marketTitle,
+        thumbnailUrl: marketData.thumbnailUrl,
+        yesTokenId: marketData.yesTokenId || '',
+        noTokenId: marketData.noTokenId || '',
+        marketType: marketData.marketType,
+        isCategorical: marketData.isCategorical,
+        parentThumbnailUrl: marketData.parentThumbnailUrl,
+        childMarkets: marketData.childMarkets,
+      };
     } catch (error) {
       console.error('Error fetching Opinion market by outcome token:', error);
       return null;

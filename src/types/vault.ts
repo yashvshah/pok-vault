@@ -140,7 +140,8 @@ export interface VaultActivity {
   market: string; // market info for outcome-related activities, blank for deposits/withdrawals
   outcomeTokensAmount: string; // amount for outcome token activities
   USDTAmount: string; // USDT amount for deposits/withdrawals and profit-loss activities
-  user: string; // blank for outcome-related activities (not available in subgraph)
+  user: string; // user address (sender for deposits/withdrawals, owner address for owner actions, blank for user actions without sender)
+  userLabel?: string; // optional label to display instead of shortened address (e.g., "Owner")
   transactionHash: string;
   timestamp: number;
 }

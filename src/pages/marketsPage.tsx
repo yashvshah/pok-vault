@@ -1049,7 +1049,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
               <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium text-blue-400">Opinion Gnosis Safe Detected (BSC)</div>
+                    <div className="font-medium text-blue-400">Opinion Account (Gnosis Safe) Detected</div>
                     <div className="text-xs text-white/60 mt-1">Address: {opinionSafe}</div>
                     <div className="text-xs text-white/60">
                       {useOpinionSafe ? 'Using Safe for transactions' : 'Using EOA for transactions'}
@@ -1125,6 +1125,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                 key={market.marketKey}
                 image={market.polymarketImage || market.opinionThumbnail || "/public/imageNotFound.png"}
                 question={market.question}
+                polyMarketQuestionLink={market.polymarketUrl}
                 status={getStatusText(market.overallStatus)}
                 statusColor={getStatusColor(market.overallStatus)}
                 markets={marketPlatforms}
