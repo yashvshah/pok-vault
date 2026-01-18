@@ -1,104 +1,139 @@
 import { useState, useEffect } from "react";
 import type { Address } from "viem";
-import { polygon } from "wagmi/chains";
 import { deriveSafeAddress, checkSafeExists } from "../utils/safe";
+import { providerRegistry, isBridgeableProvider } from "../services/providers";
 
 interface SafeAddressesState {
+  /** Map of provider ID to Safe address */
+  safeAddresses: Map<string, Address | null>;
+  /** Legacy: Polymarket Safe address */
   polymarketSafe: Address | null;
+  /** Legacy: Opinion Safe address */
   opinionSafe: Address | null;
   isLoading: boolean;
+  /** Map of provider ID to whether Safe should be used */
+  useSafeFor: Map<string, boolean>;
+  /** Legacy: Use Polymarket Safe */
   usePolymarketSafe: boolean;
+  /** Legacy: Use Opinion Safe */
   useOpinionSafe: boolean;
 }
 
 interface SafeAddressesActions {
+  /** Set whether to use Safe for a specific provider */
+  setUseSafeFor: (providerId: string, use: boolean) => void;
+  /** Legacy: Set whether to use Polymarket Safe */
   setUsePolymarketSafe: (use: boolean) => void;
+  /** Legacy: Set whether to use Opinion Safe */
   setUseOpinionSafe: (use: boolean) => void;
+  /** Get Safe address for a provider */
+  getSafeForProvider: (providerId: string) => Address | null;
 }
 
 /**
- * Hook to derive and manage Gnosis Safe addresses for both Polymarket (Polygon) and Opinion (BSC)
+ * Hook to derive and manage Gnosis Safe addresses for all registered prediction market providers
  * 
- * - Polymarket (Polygon): Uses deriveSafe with known factory
- * - Opinion (BSC): Fetches from Opinion API user profile endpoint
+ * Supports both derive-based (e.g., Polymarket) and API-based (e.g., Opinion) Safe detection.
  */
 export function useSafeAddresses(
   eoaAddress?: Address
 ): SafeAddressesState & SafeAddressesActions {
-  const [polymarketSafe, setPolymarketSafe] = useState<Address | null>(null);
-  const [opinionSafe, setOpinionSafe] = useState<Address | null>(null);
+  const [safeAddresses, setSafeAddresses] = useState<Map<string, Address | null>>(new Map());
+  const [useSafeFor, setUseSafeForState] = useState<Map<string, boolean>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
-  
-  // User preferences for using safe (defaults to true if safe exists)
-  const [usePolymarketSafe, setUsePolymarketSafe] = useState(true);
-  const [useOpinionSafe, setUseOpinionSafe] = useState(true);
 
   useEffect(() => {
     if (!eoaAddress) {
-      setPolymarketSafe(null);
-      setOpinionSafe(null);
+      setSafeAddresses(new Map());
       return;
     }
 
     setIsLoading(true);
 
     const detectSafes = async () => {
-      try {
-        // POLYGON (Polymarket): Use deriveSafe with known factory
-        const pmSafeAddress = deriveSafeAddress(eoaAddress);
-        const pmExists = await checkSafeExists(pmSafeAddress, polygon.id);
-        setPolymarketSafe(pmExists ? pmSafeAddress : null);
+      const providers = providerRegistry.getAll();
+      const newSafeAddresses = new Map<string, Address | null>();
+      const newUseSafeFor = new Map<string, boolean>();
 
-        // BSC (Opinion): Fetch from Opinion API
+      for (const provider of providers) {
         try {
-          const response = await fetch(
-            `https://proxy.opinion.trade:8443/api/bsc/api/v2/user/${eoaAddress}/profile?chainId=56`
-          );
-          
-          if (response.ok) {
-            const data = await response.json();
-            
-            if (data.errno === 0 && data.result?.multiSignedWalletAddress) {
-              const bscSafeAddress = data.result.multiSignedWalletAddress['56'];
+          let safeAddress: Address | null = null;
+
+          if (provider.safeConfig) {
+            if (provider.safeConfig.type === 'derive' && provider.safeConfig.factoryAddress) {
+              // For bridgeable providers, check Safe on source chain (e.g., Polygon for Polymarket)
+              const chainId = isBridgeableProvider(provider) 
+                ? provider.bridgeConfig.sourceChainId 
+                : provider.operatingChainId;
               
-              if (bscSafeAddress && bscSafeAddress !== '0x0000000000000000000000000000000000000000') {
-                console.log(`✅ Found Opinion Safe on BSC: ${bscSafeAddress}`);
-                setOpinionSafe(bscSafeAddress as Address);
+              safeAddress = deriveSafeAddress(eoaAddress);
+              const exists = await checkSafeExists(safeAddress, chainId);
+              if (!exists) {
+                safeAddress = null;
               } else {
-                console.log(`No Opinion Safe found for ${eoaAddress} on BSC`);
-                setOpinionSafe(null);
+                console.log(`✅ Found ${provider.name} Safe: ${safeAddress}`);
               }
-            } else {
-              console.log(`Opinion API returned error or no safe: ${data.errmsg}`);
-              setOpinionSafe(null);
+            } else if (provider.safeConfig.type === 'api' && provider.safeConfig.fetchSafeAddress) {
+              safeAddress = await provider.safeConfig.fetchSafeAddress(eoaAddress);
+              if (safeAddress) {
+                console.log(`✅ Found ${provider.name} Safe: ${safeAddress}`);
+              }
             }
-          } else {
-            console.log(`Opinion API request failed with status: ${response.status}`);
-            setOpinionSafe(null);
           }
-        } catch (apiError) {
-          console.error("Error fetching Opinion Safe from API:", apiError);
-          setOpinionSafe(null);
+
+          newSafeAddresses.set(provider.id, safeAddress);
+          // Default to using Safe if it exists
+          newUseSafeFor.set(provider.id, safeAddress !== null);
+        } catch (error) {
+          console.error(`Error detecting Safe for ${provider.name}:`, error);
+          newSafeAddresses.set(provider.id, null);
+          newUseSafeFor.set(provider.id, false);
         }
-      } catch (error) {
-        console.error("Error detecting safes:", error);
-        setPolymarketSafe(null);
-        setOpinionSafe(null);
-      } finally {
-        setIsLoading(false);
       }
+
+      setSafeAddresses(newSafeAddresses);
+      setUseSafeForState(newUseSafeFor);
+      setIsLoading(false);
     };
 
     detectSafes();
   }, [eoaAddress]);
 
+  // Action to toggle Safe usage for a provider
+  const setUseSafeFor = (providerId: string, use: boolean) => {
+    setUseSafeForState(prev => {
+      const next = new Map(prev);
+      next.set(providerId.toLowerCase(), use);
+      return next;
+    });
+  };
+
+  // Get Safe address for a provider
+  const getSafeForProvider = (providerId: string): Address | null => {
+    return safeAddresses.get(providerId.toLowerCase()) || null;
+  };
+
+  // Legacy getters for backward compatibility
+  const polymarketSafe = safeAddresses.get('polymarket') || null;
+  const opinionSafe = safeAddresses.get('opinion') || null;
+  const usePolymarketSafe = useSafeFor.get('polymarket') ?? true;
+  const useOpinionSafe = useSafeFor.get('opinion') ?? true;
+
+  // Legacy setters
+  const setUsePolymarketSafe = (use: boolean) => setUseSafeFor('polymarket', use);
+  const setUseOpinionSafe = (use: boolean) => setUseSafeFor('opinion', use);
+
   return {
+    safeAddresses,
     polymarketSafe,
     opinionSafe,
     isLoading,
+    useSafeFor,
     usePolymarketSafe,
     useOpinionSafe,
+    setUseSafeFor,
     setUsePolymarketSafe,
     setUseOpinionSafe,
+    getSafeForProvider,
   };
 }

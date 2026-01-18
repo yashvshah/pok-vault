@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNewOutcomePairs } from './activities/useNewOutcomePairs';
 import { usePausedOutcomePairs } from './activities/usePausedOutcomePairs';
 import { useRemovedOutcomePairs } from './activities/useRemovedOutcomePairs';
-import { marketInfoService } from '../services/marketInfo';
+import { marketInfoService, type UnifiedMarketInfo } from '../services/marketInfo';
 import { keccak256, encodePacked } from 'viem';
 
 export type MarketStatus = 'allowed' | 'paused' | 'removed';
@@ -21,8 +21,17 @@ export interface OutcomeTokenPair {
 }
 
 export interface SupportedMarket {
-  marketKey: string; // Unique identifier: poly-{polymarketId}_opinion-{opinionId}
+  marketKey: string; // Unique identifier: {providerA}-{marketIdA}_{providerB}-{marketIdB}
   question: string;
+  // Provider-specific questions (dynamic based on registered providers)
+  providerQuestions: Map<string, string>;
+  // Provider-specific images/thumbnails
+  providerImages: Map<string, string>;
+  // Provider-specific token IDs
+  providerTokenIds: Map<string, { yesTokenId: string; noTokenId: string }>;
+  // Provider-specific URLs
+  providerUrls: Map<string, string>;
+  // Legacy fields for backward compatibility
   polymarketQuestion?: string;
   opinionQuestion?: string;
   polymarketImage?: string;
@@ -32,7 +41,7 @@ export interface SupportedMarket {
   opinionYesTokenId?: string;
   opinionNoTokenId?: string;
   polymarketUrl?: string;
-  pairs: OutcomeTokenPair[]; // Can have up to 2 pairs (YES Poly + NO Opinion, NO Poly + YES Opinion)
+  pairs: OutcomeTokenPair[]; // Can have up to 2 pairs (YES A + NO B, NO A + YES B)
   overallStatus: MarketStatus; // The "best" status among all pairs (allowed > paused > removed)
 }
 
@@ -71,16 +80,21 @@ function createPairKey(
   );
 }
 
-// Helper to create a market key from polymarket and opinion market IDs
+/**
+ * Create a deterministic market key from provider and market IDs
+ * Supports any combination of providers (not just polymarket/opinion)
+ */
 function createMarketKey(
-  polymarketId?: string,
-  opinionId?: string | number
+  markets: Array<{ providerId: string; marketId: string }>
 ): string {
-  if (!polymarketId || !opinionId) {
-    return '';
-  }
-  // Create a simple, deterministic key from both market IDs
-  return `poly-${polymarketId}_opinion-${opinionId}`;
+  if (markets.length === 0) return '';
+  
+  // Sort by provider ID for deterministic ordering
+  const sorted = [...markets].sort((a, b) => 
+    a.providerId.localeCompare(b.providerId)
+  );
+  
+  return sorted.map(m => `${m.providerId}-${m.marketId}`).join('_');
 }
 
 export function useSupportedMarkets() {
@@ -152,44 +166,43 @@ export function useSupportedMarkets() {
           continue;
         }
 
-        // Extract market data from the fetched info
-        const polymarketData = marketInfoA.platform === 'polymarket' 
-          ? marketInfoA.polymarketData 
-          : marketInfoB.polymarketData;
-        const opinionData = marketInfoA.platform === 'opinion'
-          ? marketInfoA.opinionData
-          : marketInfoB.opinionData;
+        // Extract market IDs from both providers
+        const marketIdA = marketInfoA.marketData.id;
+        const marketIdB = marketInfoB.marketData.id;
 
-        // Skip if we don't have both market IDs
-        if (!polymarketData?.id || !opinionData?.marketId) {
+        if (!marketIdA || !marketIdB) {
           console.warn('Missing market IDs for pair:', pairKey);
           continue;
         }
 
-        // Create market key using the market IDs
-        const marketKey = createMarketKey(
-          polymarketData.id,
-          opinionData.marketId
-        );
+        // Create dynamic market key
+        const marketKey = createMarketKey([
+          { providerId: marketInfoA.platform, marketId: marketIdA },
+          { providerId: marketInfoB.platform, marketId: marketIdB },
+        ]);
 
         // Get or create market
         let market = marketsMap.get(marketKey);
         if (!market) {
           market = {
             marketKey,
-            question: polymarketData.question || opinionData.marketTitle || 'Unknown Market',
-            polymarketQuestion: polymarketData.question,
-            opinionQuestion: opinionData.marketTitle,
-            polymarketImage: polymarketData.image, // Use first outcome as placeholder
-            opinionThumbnail: opinionData.thumbnailUrl,
-            polymarketYesTokenId: polymarketData.yesTokenId,
-            polymarketNoTokenId: polymarketData.noTokenId,
-            opinionYesTokenId: opinionData.yesTokenId,
-            opinionNoTokenId: opinionData.noTokenId,
-            polymarketUrl: polymarketData.haSubEvents  ? "https://polymarket.com/event/" + polymarketData.slug : "https://polymarket.com/market/" + polymarketData.slug,
+            question: marketInfoA.marketData.question || marketInfoB.marketData.question || 'Unknown Market',
+            providerQuestions: new Map(),
+            providerImages: new Map(),
+            providerTokenIds: new Map(),
+            providerUrls: new Map(),
             pairs: [],
             overallStatus: 'removed', // Will be updated
           };
+
+          // Populate provider-specific data
+          populateProviderData(market, marketInfoA);
+          populateProviderData(market, marketInfoB);
+
+          // Set legacy fields for backward compatibility
+          setLegacyFields(market, marketInfoA);
+          setLegacyFields(market, marketInfoB);
+
           marketsMap.set(marketKey, market);
         }
 
@@ -228,4 +241,49 @@ export function useSupportedMarkets() {
     enabled: !isLoadingNew && !isLoadingPaused && !isLoadingRemoved,
     staleTime: 30000, // 30 seconds
   });
+}
+
+/**
+ * Populate provider-specific data in the market object
+ */
+function populateProviderData(market: SupportedMarket, marketInfo: UnifiedMarketInfo): void {
+  const providerId = marketInfo.platform;
+  const data = marketInfo.marketData;
+
+  market.providerQuestions.set(providerId, data.question);
+  
+  if (data.thumbnailUrl) {
+    market.providerImages.set(providerId, data.thumbnailUrl);
+  }
+  
+  if (data.yesTokenId || data.noTokenId) {
+    market.providerTokenIds.set(providerId, {
+      yesTokenId: data.yesTokenId,
+      noTokenId: data.noTokenId,
+    });
+  }
+  
+  if (data.url) {
+    market.providerUrls.set(providerId, data.url);
+  }
+}
+
+/**
+ * Set legacy fields for backward compatibility with existing UI
+ */
+function setLegacyFields(market: SupportedMarket, marketInfo: UnifiedMarketInfo): void {
+  const data = marketInfo.marketData;
+
+  if (marketInfo.platform === 'polymarket') {
+    market.polymarketQuestion = data.question;
+    market.polymarketImage = data.thumbnailUrl;
+    market.polymarketYesTokenId = data.yesTokenId;
+    market.polymarketNoTokenId = data.noTokenId;
+    market.polymarketUrl = data.url;
+  } else if (marketInfo.platform === 'opinion') {
+    market.opinionQuestion = data.question;
+    market.opinionThumbnail = data.thumbnailUrl;
+    market.opinionYesTokenId = data.yesTokenId;
+    market.opinionNoTokenId = data.noTokenId;
+  }
 }

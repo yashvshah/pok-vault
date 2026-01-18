@@ -1,60 +1,107 @@
-// Unified service for fetching market information from both Polymarket and Opinion
-import { type PolymarketMarket, polymarketService } from './polymarket';
-import { type OpinionMarket, opinionService } from './opinion';
-import { POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, OPINION_ERC1155_ADDRESS, POLYGON_ERC1155_BRIDGED_BSC_OLD_BUGGY_ADDRESS } from '../config/addresses';
+// Unified service for fetching market information from any registered prediction market provider
+import type { Address } from 'viem';
+import { providerRegistry, type MarketData, type PredictionMarketProvider } from './providers';
+import { POLYGON_ERC1155_BRIDGED_BSC_OLD_BUGGY_ADDRESS } from '../config/addresses';
 
+// Legacy type exports for backward compatibility
+import type { PolymarketMarket } from './providers/polymarketProvider';
+import type { OpinionMarket } from './providers/opinionProvider';
+export type { PolymarketMarket, OpinionMarket };
+
+/**
+ * Unified market info returned by the service
+ * Extends MarketData with provider information
+ */
 export interface UnifiedMarketInfo {
   question: string;
-  platform: 'polymarket' | 'opinion';
+  platform: string; // Provider ID (e.g., 'polymarket', 'opinion')
+  provider: PredictionMarketProvider;
+  marketData: MarketData;
+  // Legacy fields for backward compatibility
   polymarketData?: PolymarketMarket;
   opinionData?: OpinionMarket;
 }
 
 class MarketInfoService {
+  /**
+   * Fetch market info from any registered provider based on token address
+   */
   async getMarketInfoFromOutcomeToken(
     outcomeTokenId: string,
     tokenAddress: string
   ): Promise<UnifiedMarketInfo | null> {
     try {
-      const normalizedAddress = tokenAddress.toLowerCase();
+      const normalizedAddress = tokenAddress.toLowerCase() as Address;
 
-      if(normalizedAddress === POLYGON_ERC1155_BRIDGED_BSC_OLD_BUGGY_ADDRESS.toLowerCase()) {
-        return {
-          question: 'Test Event',
-          platform: 'polymarket'
-        }
-      }
-
-      // Check if it's Polymarket (Polygon ERC1155)
-      if (normalizedAddress === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase()) {
-        const polymarketData = await polymarketService.getMarketInfoFromOutcomeToken(outcomeTokenId);
-        
-        if (polymarketData) {
+      // Handle legacy buggy address
+      if (normalizedAddress === POLYGON_ERC1155_BRIDGED_BSC_OLD_BUGGY_ADDRESS.toLowerCase()) {
+        const provider = providerRegistry.getById('polymarket');
+        if (provider) {
           return {
-            question: polymarketData.question,
+            question: 'Test Event',
             platform: 'polymarket',
-            polymarketData,
-          };
-        }
-      }
-      // Check if it's Opinion (BSC ERC1155)
-      else if (normalizedAddress === OPINION_ERC1155_ADDRESS.toLowerCase()) {
-        const opinionData = await opinionService.getMarketByOutcomeToken(outcomeTokenId);
-        
-        if (opinionData) {
-          return {
-            question: opinionData.marketTitle,
-            platform: 'opinion',
-            opinionData,
+            provider,
+            marketData: {
+              id: 'test',
+              question: 'Test Event',
+              yesTokenId: '',
+              noTokenId: '',
+              status: 'closed',
+            },
           };
         }
       }
 
-      return null;
+      // Look up provider by token address
+      const provider = providerRegistry.getByTokenAddress(normalizedAddress);
+      
+      if (!provider) {
+        console.warn('No provider registered for token address:', tokenAddress);
+        return null;
+      }
+
+      // Fetch market data from provider
+      const marketData = await provider.getMarketByOutcomeToken(outcomeTokenId);
+      
+      if (!marketData) {
+        console.warn(`Provider ${provider.id} returned no data for token:`, outcomeTokenId);
+        return null;
+      }
+
+      // Build unified response
+      const result: UnifiedMarketInfo = {
+        question: marketData.question,
+        platform: provider.id,
+        provider,
+        marketData,
+      };
+
+      // Add legacy fields for backward compatibility
+      if (provider.id === 'polymarket') {
+        result.polymarketData = marketData.rawData as PolymarketMarket;
+      } else if (provider.id === 'opinion') {
+        result.opinionData = marketData.rawData as OpinionMarket;
+      }
+
+      return result;
     } catch (error) {
       console.error('Error getting market info from outcome token:', error);
       return null;
     }
+  }
+
+  /**
+   * Get all registered providers
+   */
+  getProviders(): PredictionMarketProvider[] {
+    return providerRegistry.getAll();
+  }
+
+  /**
+   * Get provider by ID
+   */
+  getProvider(providerId: string): PredictionMarketProvider | null {
+    return providerRegistry.getById(providerId);
   }
 }
 
