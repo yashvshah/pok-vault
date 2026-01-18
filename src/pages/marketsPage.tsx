@@ -964,11 +964,11 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   const getStatusText = (status: MarketStatus) => {
     switch (status) {
       case 'allowed':
-        return '✅ Active';
+        return 'Active';
       case 'paused':
-        return '⏸️ Paused';
+        return 'Paused';
       case 'removed':
-        return '🔴 Expired/Removed';
+        return 'Expired/Removed';
       default:
         return status;
     }
