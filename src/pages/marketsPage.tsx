@@ -23,6 +23,7 @@ import { createMergeBatchWithApprovals, createSplitBatchWithApproval } from "../
 import { generateSingleOwnerSignature } from "../utils/safe";
 import { ZERO_ADDRESS } from "../config/safe";
 import { providerRegistry } from "../services/providers";
+import { showBridgeStartedNotification } from "../utils/notifications";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface MarketsPageProps {}
@@ -53,7 +54,7 @@ function TokenBalances({
   const { address } = useAccount();
   const currentChainId = useChainId();
   const { switchChain } = useSwitchChain();
-  const { writeContract } = useWriteContract();
+  const { writeContractAsync } = useWriteContract();
   
   const { 
     getSafeForProvider,
@@ -96,11 +97,17 @@ function TokenBalances({
   const [bridgeToPolygonYesAmt, setBridgeToPolygonYesAmt] = useState('0');
   const [bridgeToPolygonNoAmt, setBridgeToPolygonNoAmt] = useState('0');
 
+  // Helper to determine outcome type from token ID
+  const getOutcomeType = (id: bigint): 'YES' | 'NO' => {
+    return id === yesIdPoly ? 'YES' : 'NO';
+  };
+
   const onBridgeToBsc = async (id: bigint, amtStr: string) => {
     if (!address) return;
     const from = (usePolymarketSafe && polymarketSafe ? polymarketSafe : address) as `0x${string}`;
     const to = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}`;
     const value = parseUnits(amtStr || '0', POLYMARKET_DECIMALS);
+    const outcomeType = getOutcomeType(id);
     
     // If using Safe, batch gas payment + bridge transfer
     if (usePolymarketSafe && polymarketSafe) {
@@ -120,7 +127,7 @@ function TokenBalances({
       const signatures = generateSingleOwnerSignature(address);
       
       // Execute batched transaction via Safe
-      writeContract({
+      const txHash = await writeContractAsync({
         address: polymarketSafe,
         abi: GnosisSafeAbi as Abi,
         value: gasPaymentAmount,
@@ -139,6 +146,12 @@ function TokenBalances({
         ],
         chainId: polygon.id,
       });
+      
+      showBridgeStartedNotification({
+        txHash,
+        direction: 'polygon-to-bsc',
+        outcomeType,
+      });
     } else {
       // EOA: just do the bridge transfer (user pays gas separately)
       const data = encodeAbiParameters(
@@ -146,11 +159,17 @@ function TokenBalances({
         [to]
       );
       
-      await writePolygon({
+      const txHash = await writePolygon({
         abi: erc1155Abi,
         address: POLYGON_ERC1155_POLYGON_ADDRESS,
         functionName: 'safeTransferFrom',
         args: [from, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, id, value, data],
+      });
+      
+      showBridgeStartedNotification({
+        txHash,
+        direction: 'polygon-to-bsc',
+        outcomeType,
       });
     }
   };
@@ -160,6 +179,7 @@ function TokenBalances({
     const from = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}`;
     const to = (usePolymarketSafe && polymarketSafe ? polymarketSafe : address) as `0x${string}`;
     const value = parseUnits(amtStr || '0', POLYMARKET_DECIMALS);
+    const outcomeType = getOutcomeType(id);
     
     // If using Safe, batch gas payment + bridge transfer
     if (useOpinionSafe && opinionSafe) {
@@ -178,7 +198,7 @@ function TokenBalances({
       const signatures = generateSingleOwnerSignature(address);
       
       // Execute batched transaction via Safe
-       writeContract({
+      const txHash = await writeContractAsync({
         address: opinionSafe,
         abi: GnosisSafeAbi as Abi,
         functionName: "execTransaction",
@@ -196,6 +216,12 @@ function TokenBalances({
         ],
         chainId: bsc.id,
       });
+      
+      showBridgeStartedNotification({
+        txHash,
+        direction: 'bsc-to-polygon',
+        outcomeType,
+      });
     } else {
       // EOA: just do the bridge transfer (user pays gas separately)
       const data = encodeAbiParameters(
@@ -203,11 +229,17 @@ function TokenBalances({
         [to]
       );
       
-      await writeBsc({
+      const txHash = await writeBsc({
         abi: erc1155Abi,
         address: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
         functionName: 'safeTransferFrom',
         args: [from, POLYMARKET_DESTINATION_BRIDGE_BSC_ADDRESS, id, value, data],
+      });
+      
+      showBridgeStartedNotification({
+        txHash,
+        direction: 'bsc-to-polygon',
+        outcomeType,
       });
     }
   };

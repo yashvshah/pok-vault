@@ -29,7 +29,7 @@ interface UseSafeWriteParams {
  * Otherwise, uses standard writeContract
  */
 export function useSafeWrite({ safeAddress, chainId }: UseSafeWriteParams) {
-  const { writeContract } = useWriteContract();
+  const { writeContractAsync } = useWriteContract();
   const { address: eoaAddress } = useAccount();
 
   const write = useCallback(
@@ -38,10 +38,10 @@ export function useSafeWrite({ safeAddress, chainId }: UseSafeWriteParams) {
       TFunctionName extends ContractFunctionName<TAbi, "nonpayable" | "payable"> = ContractFunctionName<TAbi, "nonpayable" | "payable">
     >(
       params: WriteContractParams<TAbi, TFunctionName>
-    ) => {
+    ): Promise<`0x${string}`> => {
       // If no safe address, use regular writeContract
       if (!safeAddress || !eoaAddress) {
-        return writeContract({
+        return writeContractAsync({
           address: params.address,
           abi: params.abi as Abi,
           functionName: params.functionName as string,
@@ -62,7 +62,7 @@ export function useSafeWrite({ safeAddress, chainId }: UseSafeWriteParams) {
       const signatures = generateSingleOwnerSignature(eoaAddress);
 
       // Execute through Gnosis Safe
-      return writeContract({
+      return writeContractAsync({
         address: safeAddress,
         abi: GnosisSafeAbi as Abi,
         functionName: "execTransaction",
@@ -81,8 +81,8 @@ export function useSafeWrite({ safeAddress, chainId }: UseSafeWriteParams) {
         chainId: params.chainId ?? chainId,
       });
     },
-    [safeAddress, eoaAddress, writeContract, chainId]
+    [safeAddress, eoaAddress, writeContractAsync, chainId]
   );
 
-  return { write, writeAsync: write };
+  return { write };
 }
