@@ -26,6 +26,8 @@ const VaultPage = () => {
   const { switchChain } = useSwitchChain();
   const [depositAmount, setDepositAmount] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
 
   const USDT_DECIMALS = 18 as const;
 
@@ -620,7 +622,11 @@ const VaultPage = () => {
                       </td>
                     </tr>
                   ) : (
-                    activities.map((activity) => (
+                    (() => {
+                      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+                      const paginatedActivities = activities.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+                      
+                      return paginatedActivities.map((activity) => (
                       <tr
                         key={activity.id}
                         className="border-t border-white/5 hover:bg-white/5 transition"
@@ -653,10 +659,53 @@ const VaultPage = () => {
                           {formatTimestamp(activity.timestamp)}
                         </td>
                       </tr>
-                    ))
+                    ));
+                    })()
                   )}
                 </tbody>
               </table>
+              
+              {/* Pagination Controls */}
+              {activities.length > ITEMS_PER_PAGE && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-white/10">
+                  <span className="text-xs sm:text-sm text-gray-400">
+                    Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, activities.length)} of {activities.length} activities
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className="px-2 sm:px-3 py-1 text-xs sm:text-sm rounded bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                      First
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-2 sm:px-3 py-1 text-xs sm:text-sm rounded bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                      Prev
+                    </button>
+                    <span className="px-3 py-1 text-xs sm:text-sm text-gray-300">
+                      Page {currentPage} of {Math.ceil(activities.length / ITEMS_PER_PAGE)}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(Math.ceil(activities.length / ITEMS_PER_PAGE), p + 1))}
+                      disabled={currentPage === Math.ceil(activities.length / ITEMS_PER_PAGE)}
+                      className="px-2 sm:px-3 py-1 text-xs sm:text-sm rounded bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                      Next
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(Math.ceil(activities.length / ITEMS_PER_PAGE))}
+                      disabled={currentPage === Math.ceil(activities.length / ITEMS_PER_PAGE)}
+                      className="px-2 sm:px-3 py-1 text-xs sm:text-sm rounded bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                    >
+                      Last
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </Tabs>
         </div>
