@@ -1,13 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
-import { polymarketService, type PolymarketMarket } from '../services/polymarket';
+import { marketInfoService, type UnifiedMarketInfo } from '../services/marketInfo';
 
-export function useMarketInfo(outcomeTokenId: string) {
+/**
+ * Hook to fetch market info for a single outcome token
+ * Uses the provider registry to automatically detect the correct provider
+ */
+export function useMarketInfo(outcomeTokenId: string, tokenAddress: string) {
   return useQuery({
-    queryKey: ['market-info', outcomeTokenId],
-    queryFn: async (): Promise<PolymarketMarket | null> => {
-      return await polymarketService.getMarketInfoFromOutcomeToken(outcomeTokenId);
+    queryKey: ['market-info', outcomeTokenId, tokenAddress],
+    queryFn: async (): Promise<UnifiedMarketInfo | null> => {
+      return await marketInfoService.getMarketInfoFromOutcomeToken(outcomeTokenId, tokenAddress);
     },
-    enabled: !!outcomeTokenId,
+    enabled: !!outcomeTokenId && !!tokenAddress,
     staleTime: 5 * 60 * 1000, // 5 minutes - market data doesn't change often
   });
 }

@@ -25,6 +25,31 @@ src/
     └── addresses.ts              # Contract addresses and constants
 ```
 
+## Current Abstraction Status
+
+### ✅ Fully Abstracted
+- `src/types/predictionMarket.ts` - Provider interfaces
+- `src/services/providers/` - Provider registry pattern
+- `src/services/marketInfo.ts` - Uses provider registry for lookups
+- `src/hooks/useSafeAddresses.ts` - Dynamic Safe detection for all providers
+- `src/hooks/useSupportedMarkets.ts` - Dynamic market key generation
+- `src/hooks/useVaultActivities.ts` - Uses provider names dynamically
+- `src/hooks/usePendingBridgeTransactions.ts` - Uses Safe addresses map
+
+### ⚠️ Partially Abstracted (Legacy Compatibility)
+These files still contain hardcoded references for backward compatibility but use the new abstractions internally:
+
+| File | Hardcoded Items | Notes |
+|------|-----------------|-------|
+| `src/pages/marketsPage.tsx` | UI labels, balance displays, Safe toggles | Large file - needs UI refactor |
+| `src/pages/ManageMarketsPage.tsx` | Market pairing UI, form inputs | Admin-only page |
+| `src/utils/bridgeBatch.ts` | Polymarket bridge addresses | Bridge-specific logic |
+| `src/config/subgraph.ts` | Polymarket bridge subgraph URLs | Subgraph per bridge |
+
+### 📝 Files That Reference Old Services (Can Be Deprecated)
+- `src/services/polymarket.ts` - Old service (use `polymarketProvider` instead)
+- `src/services/opinion.ts` - Old service (use `opinionProvider` instead)
+
 ## Step-by-Step Guide
 
 ### Step 1: Define Contract Addresses

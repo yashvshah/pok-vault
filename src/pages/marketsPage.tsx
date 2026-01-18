@@ -884,6 +884,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   const { 
     polymarketSafe, 
     opinionSafe, 
+    safeAddresses,
     usePolymarketSafe, 
     useOpinionSafe,
     setUsePolymarketSafe,
@@ -894,8 +895,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   // Fetch pending bridges for all addresses (user EOA + safe addresses if they exist)
   const { data: allPendingBridges = [] } = usePendingBridgeTransactions(
     address,
-    polymarketSafe,
-    opinionSafe,
+    safeAddresses,
     isSafeLoading
   );
   
