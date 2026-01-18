@@ -9,8 +9,8 @@ export default function handler(req, res) {
     return res.status(500).send('Error reading index.html');
   }
 
-  const title = 'POKVault - Cross Platform Merge Split Functionalities';
-  const description = 'Bridge, merge, and split prediction market tokens across Polymarket and Opinion.';
+  const title = 'POKVault - Cross Prediction Platform Merge & Split outcomes';
+  const description = 'merge, and split prediction outcome tokens across Polymarket and Opinion.';
 
   html = html
     .replace(/<meta property="og:title" content="[^"]*"/, `<meta property="og:title" content="${title}"`)
