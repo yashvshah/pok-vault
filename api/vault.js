@@ -10,7 +10,7 @@ export default function handler(req, res) {
   }
 
   const title = 'POKVault - Earn Passive Income From Prediction Market Arbitrage';
-  const description = 'Deposit USDC.e to earn yield from prediction market arbitrage profits.';
+  const description = 'Deposit USDT to earn yield from prediction market arbitrage profits.';
 
   html = html
     .replace(/<meta property="og:title" content="[^"]*"/, `<meta property="og:title" content="${title}"`)
