@@ -642,17 +642,33 @@ const VaultPage = () => {
                         <td className="px-2 sm:px-4 py-2 sm:py-3">{formatAmount(activity)}</td>
 
                         <td
-                          className="px-2 sm:px-4 py-2 sm:py-3 font-mono text-primary"
+                          className="px-2 sm:px-4 py-2 sm:py-3 font-mono"
                           title={activity.user}
                         >
-                          {activity.user ? shorten(activity.user) : "—"}
+                          {activity.user ? (
+                            <a
+                              href={`https://bscscan.com/address/${activity.user}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:text-pink-300 transition-colors"
+                            >
+                              {activity.userLabel || shorten(activity.user)}
+                            </a>
+                          ) : "—"}
                         </td>
 
                         <td
-                          className="px-2 sm:px-4 py-2 sm:py-3 font-mono text-primary"
+                          className="px-2 sm:px-4 py-2 sm:py-3 font-mono"
                           title={activity.transactionHash}
                         >
-                          {shorten(activity.transactionHash)}
+                          <a
+                            href={`https://bscscan.com/tx/${activity.transactionHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:text-pink-300 transition-colors"
+                          >
+                            {shorten(activity.transactionHash)}
+                          </a>
                         </td>
 
                         <td className="px-2 sm:px-4 py-2 sm:py-3 text-gray-400 whitespace-nowrap">
