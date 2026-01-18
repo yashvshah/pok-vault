@@ -16,6 +16,7 @@ export interface PolymarketMarket {
   noTokenId: string;
   active: boolean;
   closed: boolean;
+  haSubEvents?: boolean;
 }
 
 class PolymarketService {
@@ -43,6 +44,8 @@ class PolymarketService {
       const marketsUrl = `${MIDDLEWARE_BASE_URL}/polymarket/markets?condition_ids=${encodeURIComponent(conditionId)}`;
       const marketsResponse = await fetch(marketsUrl);
 
+      console.log('Fetching market by condition ID:', conditionId, 'URL:', marketsUrl);
+
       if (!marketsResponse.ok) {
         throw new Error(`Failed to fetch markets: ${marketsResponse.status}`);
       }
@@ -52,9 +55,11 @@ class PolymarketService {
       if (markets && markets.length > 0) {
         const rawMarket = markets[0];
         const [yesTokenId, noTokenId] = this.parseTokenIds(rawMarket.clobTokenIds);
+        const hasSubEvents = rawMarket.events && rawMarket.events.length > 1;
         
         return {
           ...rawMarket,
+          hasSubEvents,
           yesTokenId,
           noTokenId,
         } as PolymarketMarket;

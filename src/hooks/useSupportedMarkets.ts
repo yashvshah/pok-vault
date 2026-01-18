@@ -31,6 +31,7 @@ export interface SupportedMarket {
   polymarketNoTokenId?: string;
   opinionYesTokenId?: string;
   opinionNoTokenId?: string;
+  polymarketUrl?: string;
   pairs: OutcomeTokenPair[]; // Can have up to 2 pairs (YES Poly + NO Opinion, NO Poly + YES Opinion)
   overallStatus: MarketStatus; // The "best" status among all pairs (allowed > paused > removed)
 }
@@ -185,6 +186,7 @@ export function useSupportedMarkets() {
             polymarketNoTokenId: polymarketData.noTokenId,
             opinionYesTokenId: opinionData.yesTokenId,
             opinionNoTokenId: opinionData.noTokenId,
+            polymarketUrl: polymarketData.haSubEvents  ? "https://polymarket.com/event/" + polymarketData.slug : "https://polymarket.com/market/" + polymarketData.slug,
             pairs: [],
             overallStatus: 'removed', // Will be updated
           };
