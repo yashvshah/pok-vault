@@ -74,7 +74,7 @@ export default function MarketCard({
 
             <div className="mt-2 space-y-1">
               {markets.map((m, i) => (
-                <div key={i} className="flex flex-wrap gap-2 text-xs sm:text-sm text-white/60">
+                <div key={i} className="flex gap-2 text-xs sm:text-sm text-white/60">
                   <span
                     className={`rounded-md px-2 py-0.5 text-xs ${
                       m.accentClass ?? "bg-purple-500/15 text-purple-300"
@@ -83,7 +83,7 @@ export default function MarketCard({
                     {m.name}
                   </span>
               
-                  <span className="break-words">
+                  <span className="">
                     {m.url ? (
                       <a 
                         href={m.url} 

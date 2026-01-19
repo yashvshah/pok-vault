@@ -1062,10 +1062,10 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
 
   return (
     <>
-      <div className="mx-30 mb-10">
+      <div className="md:mx-30 mx-10 mb-10">
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-League-Spartan mt-6 sm:mt-8 md:mt-10">Supported Markets</h1>
         <p className="text-gray-400 mt-5 max-w-lg">
-          Buy opposite outcome tokens in following markets for less than 1 dollar and get back USDT immediately.
+          We provide cross platform merge and split functionalities for Opposite outcomes. You can use the Merge or Split functionality for following markets. 
         </p>
 
         <MarketFilters
@@ -1078,7 +1078,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
           <div className="space-y-3 mt-5">
             {polymarketSafe && (
               <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col md:flex-row items-center justify-between">
                   <div>
                     <div className="font-medium text-blue-400">Polymarket Account (Gnosis Safe) Detected</div>
                     <div className="text-xs text-white/60 mt-1">Address: {polymarketSafe}</div>
@@ -1097,7 +1097,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
             )}
             {opinionSafe && (
               <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col md:flex-row items-center justify-between">
                   <div>
                     <div className="font-medium text-blue-400">Opinion Account (Gnosis Safe) Detected</div>
                     <div className="text-xs text-white/60 mt-1">Address: {opinionSafe}</div>
@@ -1117,7 +1117,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-5 items-start mt-6">
+        <div className="grid lg:grid-cols-2 gap-5 items-start mt-6">
           {filteredMarkets.map((market) => {
             // Build platforms list dynamically from providers
             const marketPlatforms: { name: string; question: string; url?: string }[] = [];
