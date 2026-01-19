@@ -418,7 +418,7 @@ const VaultPage = () => {
                       {isConnected && chainId === bsc.id && (
                         <p className="text-xs text-gray-400 mt-1 truncate">
                           Balance:{" "}
-                          {formatUnits(USDTBalance?.value || 0n, USDT_DECIMALS)}{" "}
+                          {Number(formatUnits(USDTBalance?.value || 0n, USDT_DECIMALS)).toFixed(2)}{" "}
                           USDT
                         </p>
                       )}
@@ -449,7 +449,7 @@ const VaultPage = () => {
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border text-gray-400 text-sm sm:text-base truncate">
                           {previewDepositAmount
-                            ? formatUnits(previewDepositAmount, USDT_DECIMALS)
+                            ? Number(formatUnits(previewDepositAmount, USDT_DECIMALS)).toFixed(2)
                             : "0"}{" "}
                           POK-USDT
                         </div>
@@ -516,10 +516,10 @@ const VaultPage = () => {
                       {isConnected && chainId === bsc.id && (
                         <p className="text-xs text-gray-400 mt-1 truncate">
                           Balance:{" "}
-                          {formatUnits(
+                          {Number(formatUnits(
                             vaultBalance?.value || 0n,
                             USDT_DECIMALS,
-                          )}{" "}
+                          )).toFixed(2)}{" "}
                           POK-USDT
                         </p>
                       )}
@@ -550,7 +550,7 @@ const VaultPage = () => {
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border text-gray-400 text-sm sm:text-base truncate">
                           {previewRedeemAmount
-                            ? formatUnits(previewRedeemAmount, USDT_DECIMALS)
+                            ? Number(formatUnits(previewRedeemAmount, USDT_DECIMALS)).toFixed(2)
                             : "0"}{" "}
                           USDT
                         </div>
