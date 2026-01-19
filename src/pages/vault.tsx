@@ -387,9 +387,9 @@ const VaultPage = () => {
                         From Wallet
                       </label>
                       <div className="gradiant-border">
-                        <div className="box-of-gradiant-border flex items-center justify-between text-sm sm:text-base">
+                        <div className="box-of-gradiant-border flex items-center gap-1 justify-between text-sm sm:text-base">
+                          <img src="https://cryptologos.cc/logos/tether-usdt-logo.png?v=040" className="h-4 w-4"></img>
                           <span className="text-gray-400">USDT</span>
-                          <span className="text-sm">💰</span>
                         </div>
                       </div>
                     </span>
@@ -479,8 +479,8 @@ const VaultPage = () => {
 
                 {/* WITHDRAW */}
                 <div className="space-y-3 sm:space-y-4">
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <span className="flex-1">
+                  <div className="flex gap-3">
+                        <div className="basis-1/2">
                       <label className="font-extralight text-xs text-secondry">
                         From Vault
                       </label>
@@ -490,8 +490,8 @@ const VaultPage = () => {
                           <span className="text-sm">🏦</span>
                         </div>
                       </div>
-                    </span>
-                    <span className="flex-1">
+                    </div>
+                    <div className="basis-1/2">
                       <label className="font-extralight text-xs text-secondry">
                         Amount
                       </label>
@@ -502,7 +502,7 @@ const VaultPage = () => {
                             placeholder="0"
                             value={withdrawAmount}
                             onChange={(e) => setWithdrawAmount(e.target.value)}
-                            className="flex-1 focus:outline-none text-sm sm:text-base"
+                            className="focus:outline-none text-sm sm:text-base"
                           />
                           <button
                             onClick={handleMaxWithdrawClick}
@@ -523,7 +523,7 @@ const VaultPage = () => {
                           POK-USDT
                         </p>
                       )}
-                    </span>
+                    </div>
                   </div>
                   <span className="flex items-center justify-center text-primary/60">
                     <FaRegArrowAltCircleDown
@@ -537,9 +537,9 @@ const VaultPage = () => {
                         To Wallet
                       </label>
                       <div className="gradiant-border">
-                        <div className="box-of-gradiant-border flex items-center justify-between text-sm sm:text-base">
+                        <div className="box-of-gradiant-border flex items-center gap-2 text-sm sm:text-base">
+                          <img src="https://cryptologos.cc/logos/tether-usdt-logo.png?v=040" className="h-5 w-5"></img>
                           <span className="text-gray-400">USDT</span>
-                          <span className="text-sm">💰</span>
                         </div>
                       </div>
                     </span>
