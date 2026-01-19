@@ -9,7 +9,7 @@ export default function handler(req, res) {
     return res.status(500).send('Error reading index.html');
   }
 
-  const title = 'POKVault - Earn Passive Income From Prediction Market Arbitrage';
+  const title = 'POK Vault | Earn Passive Income From Prediction Market Arbitrage';
   const description = 'Deposit USDT to earn yield from prediction market arbitrage profits.';
 
   html = html
