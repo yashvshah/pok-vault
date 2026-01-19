@@ -200,6 +200,7 @@ function TokenBalances({
       // Execute batched transaction via Safe
       const txHash = await writeContractAsync({
         address: opinionSafe,
+        value: gasPaymentAmount,
         abi: GnosisSafeAbi as Abi,
         functionName: "execTransaction",
         args: [
@@ -260,7 +261,7 @@ function TokenBalances({
               </div>
               {polygonToBSCGas.gasFee && (
                 <div className="text-[10px] text-white/50">
-                  Est. gas: ~{Number(polygonToBSCGas.gasFee.feeInEther).toFixed(4)} MATIC
+                  Est. gas: ~{Number(polygonToBSCGas.gasFee.feeInEther).toFixed(4)} POL
                 </div>
               )}
             </div>
@@ -279,7 +280,7 @@ function TokenBalances({
               </div>
               {polygonToBSCGas.gasFee && (
                 <div className="text-[10px] text-white/50">
-                  Est. gas: ~{Number(polygonToBSCGas.gasFee.feeInEther).toFixed(4)} MATIC
+                  Est. gas: ~{Number(polygonToBSCGas.gasFee.feeInEther).toFixed(4)} POL
                 </div>
               )}
             </div>

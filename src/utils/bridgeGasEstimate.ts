@@ -44,21 +44,16 @@ export async function estimateGasFeePolygonToBSC(): Promise<GasFeeEstimate> {
 // we need to show the entire fee response for debugging
     const fee = await queryAPI.estimateGasFee(
       EvmChain.POLYGON,
-      EvmChain.BINANCE,
+      EvmChain.BNBCHAIN,
       GAS_LIMIT,
-      1.8, // gas multiplier to account for fluctuations (20% buffer),
-      undefined,
-      undefined,
-      undefined,
-      { showDetailedFees: true, destinationContractAddress: '', sourceContractAddress: '', tokenSymbol: '' }
+      300 // gas multiplier to account for fluctuations (why is this much multiplier doesn't work??)
     );
 
     // The fee is returned as a string in wei
-    const feeInWei = typeof fee === 'string' ? fee : (BigInt(fee.baseFee) + BigInt(fee.executionFeeWithMultiplier)).toString();
+    const feeInWei = typeof fee === 'string' ? (BigInt(fee)).toString() : ((BigInt(fee.baseFee) + BigInt(fee.executionFeeWithMultiplier))).toString();
     
     // Convert wei to ether for display (1 ether = 10^18 wei)
     const feeInEther = formatEther(BigInt(feeInWei));
-
 
     return {
       feeInWei,
@@ -77,24 +72,19 @@ export async function estimateGasFeePolygonToBSC(): Promise<GasFeeEstimate> {
 export async function estimateGasFeeBSCToPolygon(): Promise<GasFeeEstimate> {
   try {
     const fee = await queryAPI.estimateGasFee(
-      EvmChain.BINANCE,
+      EvmChain.BNBCHAIN,
       EvmChain.POLYGON,
       GAS_LIMIT,
-      2, // gas multiplier to account for fluctuations (20% buffer)
+      250 // gas multiplier to account for fluctuations (why is this much multiplier doesn't work??)
     );
 
     // The fee is returned as a string in wei
     const feeInWei = typeof fee === 'string' 
-      ? fee 
-      : (BigInt(fee.baseFee) + BigInt(fee.executionFeeWithMultiplier)).toString();
+      ? (BigInt(fee)).toString()
+      : ((BigInt(fee.baseFee) + BigInt(fee.executionFeeWithMultiplier))).toString();
     
     // Convert wei to ether for display (1 ether = 10^18 wei)
     const feeInEther = formatEther(BigInt(feeInWei));
-
-    console.log('Gas fee estimate (BSC → Polygon):', {
-      feeInWei,
-      feeInEther,
-    });
 
     return {
       feeInWei,
