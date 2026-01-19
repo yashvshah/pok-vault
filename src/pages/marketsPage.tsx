@@ -1024,42 +1024,6 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="mx-30 mb-10">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-League-Spartan mt-6 sm:mt-8 md:mt-10">Supported Markets</h1>
-        <p className="text-gray-400 mt-5 max-w-lg">
-          Loading supported markets...
-        </p>
-        <div className="mt-10 flex justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="mx-30 mb-10">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-League-Spartan mt-6 sm:mt-8 md:mt-10">Supported Markets</h1>
-        <p className="text-red-400 mt-5 max-w-lg">
-          Error loading markets. Please try again later.
-        </p>
-      </div>
-    );
-  }
-
-  if (markets.length === 0) {
-    return (
-      <div className="mx-30 mb-10">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-League-Spartan mt-6 sm:mt-8 md:mt-10">Supported Markets</h1>
-        <p className="text-gray-400 mt-5 max-w-lg">
-          No supported markets found. Check back later!
-        </p>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="md:mx-30 mx-10 mb-10">
@@ -1073,8 +1037,29 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
           onChange={(newFilters) => setFilters(newFilters)}
         />
 
+        {/* Loading State */}
+        {isLoading && (
+          <div className="mt-10 flex justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {!isLoading && error && (
+          <p className="text-red-400 mt-10 text-center">
+            Error loading markets. Please try again later.
+          </p>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && !error && markets.length === 0 && (
+          <p className="text-gray-400 mt-10 text-center">
+            No supported markets found. Check back later!
+          </p>
+        )}
+
         {/* Safe Detection Notices */}
-        {(polymarketSafe || opinionSafe) && (
+        {!isLoading && !error && markets.length > 0 && (polymarketSafe || opinionSafe) && (
           <div className="space-y-3 mt-5">
             {polymarketSafe && (
               <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-4">
@@ -1117,8 +1102,10 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
           </div>
         )}
 
-        <div className="grid lg:grid-cols-2 gap-5 items-start mt-6">
-          {filteredMarkets.map((market) => {
+        {/* Markets Grid - Only show when loaded and has data */}
+        {!isLoading && !error && markets.length > 0 && (
+          <div className="grid lg:grid-cols-2 gap-5 items-start mt-6">
+            {filteredMarkets.map((market) => {
             // Build platforms list dynamically from providers
             const marketPlatforms: { name: string; question: string; url?: string }[] = [];
             for (const [providerId, question] of market.providerQuestions.entries()) {
@@ -1215,7 +1202,8 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
               />
             );
           })}
-        </div>
+          </div>
+        )}
       </div>
     </>
   );
