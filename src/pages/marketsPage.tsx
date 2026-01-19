@@ -917,7 +917,8 @@ function OwnerActionsForPair({ pair, idx }: { pair: SupportedMarket["pairs"][num
 }
 
 const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
-  const [amount, setAmount] = useState("0.00");
+  // Store amounts per pair key
+  const [amountsByPair, setAmountsByPair] = useState<Record<string, string>>({});
   const [filters, setFilters] = useState<MarketFilterState>({
     search: "",
     status: "Allowed",
@@ -1138,7 +1139,14 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                 content: (
                   <div className="space-y-4">
                     {market.pairs.map((pair, idx) => (
-                      <PairMergeAction key={pair.key} pair={pair} idx={idx} amount={amount} onInputChange={setAmount} safeInfo={safeInfo} />
+                      <PairMergeAction 
+                        key={pair.key} 
+                        pair={pair} 
+                        idx={idx} 
+                        amount={amountsByPair[pair.key]} 
+                        onInputChange={(v) => setAmountsByPair(prev => ({ ...prev, [pair.key]: v }))} 
+                        safeInfo={safeInfo} 
+                      />
                     ))}
                   </div>
                 ),
@@ -1149,7 +1157,14 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                 content: (
                   <div className="space-y-4">
                     {market.pairs.map((pair, idx) => (
-                      <PairSplitAction key={pair.key} pair={pair} idx={idx} amount={amount} onInputChange={setAmount} safeInfo={safeInfo} />
+                      <PairSplitAction 
+                        key={pair.key} 
+                        pair={pair} 
+                        idx={idx} 
+                        amount={amountsByPair[pair.key]} 
+                        onInputChange={(v) => setAmountsByPair(prev => ({ ...prev, [pair.key]: v }))} 
+                        safeInfo={safeInfo} 
+                      />
                     ))}
                   </div>
                 ),

@@ -1,5 +1,5 @@
 import { AxelarQueryAPI, Environment, EvmChain } from '@axelar-network/axelarjs-sdk';
-import { formatEther, parseUnits } from 'viem';
+import { formatEther } from 'viem';
 
 const queryAPI = new AxelarQueryAPI({
   environment: Environment.MAINNET,
