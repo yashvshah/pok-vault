@@ -387,8 +387,11 @@ const VaultPage = () => {
                         From Wallet
                       </label>
                       <div className="gradiant-border">
-                        <div className="box-of-gradiant-border flex items-center gap-1 justify-between text-sm sm:text-base">
-                          <img src="https://cryptologos.cc/logos/tether-usdt-logo.png?v=040" className="h-4 w-4"></img>
+                        <div className="box-of-gradiant-border flex items-center gap-1 text-sm sm:text-base">
+                          <img
+                            src="https://cryptologos.cc/logos/tether-usdt-logo.png?v=040"
+                            className="h-4 w-4"
+                          ></img>
                           <span className="text-gray-400">USDT</span>
                         </div>
                       </div>
@@ -418,7 +421,12 @@ const VaultPage = () => {
                       {isConnected && chainId === bsc.id && (
                         <p className="text-xs text-gray-400 mt-1 truncate">
                           Balance:{" "}
-                          {Number(formatUnits(USDTBalance?.value || 0n, USDT_DECIMALS)).toFixed(2)}{" "}
+                          {Number(
+                            formatUnits(
+                              USDTBalance?.value || 0n,
+                              USDT_DECIMALS,
+                            ),
+                          ).toFixed(2)}{" "}
                           USDT
                         </p>
                       )}
@@ -436,9 +444,9 @@ const VaultPage = () => {
                         To Vault
                       </label>
                       <div className="gradiant-border">
-                        <div className="box-of-gradiant-border flex items-center justify-between text-sm sm:text-base">
-                          <span className="text-gray-400">POK-USDT</span>
+                        <div className="box-of-gradiant-border flex items-center gap-2 text-sm sm:text-base">
                           <span className="text-sm">🏦</span>
+                          <span className="text-gray-400">POK-USDT</span>
                         </div>
                       </div>
                     </span>
@@ -449,7 +457,12 @@ const VaultPage = () => {
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border text-gray-400 text-sm sm:text-base truncate">
                           {previewDepositAmount
-                            ? Number(formatUnits(previewDepositAmount, USDT_DECIMALS)).toFixed(2)
+                            ? Number(
+                                formatUnits(
+                                  previewDepositAmount,
+                                  USDT_DECIMALS,
+                                ),
+                              ).toFixed(2)
                             : "0"}{" "}
                           POK-USDT
                         </div>
@@ -479,19 +492,19 @@ const VaultPage = () => {
 
                 {/* WITHDRAW */}
                 <div className="space-y-3 sm:space-y-4">
-                  <div className="flex gap-3">
-                        <div className="basis-1/2">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
                         From Vault
                       </label>
                       <div className="gradiant-border">
-                        <div className="box-of-gradiant-border flex items-center justify-between text-sm sm:text-base">
-                          <span className="text-gray-400">POK-USDT</span>
+                        <div className="box-of-gradiant-border flex items-center gap-2 text-sm sm:text-base">
                           <span className="text-sm">🏦</span>
+                          <span className="text-gray-400">POK-USDT</span>
                         </div>
                       </div>
-                    </div>
-                    <div className="basis-1/2">
+                    </span>
+                    <span className="flex-1">
                       <label className="font-extralight text-xs text-secondry">
                         Amount
                       </label>
@@ -502,7 +515,7 @@ const VaultPage = () => {
                             placeholder="0"
                             value={withdrawAmount}
                             onChange={(e) => setWithdrawAmount(e.target.value)}
-                            className="focus:outline-none text-sm sm:text-base"
+                            className="flex-1 focus:outline-none text-sm sm:text-base"
                           />
                           <button
                             onClick={handleMaxWithdrawClick}
@@ -516,14 +529,16 @@ const VaultPage = () => {
                       {isConnected && chainId === bsc.id && (
                         <p className="text-xs text-gray-400 mt-1 truncate">
                           Balance:{" "}
-                          {Number(formatUnits(
-                            vaultBalance?.value || 0n,
-                            USDT_DECIMALS,
-                          )).toFixed(2)}{" "}
+                          {Number(
+                            formatUnits(
+                              vaultBalance?.value || 0n,
+                              USDT_DECIMALS,
+                            ),
+                          ).toFixed(2)}{" "}
                           POK-USDT
                         </p>
                       )}
-                    </div>
+                    </span>
                   </div>
                   <span className="flex items-center justify-center text-primary/60">
                     <FaRegArrowAltCircleDown
@@ -538,7 +553,10 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center gap-2 text-sm sm:text-base">
-                          <img src="https://cryptologos.cc/logos/tether-usdt-logo.png?v=040" className="h-5 w-5"></img>
+                          <img
+                            src="https://cryptologos.cc/logos/tether-usdt-logo.png?v=040"
+                            className="h-5 w-5"
+                          ></img>
                           <span className="text-gray-400">USDT</span>
                         </div>
                       </div>
@@ -550,7 +568,9 @@ const VaultPage = () => {
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border text-gray-400 text-sm sm:text-base truncate">
                           {previewRedeemAmount
-                            ? Number(formatUnits(previewRedeemAmount, USDT_DECIMALS)).toFixed(2)
+                            ? Number(
+                                formatUnits(previewRedeemAmount, USDT_DECIMALS),
+                              ).toFixed(2)
                             : "0"}{" "}
                           USDT
                         </div>
@@ -767,7 +787,7 @@ const VaultPage = () => {
                 </div>
               )}
             </div>
-             <div>
+            <div>
               <div className="space-y-3 sm:space-y-4 ml-2 sm:ml-4 md:ml-5 text-sm sm:text-base">
                 <div>
                   <p className="text-gray-300 leading-relaxed break-all">
@@ -799,17 +819,17 @@ const VaultPage = () => {
                 </div>
                 <div>
                   <p className="text-gray-300 leading-relaxed break-all">
-                    
-                      <strong className="text-secondry">
-                        Vault Owner Address:
-                      </strong>
+                    <strong className="text-secondry">
+                      Vault Owner Address:
+                    </strong>
                     <a
                       href={`https://bscscan.com/address/${VAULT_OWNER_ADDRESS}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary hover:text-pink-300 transition-colors"
                     >
-                    {" "}{VAULT_OWNER_ADDRESS}
+                      {" "}
+                      {VAULT_OWNER_ADDRESS}
                     </a>
                   </p>
                 </div>
