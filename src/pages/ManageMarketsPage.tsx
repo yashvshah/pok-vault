@@ -566,8 +566,8 @@ const ManageMarketsPage: FunctionComponent = () => {
                 </div>
               </div>
 
-              {/* Owner-only section */}
-              {isOwner && (
+             
+              {(
                 <>
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-white/80 mb-2">
@@ -675,7 +675,7 @@ const ManageMarketsPage: FunctionComponent = () => {
                           : "bg-green-600 hover:bg-green-700"
                       } text-white`}
                     >
-                      {yesPolyNoOpinionInfo?.isAllowed ? "✓ Already Allowed" : (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId) ? "Select submarket first" : "Allow YES Poly + NO Opinion"}
+                      {!isOwner ? "Not Allowed if you are not the owner" : (yesPolyNoOpinionInfo?.isAllowed ? "✓ Already Allowed" : (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId) ? "Select submarket first" : "Allow YES Poly + NO Opinion")}
                     </button>
                     {yesPolyNoOpinionInfo?.isAllowed && (
                       <div className="mt-3 p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-sm text-white/80 space-y-1">
@@ -699,7 +699,7 @@ const ManageMarketsPage: FunctionComponent = () => {
                           : "bg-blue-600 hover:bg-blue-700"
                       } text-white`}
                     >
-                      {noPolyYesOpinionInfo?.isAllowed ? "✓ Already Allowed" : (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId) ? "Select submarket first" : "Allow NO Poly + YES Opinion"}
+                      {!isOwner ? "Not Allowed if you are not the owner" : (noPolyYesOpinionInfo?.isAllowed ? "✓ Already Allowed" : (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId) ? "Select submarket first" : "Allow NO Poly + YES Opinion")}
                     </button>
                     {noPolyYesOpinionInfo?.isAllowed && (
                       <div className="mt-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-sm text-white/80 space-y-1">
@@ -715,8 +715,7 @@ const ManageMarketsPage: FunctionComponent = () => {
               </>
               )}
 
-              {/* Show status info for non-owners */}
-              {!isOwner && (yesPolyNoOpinionInfo?.isAllowed || noPolyYesOpinionInfo?.isAllowed) && (
+              {(yesPolyNoOpinionInfo?.isAllowed || noPolyYesOpinionInfo?.isAllowed) && (
                 <div className="space-y-4">
                   {yesPolyNoOpinionInfo?.isAllowed && (
                     <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-sm text-white/80 space-y-1">
