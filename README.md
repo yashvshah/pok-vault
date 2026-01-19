@@ -1,4 +1,4 @@
-# POKVault Dashboard
+# [POKVault.xyz](https://www.pokvault.xyz/)
 
 A React + TypeScript application for managing and interacting with POKVault on BSC. POKVault is an ERC4626 vault that enables early exits for prediction market arbitragers across Polymarket (Polygon) and Opinion (BSC, bridged via Axelar GMP).
 
