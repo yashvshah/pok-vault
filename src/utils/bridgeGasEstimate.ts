@@ -46,7 +46,7 @@ export async function estimateGasFeePolygonToBSC(): Promise<GasFeeEstimate> {
       EvmChain.POLYGON,
       EvmChain.BNBCHAIN,
       GAS_LIMIT,
-      300 // gas multiplier to account for fluctuations (why is this much multiplier doesn't work??)
+      10 // gas multiplier to account for fluctuations (why is this much multiplier doesn't work??)
     );
 
     // The fee is returned as a string in wei
@@ -75,7 +75,7 @@ export async function estimateGasFeeBSCToPolygon(): Promise<GasFeeEstimate> {
       EvmChain.BNBCHAIN,
       EvmChain.POLYGON,
       GAS_LIMIT,
-      500 // gas multiplier to account for fluctuations (why is this much multiplier doesn't work??)
+      10 // gas multiplier to account for fluctuations (why is this much multiplier doesn't work??)
     );
 
     // The fee is returned as a string in wei
