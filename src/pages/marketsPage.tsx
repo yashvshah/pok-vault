@@ -530,7 +530,7 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
   // Determine button label
   let buttonLabel = '';
   if (!enough) {
-    buttonLabel = 'Insufficient balance to merge and exit';
+    buttonLabel = 'Insufficient token balances to merge';
   } else if (currentChainId !== bsc.id) {
     buttonLabel = 'Switch chain to merge and exit';
   } else if (useOpinionSafe && opinionSafe) {
@@ -699,7 +699,7 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
   // Determine button label
   let buttonLabel = '';
   if (!enoughUsdt) {
-    buttonLabel = 'Insufficient USDT balance to split and acquire';
+    buttonLabel = 'Insufficient USDT balance to split';
   } else if (currentChainId !== bsc.id) {
     buttonLabel = 'Switch chain to split';
   } else if (useOpinionSafe && opinionSafe) {
