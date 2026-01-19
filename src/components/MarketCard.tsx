@@ -7,6 +7,7 @@ export type MarketStatus = "Allowed" | "Paused" | "Expired";
 export interface MarketInfo {
   name: string; // "Polymarket", "Opinion", etc.
   question: string;
+  url?: string; // URL to the market on the platform
   accentClass?: string; // optional color override
 }
 
@@ -19,7 +20,6 @@ export interface ActionTab {
 export interface MarketCardProps {
   image: string; // emoji or image url
   question: string;
-  polyMarketQuestionLink?: string; // optional link for the question title
   markets: MarketInfo[];
   balances?: React.ReactNode;
   status: string; // Changed from MarketStatus to string for flexibility
@@ -36,7 +36,6 @@ const STATUS_STYLES: Record<MarketStatus, string> = {
 export default function MarketCard({
   image,
   question,
-  polyMarketQuestionLink,
   status,
   statusColor,
   markets,
@@ -84,18 +83,20 @@ export default function MarketCard({
                     {m.name}
                   </span>
               
-                  <span className="break-words">{m.name == "Polymarket" &&  polyMarketQuestionLink ? (
-                <a 
-                  href={polyMarketQuestionLink} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="hover:text-primary transition-colors"
-                >
-                  {m.question}
-                </a>
-              ) : (
-                m.question
-              )}</span>
+                  <span className="break-words">
+                    {m.url ? (
+                      <a 
+                        href={m.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="hover:text-primary transition-colors"
+                      >
+                        {m.question}
+                      </a>
+                    ) : (
+                      m.question
+                    )}
+                  </span>
                 </div>
               ))}
             </div>

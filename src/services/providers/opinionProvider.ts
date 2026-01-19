@@ -53,8 +53,7 @@ function transformToMarketData(rawMarket: OpinionApiMarket): MarketData {
     yesTokenId: rawMarket.yesTokenId || '',
     noTokenId: rawMarket.noTokenId || '',
     status: 'active', // Opinion API doesn't directly expose status in same format
-    // / if parentMarket ID is defined then it should be https://app.opinion.trade/detail?topicId=61&type=multi
-    url: "https://app.opinion.trade/detail?topicId=" + rawMarket.parentMarketId ? `${rawMarket.parentMarketId}&type=multi` : rawMarket.marketId
+    url: "https://app.opinion.trade/detail?topicId=" + (rawMarket.parentMarketId ? `${rawMarket.parentMarketId}&type=multi` : rawMarket.marketId),
     rawData: rawMarket,
   };
 }

@@ -1119,11 +1119,15 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
         <div className="grid grid-cols-2 gap-5 items-start mt-6">
           {filteredMarkets.map((market) => {
             // Build platforms list dynamically from providers
-            const marketPlatforms: { name: string; question: string }[] = [];
+            const marketPlatforms: { name: string; question: string; url?: string }[] = [];
             for (const [providerId, question] of market.providerQuestions.entries()) {
               const provider = providerRegistry.getById(providerId);
               if (provider && question) {
-                marketPlatforms.push({ name: provider.name, question });
+                marketPlatforms.push({ 
+                  name: provider.name, 
+                  question,
+                  url: market.providerUrls.get(providerId)
+                });
               }
             }
 
@@ -1182,16 +1186,12 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
             const marketImage = market.providerImages.get('polymarket') || 
                                market.providerImages.get('opinion') || 
                                "/public/imageNotFound.png";
-            
-            // Get Polymarket URL if available
-            const polymarketUrl = market.providerUrls.get('polymarket');
 
             return (
               <MarketCard
                 key={market.marketKey}
                 image={marketImage}
                 question={market.question}
-                polyMarketQuestionLink={polymarketUrl}
                 status={getStatusText(market.overallStatus)}
                 statusColor={getStatusColor(market.overallStatus)}
                 markets={marketPlatforms}
