@@ -11,8 +11,10 @@ export interface OutcomeTokenPair {
   key: string;
   outcomeTokenA: string;
   outcomeIdA: string;
+  outcomeIdAIsYesTokenId: boolean; // this indicates wether this particular tokenId is yes tokenId for their respective market or not
   outcomeTokenB: string;
   outcomeIdB: string;
+  outcomeIdBIsYesTokenId: boolean;
   earlyExitAmountContract: string;
   decimalsA: number;
   decimalsB: number;
@@ -198,8 +200,10 @@ export function useSupportedMarkets() {
           key: pairKey,
           outcomeTokenA: pair.outcomeTokenA,
           outcomeIdA: pair.outcomeIdA,
+          outcomeIdAIsYesTokenId: marketInfoA.marketData.yesTokenId === pair.outcomeIdA,
           outcomeTokenB: pair.outcomeTokenB,
           outcomeIdB: pair.outcomeIdB,
+          outcomeIdBIsYesTokenId: marketInfoB.marketData.yesTokenId === pair.outcomeIdB,
           earlyExitAmountContract: pair.earlyExitAmountContract,
           decimalsA: parseInt(pair.decimalsA),
           decimalsB: parseInt(pair.decimalsB),

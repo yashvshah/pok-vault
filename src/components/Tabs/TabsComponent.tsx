@@ -18,7 +18,7 @@ const TabsComponent: React.FC<TabsProps> = ({
 
   return (
     <>
-      <div className="flex flex-wrap border-b border-primary/20 overflow-x-auto">
+      <div className="flex border-b border-primary/20 overflow-x-auto">
         {tabs.map((tab, i) => (
           <Tab
             key={i}

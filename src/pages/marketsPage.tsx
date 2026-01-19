@@ -555,7 +555,7 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
   return (
     <div className="border-b border-white/10 pb-4 last:border-0">
       <MarketActionCard
-        title={`Pair ${idx + 1}: ${tokenAName} + ${tokenBName}`}
+        title={`Pair ${idx + 1}: ${pair.outcomeIdAIsYesTokenId ? "YES" : "NO"} ${tokenAName} + ${pair.outcomeIdBIsYesTokenId ? "YES" : "NO"} ${tokenBName}`}
         inputLabel="Amount to Merge"
         inputValue={amount}
         balanceInfo={`${tokenAName}: ${balAFormatted} | ${tokenBName}: ${balBFormatted}`}
@@ -721,7 +721,7 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
   return (
     <div className="border-b border-white/10 pb-4 last:border-0">
       <MarketActionCard
-        title={`Pair ${idx + 1}: ${tokenAName} + ${tokenBName}`}
+        title={`Pair ${idx + 1}: ${pair.outcomeIdAIsYesTokenId ? "YES" : "NO"} ${tokenAName} + ${pair.outcomeIdBIsYesTokenId ? "YES" : "NO"} ${tokenBName}`}
         inputLabel="Amount to Split"
         inputValue={amount}
         balanceInfo={`USDT Balance: ${usdtBalFormatted}`}
@@ -855,7 +855,7 @@ function OwnerActionsForPair({ pair, idx }: { pair: SupportedMarket["pairs"][num
   return (
     <div className="border-b border-white/10 pb-4 last:border-0">
       <div className="text-sm font-medium text-white/90 mb-3">
-        Owner Actions - Pair {idx + 1}: {tokenAName} + {tokenBName}
+        Owner Actions - Pair {idx + 1}: ${pair.outcomeIdAIsYesTokenId ? "YES" : "NO"} {tokenAName} + {pair.outcomeIdBIsYesTokenId ? "YES" : "NO"} {tokenBName}
       </div>
       
       <div className="space-y-3">
