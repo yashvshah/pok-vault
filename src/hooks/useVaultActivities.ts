@@ -9,7 +9,7 @@ import { useEarlyExits } from './activities/useEarlyExits';
 import { useSplitOutcomeTokens } from './activities/useSplitOutcomeTokens';
 import { useMarketInfos } from './useMarketInfos';
 import type { VaultActivity, MarketActivityInfo, SubgraphDeposit, SubgraphWithdrawal, SubgraphNewOppositeOutcomeTokenPairAdded, SubgraphOppositeOutcomeTokenPairRemoved, SubgraphOppositeOutcomeTokenPairPaused, SubgraphProfitOrLossReported, SubgraphEarlyExit, SubgraphSplitOppositeOutcomeTokens } from '../types/vault';
-import { formatUnits } from 'viem';
+import { formatEther, formatUnits } from 'viem';
 import { VAULT_OWNER_ADDRESS } from '../config/addresses';
 import { providerRegistry } from '../services/providers';
 import type { UnifiedMarketInfo } from '../services/marketInfo';
@@ -125,7 +125,7 @@ export function useVaultActivities(limit = 100) {
       type: 'deposit' as const,
       market: '', // blank for deposits
       outcomeTokensAmount: '', // blank for deposits
-      USDTAmount: formatUnits(BigInt(deposit.assets), USDT_DECIMALS), // USDT amount from assets field
+      USDTAmount: Number(formatUnits(BigInt(deposit.assets), USDT_DECIMALS)).toFixed(2), // USDT amount from assets field
       user: deposit.sender, // use sender as the user who initiated the deposit
       transactionHash: deposit.transactionHash_,
       timestamp: parseInt(deposit.timestamp_),
@@ -135,7 +135,7 @@ export function useVaultActivities(limit = 100) {
       type: 'withdrawal' as const,
       market: '', // blank for withdrawals
       outcomeTokensAmount: '', // blank for withdrawals
-      USDTAmount: formatUnits(BigInt(withdrawal.assets), USDT_DECIMALS), // USDT amount from assets field
+      USDTAmount: Number(formatUnits(BigInt(withdrawal.assets), USDT_DECIMALS)).toFixed(2), // USDT amount from assets field
       user: withdrawal.sender, // use sender as the user who initiated the withdrawal
       transactionHash: withdrawal.transactionHash_,
       timestamp: parseInt(withdrawal.timestamp_),
@@ -259,7 +259,7 @@ export function useVaultActivities(limit = 100) {
         marketInfoA: toMarketActivityInfo(marketInfoA, event.outcomeIdA),
         marketInfoB: toMarketActivityInfo(marketInfoB, event.outcomeIdB),
         outcomeTokensAmount: '',
-        USDTAmount: event.profitOrLoss, // profit/loss amount in USDT
+        USDTAmount: Number(formatUnits(BigInt(event.profitOrLoss), 18)).toFixed(2), // profit/loss amount in USDT
         user: VAULT_OWNER_ADDRESS,
         userLabel: 'Owner',
         transactionHash: event.transactionHash_,
@@ -290,7 +290,7 @@ export function useVaultActivities(limit = 100) {
         marketInfoA: toMarketActivityInfo(marketInfoA, event.outcomeIdA),
         marketInfoB: toMarketActivityInfo(marketInfoB, event.outcomeIdB),
         outcomeTokensAmount: event.amount, // outcome token amount
-        USDTAmount: event.exitAmount, // USDT exit amount
+        USDTAmount: Number(formatUnits(BigInt(event.exitAmount), 18)).toFixed(2), // USDT exit amount
         user: '', // not available in subgraph
         transactionHash: event.transactionHash_,
         timestamp: parseInt(event.timestamp_),
@@ -319,8 +319,8 @@ export function useVaultActivities(limit = 100) {
         market: marketString,
         marketInfoA: toMarketActivityInfo(marketInfoA, event.outcomeIdA),
         marketInfoB: toMarketActivityInfo(marketInfoB, event.outcomeIdB),
-        outcomeTokensAmount: event.amount, // outcome token amount
-        USDTAmount: '', // no USDT amount for split
+        outcomeTokensAmount: '', // outcome token amount
+        USDTAmount: Number(formatEther(BigInt(event.amount))).toFixed(2), // no USDT amount for split
         user: '', // not available in subgraph
         transactionHash: event.transactionHash_,
         timestamp: parseInt(event.timestamp_),
