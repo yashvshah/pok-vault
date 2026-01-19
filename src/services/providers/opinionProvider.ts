@@ -9,6 +9,7 @@ import {
   MIDDLEWARE_BASE_URL,
 } from '../../config/addresses';
 import { bsc } from 'viem/chains';
+import opinionLogo from '../../assets/images/opinion-icon.png';
 
 /**
  * Raw Opinion API child market structure
@@ -29,6 +30,7 @@ interface OpinionApiChildMarket {
  */
 interface OpinionApiMarket {
   marketId: number;
+  parentMarketId?: number;
   marketTitle: string;
   thumbnailUrl: string;
   yesTokenId: string;
@@ -37,6 +39,7 @@ interface OpinionApiMarket {
   childMarkets?: OpinionApiChildMarket[];
   parentThumbnailUrl?: string;
   isCategorical?: boolean;
+  isChildOfCategorical?: boolean;
 }
 
 /**
@@ -50,7 +53,8 @@ function transformToMarketData(rawMarket: OpinionApiMarket): MarketData {
     yesTokenId: rawMarket.yesTokenId || '',
     noTokenId: rawMarket.noTokenId || '',
     status: 'active', // Opinion API doesn't directly expose status in same format
-    url: `https://www.opinion.xyz/market/${rawMarket.marketId}`,
+    // / if parentMarket ID is defined then it should be https://app.opinion.trade/detail?topicId=61&type=multi
+    url: "https://app.opinion.trade/detail?topicId=" + rawMarket.parentMarketId ? `${rawMarket.parentMarketId}&type=multi` : rawMarket.marketId
     rawData: rawMarket,
   };
 }
@@ -94,6 +98,7 @@ async function fetchOpinionSafeAddress(eoaAddress: Address): Promise<Address | n
 export const opinionProvider: NativePredictionMarketProvider = {
   id: 'opinion',
   name: 'Opinion',
+  logo: opinionLogo,
   operatingChainId: bsc.id,
   erc1155Address: OPINION_ERC1155_ADDRESS,
   decimals: OPINION_DECIMALS,

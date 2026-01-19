@@ -133,11 +133,22 @@ export interface BridgeTransactionWithStatus extends PendingBridgeTransaction {
   isActuallyPending: boolean;
 }
 
+// Market info for display in vault activities
+export interface MarketActivityInfo {
+  question: string;
+  platform: string;
+  platformLogo: string;
+  outcomeType: 'yes' | 'no';
+  url?: string;
+}
+
 // Types for table display
 export interface VaultActivity {
   id: string;
   type: 'deposit' | 'withdrawal' | 'new-outcome-pair' | 'removed-outcome-pair' | 'paused-outcome-pair' | 'profit-loss-reported' | 'early-exit' | 'split-outcome-tokens';
-  market: string; // market info for outcome-related activities, blank for deposits/withdrawals
+  market: string; // legacy string representation
+  marketInfoA?: MarketActivityInfo; // detailed info for market A
+  marketInfoB?: MarketActivityInfo; // detailed info for market B
   outcomeTokensAmount: string; // amount for outcome token activities
   USDTAmount: string; // USDT amount for deposits/withdrawals and profit-loss activities
   user: string; // user address (sender for deposits/withdrawals, owner address for owner actions, blank for user actions without sender)

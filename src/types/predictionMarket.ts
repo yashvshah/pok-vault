@@ -62,6 +62,8 @@ export interface PredictionMarketProvider {
   id: string;
   /** Display name (e.g., 'Polymarket', 'Opinion') */
   name: string;
+  /** Logo image path for UI display */
+  logo: string;
   /** Chain ID where tokens are used for vault operations */
   operatingChainId: number;
   /** ERC1155 token contract address (on operating chain) */

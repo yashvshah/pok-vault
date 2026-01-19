@@ -18,6 +18,7 @@ import {
 import { POLYMARKET_SAFE_FACTORY_ADDRESS } from '../../config/safe';
 import { polygon, bsc } from 'viem/chains';
 import { ctfExchangeService } from '../ctfExchange';
+import polymarketLogo from '../../assets/images/polymarket.svg';
 
 /**
  * Raw Polymarket API response structure
@@ -106,6 +107,7 @@ function transformToMarketData(rawMarket: PolymarketApiMarket): MarketData {
 export const polymarketProvider: BridgeablePredictionMarketProvider = {
   id: 'polymarket',
   name: 'Polymarket',
+  logo: polymarketLogo,
   operatingChainId: bsc.id, // Vault operates on BSC
   erc1155Address: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, // Bridged token on BSC
   decimals: POLYMARKET_DECIMALS,

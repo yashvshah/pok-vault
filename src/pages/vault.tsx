@@ -17,6 +17,7 @@ import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { bsc, polygon } from "viem/chains";
 import { useAPY } from "../hooks/useAPY";
 import earlyExitValutABI from "../abi/EarlyExitVault.json";
+import { MarketDisplay } from "../components/MarketDisplay";
 
 const VaultPage = () => {
   const { activities, isLoading, error } = useVaultActivities();
@@ -581,15 +582,15 @@ const VaultPage = () => {
             </div>
             {/* table */}
             <div className="overflow-x-auto rounded-xl border border-white/10 bg-black/40 backdrop-blur-md">
-              <table className="w-full text-left text-xs sm:text-sm min-w-[640px]">
+              <table className="w-full text-left text-xs sm:text-sm min-w-[800px]">
                 <thead className="bg-white/5 text-gray-400">
                   <tr>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3">Type</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3">Market</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3">Amount</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3">User</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3">Tx Hash</th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3">Timestamp</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-[120px]">Type</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-[320px] sm:w-[400px]">Market</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-[120px]">Amount</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-[100px]">User</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-[100px]">Tx Hash</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-[120px]">Timestamp</th>
                   </tr>
                 </thead>
 
@@ -635,8 +636,12 @@ const VaultPage = () => {
                           {activity.type.replace(/-/g, " ")}
                         </td>
 
-                        <td className="px-2 sm:px-4 py-2 sm:py-3 max-w-[200px] sm:max-w-[320px] truncate">
-                          {activity.market || "N/A"}
+                        <td className="px-2 sm:px-4 py-3 sm:py-4 align-top">
+                          <MarketDisplay 
+                            marketInfoA={activity.marketInfoA}
+                            marketInfoB={activity.marketInfoB}
+                            fallbackText={activity.market || "N/A"}
+                          />
                         </td>
 
                         <td className="px-2 sm:px-4 py-2 sm:py-3">{formatAmount(activity)}</td>

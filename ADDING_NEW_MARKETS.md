@@ -64,7 +64,19 @@ export const NEW_MARKET_SOURCE_BRIDGE_ADDRESS = "0x..." as const;
 export const NEW_MARKET_DEST_BRIDGE_ADDRESS = "0x..." as const;
 ```
 
-### Step 2: Create Provider Implementation
+### Step 2: Add Platform Logo
+
+Add your platform's logo to `src/assets/images/`:
+- Recommended formats: SVG (preferred) or PNG
+- Recommended size: 16x16px to 64x64px (will be displayed at 16x16px)
+- Naming convention: `{platform}-logo.svg` or `{platform}-icon.png`
+
+Example:
+```
+src/assets/images/newmarket-logo.svg
+```
+
+### Step 3: Create Provider Implementation
 
 Create a new file `src/services/providers/newmarketProvider.ts`:
 
@@ -82,6 +94,7 @@ import {
   MIDDLEWARE_BASE_URL,
 } from '../../config/addresses';
 import { bsc } from 'viem/chains'; // or your chain
+import newmarketLogo from '../../assets/images/newmarket-logo.svg';
 
 /**
  * New Market prediction market provider
@@ -91,6 +104,7 @@ import { bsc } from 'viem/chains'; // or your chain
 export const newmarketProvider: NativePredictionMarketProvider = {
   id: 'newmarket',
   name: 'New Market',
+  logo: newmarketLogo,
   operatingChainId: bsc.id,
   erc1155Address: NEW_MARKET_ERC1155_ADDRESS,
   decimals: NEW_MARKET_DECIMALS,
@@ -161,6 +175,7 @@ import type {
   BridgeConfig,
 } from '../../types/predictionMarket';
 import { polygon, bsc } from 'viem/chains';
+import newmarketLogo from '../../assets/images/newmarket-logo.svg';
 
 /**
  * Bridge configuration for New Market (Source Chain → BSC)
@@ -181,6 +196,7 @@ const newmarketBridgeConfig: BridgeConfig = {
 export const newmarketProvider: BridgeablePredictionMarketProvider = {
   id: 'newmarket',
   name: 'New Market',
+  logo: newmarketLogo,
   operatingChainId: bsc.id,
   erc1155Address: NEW_MARKET_ERC1155_ADDRESS, // Bridged token on vault chain
   decimals: NEW_MARKET_DECIMALS,
@@ -203,7 +219,7 @@ export const newmarketProvider: BridgeablePredictionMarketProvider = {
 };
 ```
 
-### Step 3: Register the Provider
+### Step 4: Register the Provider
 
 Update `src/services/providers/index.ts`:
 
@@ -221,7 +237,7 @@ constructor() {
 export { newmarketProvider } from './newmarketProvider';
 ```
 
-### Step 4: Add Middleware API Endpoints (If Needed)
+### Step 5: Add Middleware API Endpoints (If Needed)
 
 If your market's API has CORS restrictions, add endpoints to the middleware server:
 

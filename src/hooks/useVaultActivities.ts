@@ -8,7 +8,7 @@ import { useProfitLossReported } from './activities/useProfitLossReported';
 import { useEarlyExits } from './activities/useEarlyExits';
 import { useSplitOutcomeTokens } from './activities/useSplitOutcomeTokens';
 import { useMarketInfos } from './useMarketInfos';
-import type { VaultActivity, SubgraphDeposit, SubgraphWithdrawal, SubgraphNewOppositeOutcomeTokenPairAdded, SubgraphOppositeOutcomeTokenPairRemoved, SubgraphOppositeOutcomeTokenPairPaused, SubgraphProfitOrLossReported, SubgraphEarlyExit, SubgraphSplitOppositeOutcomeTokens } from '../types/vault';
+import type { VaultActivity, MarketActivityInfo, SubgraphDeposit, SubgraphWithdrawal, SubgraphNewOppositeOutcomeTokenPairAdded, SubgraphOppositeOutcomeTokenPairRemoved, SubgraphOppositeOutcomeTokenPairPaused, SubgraphProfitOrLossReported, SubgraphEarlyExit, SubgraphSplitOppositeOutcomeTokens } from '../types/vault';
 import { formatUnits } from 'viem';
 import { VAULT_OWNER_ADDRESS } from '../config/addresses';
 import { providerRegistry } from '../services/providers';
@@ -20,6 +20,25 @@ import type { UnifiedMarketInfo } from '../services/marketInfo';
 function getPlatformDisplayName(platformId: string): string {
   const provider = providerRegistry.getById(platformId);
   return provider?.name || platformId;
+}
+
+/**
+ * Convert UnifiedMarketInfo to MarketActivityInfo
+ */
+function toMarketActivityInfo(marketInfo: UnifiedMarketInfo | undefined, outcomeId: string): MarketActivityInfo | undefined {
+  if (!marketInfo) return undefined;
+  
+  // Determine if this is YES or NO based on comparing outcomeId with yes/no tokenIds
+  const isYes = marketInfo.marketData.yesTokenId === outcomeId;
+  const isNo = marketInfo.marketData.noTokenId === outcomeId;
+  
+  return {
+    question: marketInfo.question,
+    platform: marketInfo.platform,
+    platformLogo: marketInfo.provider.logo,
+    outcomeType: isYes ? 'yes' : isNo ? 'no' : 'yes', // default to yes if can't determine
+    url: marketInfo.marketData.url,
+  };
 }
 
 export function useVaultActivities(limit = 100) {
@@ -144,6 +163,8 @@ export function useVaultActivities(limit = 100) {
         id: pair.id,
         type: 'new-outcome-pair' as const,
         market: marketString,
+        marketInfoA: toMarketActivityInfo(marketInfoA, pair.outcomeIdA),
+        marketInfoB: toMarketActivityInfo(marketInfoB, pair.outcomeIdB),
         outcomeTokensAmount: '', // null for new-outcome-pair
         USDTAmount: '', // null for new-outcome-pair
         user: VAULT_OWNER_ADDRESS,
@@ -173,6 +194,8 @@ export function useVaultActivities(limit = 100) {
         id: pair.id,
         type: 'removed-outcome-pair' as const,
         market: marketString,
+        marketInfoA: toMarketActivityInfo(marketInfoA, pair.outcomeIdA),
+        marketInfoB: toMarketActivityInfo(marketInfoB, pair.outcomeIdB),
         outcomeTokensAmount: '',
         USDTAmount: '',
         user: VAULT_OWNER_ADDRESS,
@@ -202,6 +225,8 @@ export function useVaultActivities(limit = 100) {
         id: pair.id,
         type: 'paused-outcome-pair' as const,
         market: marketString,
+        marketInfoA: toMarketActivityInfo(marketInfoA, pair.outcomeIdA),
+        marketInfoB: toMarketActivityInfo(marketInfoB, pair.outcomeIdB),
         outcomeTokensAmount: '',
         USDTAmount: '',
         user: VAULT_OWNER_ADDRESS,
@@ -231,6 +256,8 @@ export function useVaultActivities(limit = 100) {
         id: event.id,
         type: 'profit-loss-reported' as const,
         market: marketString,
+        marketInfoA: toMarketActivityInfo(marketInfoA, event.outcomeIdA),
+        marketInfoB: toMarketActivityInfo(marketInfoB, event.outcomeIdB),
         outcomeTokensAmount: '',
         USDTAmount: event.profitOrLoss, // profit/loss amount in USDT
         user: VAULT_OWNER_ADDRESS,
@@ -260,6 +287,8 @@ export function useVaultActivities(limit = 100) {
         id: event.id,
         type: 'early-exit' as const,
         market: marketString,
+        marketInfoA: toMarketActivityInfo(marketInfoA, event.outcomeIdA),
+        marketInfoB: toMarketActivityInfo(marketInfoB, event.outcomeIdB),
         outcomeTokensAmount: event.amount, // outcome token amount
         USDTAmount: event.exitAmount, // USDT exit amount
         user: '', // not available in subgraph
@@ -288,6 +317,8 @@ export function useVaultActivities(limit = 100) {
         id: event.id,
         type: 'split-outcome-tokens' as const,
         market: marketString,
+        marketInfoA: toMarketActivityInfo(marketInfoA, event.outcomeIdA),
+        marketInfoB: toMarketActivityInfo(marketInfoB, event.outcomeIdB),
         outcomeTokensAmount: event.amount, // outcome token amount
         USDTAmount: '', // no USDT amount for split
         user: '', // not available in subgraph
