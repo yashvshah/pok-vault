@@ -1,5 +1,5 @@
 import { AxelarQueryAPI, Environment, EvmChain } from '@axelar-network/axelarjs-sdk';
-import { formatEther } from 'viem';
+import { formatEther, parseUnits } from 'viem';
 
 const queryAPI = new AxelarQueryAPI({
   environment: Environment.MAINNET,
@@ -75,7 +75,7 @@ export async function estimateGasFeeBSCToPolygon(): Promise<GasFeeEstimate> {
       EvmChain.BNBCHAIN,
       EvmChain.POLYGON,
       GAS_LIMIT,
-      250 // gas multiplier to account for fluctuations (why is this much multiplier doesn't work??)
+      500 // gas multiplier to account for fluctuations (why is this much multiplier doesn't work??)
     );
 
     // The fee is returned as a string in wei

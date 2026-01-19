@@ -1134,7 +1134,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
             const actionTabs = [
               {
                 key: "merge",
-                label: "Merge & Exit",
+                label: "Merge",
                 content: (
                   <div className="space-y-4">
                     {market.pairs.map((pair, idx) => (
@@ -1145,7 +1145,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
               },
               {
                 key: "split",
-                label: "Split & Acquire",
+                label: "Split",
                 content: (
                   <div className="space-y-4">
                     {market.pairs.map((pair, idx) => (
