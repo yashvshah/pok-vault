@@ -9,7 +9,7 @@ export default function handler(req, res) {
     return res.status(500).send('Error reading index.html');
   }
 
-  const title = 'POKVault - Cross Prediction Platform Merge & Split outcomes';
+  const title = 'POK Vault | Cross Prediction Platform Merge & Split outcomes';
   const description = 'merge, and split prediction outcome tokens across Polymarket and Opinion.';
 
   html = html
