@@ -120,6 +120,28 @@ export function useSupportedMarkets() {
 
       console.log("fetched outcome token pairs:");
 
+      // Collect all unique token pairs that need market info
+      const tokensToFetch: Array<{ tokenAddress: string; outcomeTokenId: string }> = [];
+      const pairKeysInOrder: string[] = [];
+
+      for (const pair of newPairs) {
+        const pairKey = createPairKey(
+          pair.outcomeTokenA,
+          pair.outcomeIdA,
+          pair.outcomeTokenB,
+          pair.outcomeIdB
+        );
+        
+        pairKeysInOrder.push(pairKey);
+        tokensToFetch.push(
+          { tokenAddress: pair.outcomeTokenA, outcomeTokenId: pair.outcomeIdA },
+          { tokenAddress: pair.outcomeTokenB, outcomeTokenId: pair.outcomeIdB }
+        );
+      }
+
+      // Batch fetch all market info at once
+      const marketInfoMap = await marketInfoService.getMarketInfoBatch(tokensToFetch);
+
       // Map to store markets by their key
       const marketsMap = new Map<string, SupportedMarket>();
 
@@ -147,11 +169,11 @@ export function useSupportedMarkets() {
           status = 'allowed';
         }
 
-        // Fetch market info for both outcome tokens
-        const [marketInfoA, marketInfoB] = await Promise.all([
-          marketInfoService.getMarketInfoFromOutcomeToken(pair.outcomeIdA, pair.outcomeTokenA),
-          marketInfoService.getMarketInfoFromOutcomeToken(pair.outcomeIdB, pair.outcomeTokenB),
-        ]);
+        // Get market info from batch results
+        const keyA = `${pair.outcomeTokenA}-${pair.outcomeIdA}`;
+        const keyB = `${pair.outcomeTokenB}-${pair.outcomeIdB}`;
+        const marketInfoA = marketInfoMap.get(keyA);
+        const marketInfoB = marketInfoMap.get(keyB);
 
         if (!marketInfoA || !marketInfoB) {
           console.warn('Could not fetch market info for pair:', pairKey);
