@@ -138,7 +138,7 @@ class MarketInfoService {
               platform: 'polymarket',
               provider,
               marketData: {
-                id: 'test',
+                id: '123',
                 question: 'Test Event',
                 yesTokenId: '',
                 noTokenId: '',
