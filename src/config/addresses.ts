@@ -34,4 +34,4 @@ export const OPINION_DECIMALS = 18;
 export const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955" as const;
 export const USDT_DECIMALS = 18;
 // Middleware server URL
-export const MIDDLEWARE_BASE_URL = 'https://pokvault-middleware-server.vercel.app/api' as const;
+export const MIDDLEWARE_BASE_URL = 'https://api.pokvault.xyz/api' as const;
