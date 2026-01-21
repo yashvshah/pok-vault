@@ -277,5 +277,13 @@ function populateProviderData(market: SupportedMarket, marketInfo: UnifiedMarket
   
   if (data.url) {
     market.providerUrls.set(providerId, data.url);
+  }else{
+    // that means it's opinion market and we construct url differently
+    //TODO: We need to abstract this better when we add more providers
+    if(data.parentMarketId) {
+      market.providerUrls.set(providerId, "https://app.opinion.trade/detail?topicId=" + data.parentMarketId + "&type=multi");
+    } else {
+      market.providerUrls.set(providerId, "https://app.opinion.trade/detail?topicId=" + data.id);
+    }
   }
 }

@@ -37,7 +37,8 @@ function toMarketActivityInfo(marketInfo: UnifiedMarketInfo | undefined, outcome
     platform: marketInfo.platform,
     platformLogo: marketInfo.provider.logo,
     outcomeType: isYes ? 'yes' : isNo ? 'no' : 'yes', // default to yes if can't determine
-    url: marketInfo.marketData.url,
+    //TODO: We need to abstract this better when we add more providers
+    url: marketInfo.platform == 'polymarket' ? marketInfo.marketData.url : ("https://app.opinion.trade/detail?topicId=" + (marketInfo.marketData.parentMarketId ? `${marketInfo.marketData.parentMarketId}&type=multi` : marketInfo.marketData.id)),
   };
 }
 

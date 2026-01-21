@@ -9,6 +9,7 @@ export interface MarketData {
   thumbnailUrl?: string;
   yesTokenId: string;
   noTokenId: string;
+  parentMarketId?: number;
   endDate?: string;
   status: 'active' | 'closed' | 'resolved';
   url?: string;
