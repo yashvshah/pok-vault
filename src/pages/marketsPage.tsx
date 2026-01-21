@@ -151,6 +151,7 @@ function TokenBalances({
         txHash,
         direction: 'polygon-to-bsc',
         outcomeType,
+        chainId: polygon.id,
       });
     } else {
       // EOA: just do the bridge transfer (user pays gas separately)
@@ -170,6 +171,7 @@ function TokenBalances({
         txHash,
         direction: 'polygon-to-bsc',
         outcomeType,
+        chainId: polygon.id,
       });
     }
   };
@@ -222,6 +224,7 @@ function TokenBalances({
         txHash,
         direction: 'bsc-to-polygon',
         outcomeType,
+        chainId: bsc.id,
       });
     } else {
       // EOA: just do the bridge transfer (user pays gas separately)
@@ -241,6 +244,7 @@ function TokenBalances({
         txHash,
         direction: 'bsc-to-polygon',
         outcomeType,
+        chainId: bsc.id,
       });
     }
   };
