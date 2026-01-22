@@ -1,6 +1,8 @@
 import { useState, type FunctionComponent } from "react";
 import { useReadContract, useWriteContract, useAccount } from "wagmi";
-import { keccak256, encodePacked, isAddress } from "viem";
+import { keccak256, encodePacked, isAddress, encodeFunctionData } from "viem";
+import type { Address } from "viem";
+import { bsc } from "wagmi/chains";
 import EarlyExitVaultABI from "../abi/EarlyExitVault.json";
 import EarlyExitAmountBasedOnFixedAPYABI from "../abi/EarlyExitAmountBasedOnFixedAPY.json";
 import EarlyExitAmountFactoryBasedOnFixedAPYABI from "../abi/EarlyExitAmountFactoryBasedOnFixedAPYABI.json";
@@ -14,6 +16,8 @@ import {
   POLYMARKET_DECIMALS,
   OPINION_DECIMALS,
 } from "../config/addresses";
+import { useAtomicBatch } from "../hooks/useAtomicBatch";
+import BatchExecutor from "../components/BatchExecutor";
 
 interface OppositeOutcomeTokensInfo {
   isAllowed: boolean;
@@ -67,6 +71,15 @@ const ManageMarketsPage: FunctionComponent = () => {
 
   const { address } = useAccount();
   const { writeContract } = useWriteContract();
+
+  // Atomic batching support
+  const {
+    isAtomicBatchingSupported,
+    batchCalls,
+    addCall,
+    removeCall,
+    clearCalls,
+  } = useAtomicBatch(bsc.id);
 
   // Handler for selecting a child market
   const handleSelectChildMarket = (childMarketId: number) => {
@@ -364,12 +377,28 @@ const ManageMarketsPage: FunctionComponent = () => {
     // Convert hours to seconds
     const fixedTimeSeconds = BigInt(Math.floor(parseFloat(newFixedTimeHours) * 3600));
 
-    writeContract({
-      address: EARLY_EXIT_FACTORY_ADDRESS,
-      abi: EarlyExitAmountFactoryBasedOnFixedAPYABI,
-      functionName: "createEarlyExitAmountContract",
-      args: [marketExpiryTimestamp, expectedAPYBasisPoints, fixedTimeSeconds],
-    });
+    const args = [marketExpiryTimestamp, expectedAPYBasisPoints, fixedTimeSeconds];
+
+    if (isAtomicBatchingSupported) {
+      const data = encodeFunctionData({
+        abi: EarlyExitAmountFactoryBasedOnFixedAPYABI,
+        functionName: "createEarlyExitAmountContract",
+        args,
+      });
+      
+      addCall({
+        to: EARLY_EXIT_FACTORY_ADDRESS as Address,
+        data: data as `0x${string}`,
+        description: `Create Early Exit Contract (APY: ${newExpectedAPY}%)`,
+      });
+    } else {
+      writeContract({
+        address: EARLY_EXIT_FACTORY_ADDRESS,
+        abi: EarlyExitAmountFactoryBasedOnFixedAPYABI,
+        functionName: "createEarlyExitAmountContract",
+        args,
+      });
+    }
   };
 
   const handleAllowYesPolyNoOpinion = () => {
@@ -386,20 +415,36 @@ const ManageMarketsPage: FunctionComponent = () => {
     const decimals1 = addr1.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
     const decimals2 = addr2.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
 
-    writeContract({
-      address: VAULT_ADDRESS,
-      abi: EarlyExitVaultABI,
-      functionName: "addAllowedOppositeOutcomeTokens",
-      args: [
-        addr1,
-        decimals1,
-        id1,
-        addr2,
-        decimals2,
-        id2,
-        earlyExitContractAddress as `0x${string}`,
-      ],
-    });
+    const args = [
+      addr1,
+      decimals1,
+      id1,
+      addr2,
+      decimals2,
+      id2,
+      earlyExitContractAddress as `0x${string}`,
+    ];
+
+    if (isAtomicBatchingSupported) {
+      const data = encodeFunctionData({
+        abi: EarlyExitVaultABI,
+        functionName: "addAllowedOppositeOutcomeTokens",
+        args,
+      });
+      
+      addCall({
+        to: VAULT_ADDRESS as Address,
+        data: data as `0x${string}`,
+        description: `Allow YES Poly + NO Opinion`,
+      });
+    } else {
+      writeContract({
+        address: VAULT_ADDRESS,
+        abi: EarlyExitVaultABI,
+        functionName: "addAllowedOppositeOutcomeTokens",
+        args,
+      });
+    }
   };
 
   const handleAllowNoPolyYesOpinion = () => {
@@ -416,20 +461,36 @@ const ManageMarketsPage: FunctionComponent = () => {
     const decimals1 = addr1.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
     const decimals2 = addr2.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
 
-    writeContract({
-      address: VAULT_ADDRESS,
-      abi: EarlyExitVaultABI,
-      functionName: "addAllowedOppositeOutcomeTokens",
-      args: [
-        addr1,
-        decimals1,
-        id1,
-        addr2,
-        decimals2,
-        id2,
-        earlyExitContractAddress as `0x${string}`,
-      ],
-    });
+    const args = [
+      addr1,
+      decimals1,
+      id1,
+      addr2,
+      decimals2,
+      id2,
+      earlyExitContractAddress as `0x${string}`,
+    ];
+
+    if (isAtomicBatchingSupported) {
+      const data = encodeFunctionData({
+        abi: EarlyExitVaultABI,
+        functionName: "addAllowedOppositeOutcomeTokens",
+        args,
+      });
+      
+      addCall({
+        to: VAULT_ADDRESS as Address,
+        data: data as `0x${string}`,
+        description: `Allow NO Poly + YES Opinion`,
+      });
+    } else {
+      writeContract({
+        address: VAULT_ADDRESS,
+        abi: EarlyExitVaultABI,
+        functionName: "addAllowedOppositeOutcomeTokens",
+        args,
+      });
+    }
   };
 
   return (
@@ -742,6 +803,16 @@ const ManageMarketsPage: FunctionComponent = () => {
           )}
         </div>
       </div>
+
+      {/* Batch Executor - shown when batching is supported and there are calls */}
+      {isAtomicBatchingSupported && (
+        <BatchExecutor
+          batchCalls={batchCalls}
+          onRemoveCall={removeCall}
+          onClearCalls={clearCalls}
+          chainId={bsc.id}
+        />
+      )}
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import { useState, type FunctionComponent } from "react";
 import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance, useWriteContract } from "wagmi";
 import { polygon, bsc } from "wagmi/chains";
-import { parseUnits, erc1155Abi, formatUnits, encodeAbiParameters, erc20Abi } from "viem";
+import { parseUnits, erc1155Abi, formatUnits, encodeAbiParameters, erc20Abi, encodeFunctionData } from "viem";
 import type { Address, Abi } from "viem";
 import EarlyExitVaultAbi from "../abi/EarlyExitVault.json";
 import GnosisSafeAbi from "../abi/GnosisSafe.json";
@@ -24,6 +24,8 @@ import { generateSingleOwnerSignature } from "../utils/safe";
 import { ZERO_ADDRESS } from "../config/safe";
 import { providerRegistry } from "../services/providers";
 import { showBridgeStartedNotification } from "../utils/notifications";
+import { useAtomicBatch } from "../hooks/useAtomicBatch";
+import BatchExecutor from "../components/BatchExecutor";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface MarketsPageProps {}
@@ -745,7 +747,17 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
   );
 }
 
-function OwnerActionsForPair({ pair, idx }: { pair: SupportedMarket["pairs"][number]; idx: number }) {
+function OwnerActionsForPair({ 
+  pair, 
+  idx, 
+  isAtomicBatchingSupported, 
+  addCall 
+}: { 
+  pair: SupportedMarket["pairs"][number]; 
+  idx: number;
+  isAtomicBatchingSupported: boolean;
+  addCall: (call: { to: Address; data: `0x${string}`; description: string }) => void;
+}) {
   const { address } = useAccount();
   const currentChainId = useChainId();
   const { switchChain } = useSwitchChain();
@@ -769,13 +781,31 @@ function OwnerActionsForPair({ pair, idx }: { pair: SupportedMarket["pairs"][num
       switchChain({ chainId: bsc.id });
       return;
     }
+    
+    const args = [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB];
+    
+    if (isAtomicBatchingSupported) {
+      const data = encodeFunctionData({
+        abi: EarlyExitVaultAbi,
+        functionName: 'removeAllowedOppositeOutcomeTokens',
+        args,
+      });
+      
+      addCall({
+        to: VAULT_ADDRESS as Address,
+        data: data as `0x${string}`,
+        description: `Remove Pair ${idx + 1}`,
+      });
+      return;
+    }
+    
     setIsRemoving(true);
     try {
       await writeContract({
         abi: EarlyExitVaultAbi,
         address: VAULT_ADDRESS,
         functionName: 'removeAllowedOppositeOutcomeTokens',
-        args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB],
+        args,
         chainId: bsc.id,
       });
     } catch (error) {
@@ -790,13 +820,31 @@ function OwnerActionsForPair({ pair, idx }: { pair: SupportedMarket["pairs"][num
       switchChain({ chainId: bsc.id });
       return;
     }
+    
+    const args = [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB];
+    
+    if (isAtomicBatchingSupported) {
+      const data = encodeFunctionData({
+        abi: EarlyExitVaultAbi,
+        functionName: 'startRedeemProcess',
+        args,
+      });
+      
+      addCall({
+        to: VAULT_ADDRESS as Address,
+        data: data as `0x${string}`,
+        description: `Start Redeem Pair ${idx + 1}`,
+      });
+      return;
+    }
+    
     setIsStartingRedeem(true);
     try {
       await writeContract({
         abi: EarlyExitVaultAbi,
         address: VAULT_ADDRESS,
         functionName: 'startRedeemProcess',
-        args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB],
+        args,
         chainId: bsc.id,
       });
     } catch (error) {
@@ -814,13 +862,30 @@ function OwnerActionsForPair({ pair, idx }: { pair: SupportedMarket["pairs"][num
     const amount = parseUnits(profitLossAmount || '0', 18);
     if (amount === 0n) return;
     
+    const args = [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB, amount];
+    
+    if (isAtomicBatchingSupported) {
+      const data = encodeFunctionData({
+        abi: EarlyExitVaultAbi,
+        functionName: 'reportProfitOrLoss',
+        args,
+      });
+      
+      addCall({
+        to: VAULT_ADDRESS as Address,
+        data: data as `0x${string}`,
+        description: `Report P/L Pair ${idx + 1}: ${profitLossAmount}`,
+      });
+      return;
+    }
+    
     setIsReportingProfit(true);
     try {
       await writeContract({
         abi: EarlyExitVaultAbi,
         address: VAULT_ADDRESS,
         functionName: 'reportProfitOrLoss',
-        args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB, amount],
+        args,
         chainId: bsc.id,
       });
     } catch (error) {
@@ -837,6 +902,23 @@ function OwnerActionsForPair({ pair, idx }: { pair: SupportedMarket["pairs"][num
     }
     const amount = parseUnits(profitLossAmount || '0', 18);
     // if (amount === 0n) return;
+    
+    const args = [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB, amount];
+    
+    if (isAtomicBatchingSupported) {
+      const data = encodeFunctionData({
+        abi: EarlyExitVaultAbi,
+        functionName: 'reportProfitOrLossAndRemovePair',
+        args,
+      });
+      
+      addCall({
+        to: VAULT_ADDRESS as Address,
+        data: data as `0x${string}`,
+        description: `Report P/L & Remove Pair ${idx + 1}: ${profitLossAmount}`,
+      });
+      return;
+    }
     
     setIsReportingAndRemoving(true);
     try {
@@ -974,6 +1056,15 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
     writePolygon,
     writeBsc
   };
+
+  // Atomic batching support for owner actions
+  const {
+    isAtomicBatchingSupported,
+    batchCalls,
+    addCall,
+    removeCall,
+    clearCalls,
+  } = useAtomicBatch(bsc.id);
 
   // Read owner from contract
   const { data: ownerAddress } = useReadContract({
@@ -1170,7 +1261,13 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                 content: (
                   <div className="space-y-4">
                     {market.pairs.map((pair, idx) => (
-                      <OwnerActionsForPair key={pair.key} pair={pair} idx={idx} />
+                      <OwnerActionsForPair 
+                        key={pair.key} 
+                        pair={pair} 
+                        idx={idx}
+                        isAtomicBatchingSupported={isOwner && isAtomicBatchingSupported}
+                        addCall={addCall}
+                      />
                     ))}
                   </div>
                 ),
@@ -1209,6 +1306,16 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
           </div>
         )}
       </div>
+
+      {/* Batch Executor - shown when owner is connected and batching is supported */}
+      {isOwner && isAtomicBatchingSupported && (
+        <BatchExecutor
+          batchCalls={batchCalls}
+          onRemoveCall={removeCall}
+          onClearCalls={clearCalls}
+          chainId={bsc.id}
+        />
+      )}
     </>
   );
 };
