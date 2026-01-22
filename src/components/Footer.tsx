@@ -12,7 +12,7 @@ const Footer = () => {
               Docs
             </a>
             <a
-              href="https://x.com/roamingRahi"
+              href="https://x.com/POKVault"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-400 hover:text-primary transition-colors text-sm font-medium"
