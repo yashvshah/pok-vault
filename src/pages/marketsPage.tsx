@@ -440,7 +440,7 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
     args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB, amountUsdt],
     chainId: bsc.id,
   });
-  const receiveAmount = estimated ? formatUnits(estimated as bigint, 18) : '0.00';
+  const receiveAmount = estimated ? Number(formatUnits(estimated as bigint, 18)).toFixed(3) : '0.00';
   
   // Check if vault has enough USDT liquidity (totalAssets - totalEarlyExitedAmount)
   const { data: vaultData } = useReadContracts({
@@ -745,8 +745,8 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
   const tokenAName = isPolyA ? "Polymarket (Bridged)" : "Opinion";
   const tokenBName = !isPolyA ? "Polymarket (Bridged)" : "Opinion";
 
-  const tokenAmtA = formatUnits(estSplitAmt, USDT_DECIMALS);
-  const tokenAmtB = formatUnits(estSplitAmt, USDT_DECIMALS);
+  const tokenAmtA = Number(formatUnits(estSplitAmt, USDT_DECIMALS)).toFixed(3);
+  const tokenAmtB = Number(formatUnits(estSplitAmt, USDT_DECIMALS)).toFixed(3);
 
   // Determine button label
   let buttonLabel = '';
@@ -782,8 +782,8 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
         balanceInfo={`USDT Balance: ${usdtBalFormatted}`}
         onMaxClick={onMaxClick}
         receiveItems={[
-          { amount: tokenAmtA, token: `Token A (${pair.decimalsA} decimals)`, highlight: 'yellow' },
-          { amount: tokenAmtB, token: `Token B (${pair.decimalsB} decimals)`, highlight: 'yellow' },
+          { amount: tokenAmtA, token:  `${pair.outcomeIdAIsYesTokenId ? "YES" : "NO"} ${tokenAName}`, highlight: 'yellow' },
+          { amount: tokenAmtB, token: `${pair.outcomeIdBIsYesTokenId ? "YES" : "NO"} ${tokenBName}`, highlight: 'yellow' },
         ]}
         buttonLabel={buttonLabel}
         disabled={pair.status !== 'allowed'}

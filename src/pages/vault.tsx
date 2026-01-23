@@ -19,6 +19,7 @@ import { useAPY } from "../hooks/useAPY";
 import earlyExitValutABI from "../abi/EarlyExitVault.json";
 import { MarketDisplay } from "../components/MarketDisplay";
 import { VAULT_OWNER_ADDRESS } from "../config/addresses";
+import type { VaultActivity } from "../types/vault";
 
 const VaultPage = () => {
   const { activities, isLoading, error } = useVaultActivities();
@@ -307,6 +308,17 @@ const VaultPage = () => {
     }
     return "—";
   };
+
+  const formatTitle = ( type: VaultActivity['type'] ) => {
+    if(type === 'new-outcome-pair') return 'New Outcome Pair Added';
+    if(type === 'removed-outcome-pair') return 'Outcome Pair Removed';
+    if(type === 'paused-outcome-pair') return 'Outcome Pair Paused';
+    if(type === 'profit-loss-reported') return 'Profit/Loss Reported';
+    if(type === 'early-exit') return 'Merge';
+    if(type === 'split-outcome-tokens') return 'Split';
+    if(type === 'deposit') return 'Vault Deposit';
+    if(type === 'withdrawal') return 'Vault Withdrawal';
+  }
 
   return (
     <main className="px-4 sm:px-6 md:px-12 lg:px-24 mt-8 md:mt-14">
@@ -668,7 +680,7 @@ const VaultPage = () => {
                           className="border-t border-white/5 hover:bg-white/5 transition"
                         >
                           <td className="px-2 sm:px-4 py-2 sm:py-3 capitalize">
-                            {activity.type.replace(/-/g, " ")}
+                            {formatTitle(activity.type)}
                           </td>
 
                           <td className="px-2 sm:px-4 py-3 sm:py-4 align-top">
