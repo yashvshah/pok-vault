@@ -1,5 +1,5 @@
 import { useState, type FunctionComponent } from "react";
-import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance, useWriteContract } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance, useWriteContract, useReadContracts } from "wagmi";
 import { polygon, bsc } from "wagmi/chains";
 import { parseUnits, erc1155Abi, formatUnits, encodeAbiParameters, erc20Abi, encodeFunctionData } from "viem";
 import type { Address, Abi } from "viem";
@@ -441,6 +441,31 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
     chainId: bsc.id,
   });
   const receiveAmount = estimated ? formatUnits(estimated as bigint, 18) : '0.00';
+  
+  // Check if vault has enough USDT liquidity (totalAssets - totalEarlyExitedAmount)
+  const { data: vaultData } = useReadContracts({
+    contracts: [
+      {
+        abi: EarlyExitVaultAbi,
+        address: VAULT_ADDRESS,
+        functionName: 'totalAssets',
+        chainId: bsc.id,
+      },
+      {
+        abi: EarlyExitVaultAbi,
+        address: VAULT_ADDRESS,
+        functionName: 'totalEarlyExitedAmount',
+        chainId: bsc.id,
+      },
+    ],
+  });
+
+  const totalAssets = vaultData?.[0]?.result as bigint | undefined;
+  const totalEarlyExitedAmount = vaultData?.[1]?.result as bigint | undefined;
+
+  const availableVaultUsdt = (totalAssets ?? 0n) - (totalEarlyExitedAmount ?? 0n);
+  const vaultHasEnoughUsdt = availableVaultUsdt >= (estimated as bigint ?? 0n);
+  
 
   const needsApprovalA = !isApprovedA;
   const needsApprovalB = !isApprovedB;
@@ -535,7 +560,9 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
 
   // Determine button label
   let buttonLabel = '';
-  if (!enough) {
+  if (!vaultHasEnoughUsdt) {
+    buttonLabel = "Vault doesn't have enough liquidity";
+  } else if (!enough) {
     buttonLabel = 'Insufficient token balances to merge';
   } else if (currentChainId !== bsc.id) {
     buttonLabel = 'Switch chain to merge and exit';
@@ -569,7 +596,7 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
         receiveItems={[{ amount: receiveAmount, token: 'USDT', highlight: 'primary' }]}
         buttonLabel={buttonLabel}
         disabled={pair.status !== 'allowed'}
-        buttonDisabled={!enough || pair.status !== 'allowed'}
+        buttonDisabled={!enough || !vaultHasEnoughUsdt || pair.status !== 'allowed'}
         disabledReason={pair.status === 'paused' ? 'Pair is paused' : pair.status === 'removed' ? 'Pair has been removed' : undefined}
         onInputChange={onInputChange}
         onSubmit={onSubmit}
@@ -623,6 +650,26 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
     args: [pair.outcomeTokenA as Address, idA, pair.outcomeTokenB as Address, idB, amountUsdt],
     chainId: bsc.id,
   });
+  
+  // Check if vault has enough outcome token liquidity
+  const { data: vaultBalA } = useErc1155Balance({
+    tokenAddress: pair.outcomeTokenA as Address,
+    ownerAddress: VAULT_ADDRESS,
+    tokenId: idA,
+    chainId: bsc.id,
+  });
+  
+  const { data: vaultBalB } = useErc1155Balance({
+    tokenAddress: pair.outcomeTokenB as Address,
+    ownerAddress: VAULT_ADDRESS,
+    tokenId: idB,
+    chainId: bsc.id,
+  });
+  
+  const estSplitAmt: bigint = typeof estSplit === 'bigint' ? estSplit : 0n;
+  const vaultHasEnoughTokenA = (vaultBalA ?? 0n) >= estSplitAmt;
+  const vaultHasEnoughTokenB = (vaultBalB ?? 0n) >= estSplitAmt;
+  const vaultHasEnoughTokens = vaultHasEnoughTokenA && vaultHasEnoughTokenB;
 
   const onSubmit = async () => {
     if (!address) return;
@@ -698,15 +745,17 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
   const tokenAName = isPolyA ? "Polymarket (Bridged)" : "Opinion";
   const tokenBName = !isPolyA ? "Polymarket (Bridged)" : "Opinion";
 
-  const estSplitAmt: bigint = typeof estSplit === 'bigint' ? estSplit : 0n;
   const tokenAmtA = formatUnits(estSplitAmt, USDT_DECIMALS);
   const tokenAmtB = formatUnits(estSplitAmt, USDT_DECIMALS);
 
   // Determine button label
   let buttonLabel = '';
-  if (!enoughUsdt) {
+   if (!vaultHasEnoughTokens) {
+    buttonLabel = "Vault doesn't have enough liquidity";
+  } else if (!enoughUsdt) {
     buttonLabel = 'Insufficient USDT balance to split';
-  } else if (currentChainId !== bsc.id) {
+  } 
+  else if (currentChainId !== bsc.id) {
     buttonLabel = 'Switch chain to split';
   } else if (useOpinionSafe && opinionSafe) {
     // Safe: Show batch message
@@ -738,7 +787,7 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
         ]}
         buttonLabel={buttonLabel}
         disabled={pair.status !== 'allowed'}
-        buttonDisabled={!enoughUsdt || pair.status !== 'allowed'}
+        buttonDisabled={!enoughUsdt || !vaultHasEnoughTokens || pair.status !== 'allowed'}
         disabledReason={pair.status === 'paused' ? 'Pair is paused' : pair.status === 'removed' ? 'Pair has been removed' : undefined}
         onInputChange={onInputChange}
         onSubmit={onSubmit}
