@@ -667,8 +667,8 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
   });
   
   const estSplitAmt: bigint = typeof estSplit === 'bigint' ? estSplit : 0n;
-  const vaultHasEnoughTokenA = (vaultBalA ?? 0n) >= estSplitAmt;
-  const vaultHasEnoughTokenB = (vaultBalB ?? 0n) >= estSplitAmt;
+  const vaultHasEnoughTokenA = Number(formatUnits(vaultBalA ?? 0n, pair.decimalsA)) >= Number(formatUnits(estSplitAmt, USDT_DECIMALS));
+  const vaultHasEnoughTokenB = Number(formatUnits(vaultBalB ?? 0n, pair.decimalsB)) >= Number(formatUnits(estSplitAmt, USDT_DECIMALS));
   const vaultHasEnoughTokens = vaultHasEnoughTokenA && vaultHasEnoughTokenB;
 
   const onSubmit = async () => {
