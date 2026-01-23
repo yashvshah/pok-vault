@@ -1337,7 +1337,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
             // Get image from any available provider
             const marketImage = market.providerImages.get('polymarket') || 
                                market.providerImages.get('opinion') || 
-                               "/public/imageNotFound.png";
+                               "/imageNotFound.png";
 
             return (
               <MarketCard

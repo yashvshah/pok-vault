@@ -399,7 +399,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center gap-1 text-sm sm:text-base">
-                          <img src="public/usdt.png" className="h-5 w-5"></img>
+                          <img src="/usdt.svg" className="h-5 w-5"></img>
                           <span className="text-gray-400">USDT</span>
                         </div>
                       </div>
@@ -450,7 +450,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center gap-2 text-sm sm:text-base">
-                          <img src="public/pok-usdt.png" className="h-5 w-5" />
+                          <img src="/pok-usdt.svg" className="h-5 w-5" />
                           <span className="text-gray-400">POK-USDT</span>
                         </div>
                       </div>
@@ -501,7 +501,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center gap-1 text-sm sm:text-base">
-                          <img src="public/pok-usdt.png" className="h-5 w-5" />
+                          <img src="/pok-usdt.svg" className="h-5 w-5" />
                           <span className="text-gray-400">POK-USDT</span>
                         </div>
                       </div>
@@ -555,7 +555,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center gap-2 text-sm sm:text-base">
-                          <img src="public/usdt.png" className="h-5 w-5" />
+                          <img src="/usdt.svg" className="h-5 w-5" />
                           <span className="text-gray-400">USDT</span>
                         </div>
                       </div>
