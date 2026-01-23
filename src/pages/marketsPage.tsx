@@ -94,10 +94,10 @@ function TokenBalances({
   const { data: balBridgedYes } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, tokenId: yesIdPoly, chainId: bsc.id, ownerAddress: bscOwner });
   const { data: balBridgedNo } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, tokenId: noIdPoly, chainId: bsc.id, ownerAddress: bscOwner });
 
-  const [bridgeToBscYesAmt, setBridgeToBscYesAmt] = useState('0');
-  const [bridgeToBscNoAmt, setBridgeToBscNoAmt] = useState('0');
-  const [bridgeToPolygonYesAmt, setBridgeToPolygonYesAmt] = useState('0');
-  const [bridgeToPolygonNoAmt, setBridgeToPolygonNoAmt] = useState('0');
+  const [bridgeToBscYesAmt, setBridgeToBscYesAmt] = useState('');
+  const [bridgeToBscNoAmt, setBridgeToBscNoAmt] = useState('');
+  const [bridgeToPolygonYesAmt, setBridgeToPolygonYesAmt] = useState('');
+  const [bridgeToPolygonNoAmt, setBridgeToPolygonNoAmt] = useState('');
 
   // Helper to determine outcome type from token ID
   const getOutcomeType = (id: bigint): 'YES' | 'NO' => {
@@ -260,8 +260,8 @@ function TokenBalances({
           action={(
             <div className="flex flex-col gap-1">
               <div className="flex gap-2">
-                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscYesAmt} onChange={e => setBridgeToBscYesAmt(e.target.value)} placeholder="amt" />
-                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(yesIdPoly, bridgeToBscYesAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
+                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscYesAmt} onChange={e => setBridgeToBscYesAmt(e.target.value)} placeholder="enter amount" />
+                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(yesIdPoly, bridgeToBscYesAmt) : switchChain({ chainId: polygon.id }))} disabled={!address || bridgeToBscYesAmt==''}>
                   {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch to Polygon'}
                 </button>
               </div>
@@ -279,8 +279,8 @@ function TokenBalances({
           action={(
             <div className="flex flex-col gap-1">
               <div className="flex gap-2">
-                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscNoAmt} onChange={e => setBridgeToBscNoAmt(e.target.value)} placeholder="amt" />
-                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(noIdPoly, bridgeToBscNoAmt) : switchChain({ chainId: polygon.id }))} disabled={!address}>
+                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscNoAmt} onChange={e => setBridgeToBscNoAmt(e.target.value)} placeholder="enter amount" />
+                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(noIdPoly, bridgeToBscNoAmt) : switchChain({ chainId: polygon.id }))} disabled={!address || bridgeToBscNoAmt==''}>
                   {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch to Polygon'}
                 </button>
               </div>
@@ -298,8 +298,8 @@ function TokenBalances({
           action={(
             <div className="flex flex-col gap-1">
               <div className="flex gap-2">
-                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonYesAmt} onChange={e => setBridgeToPolygonYesAmt(e.target.value)} placeholder="amt" />
-                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(yesIdPoly, bridgeToPolygonYesAmt) : switchChain({ chainId: bsc.id }))} disabled={!address}>
+                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonYesAmt} onChange={e => setBridgeToPolygonYesAmt(e.target.value)} placeholder="enter amount" />
+                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(yesIdPoly, bridgeToPolygonYesAmt) : switchChain({ chainId: bsc.id }))} disabled={!address || bridgeToPolygonYesAmt==''}>
                   {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch to BSC'}
                 </button>
               </div>
@@ -317,8 +317,8 @@ function TokenBalances({
           action={(
             <div className="flex flex-col gap-1">
               <div className="flex gap-2">
-                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonNoAmt} onChange={e => setBridgeToPolygonNoAmt(e.target.value)} placeholder="amt" />
-                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(noIdPoly, bridgeToPolygonNoAmt) : switchChain({ chainId: bsc.id }))} disabled={!address}>
+                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonNoAmt} onChange={e => setBridgeToPolygonNoAmt(e.target.value)} placeholder="enter amount" />
+                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(noIdPoly, bridgeToPolygonNoAmt) : switchChain({ chainId: bsc.id }))} disabled={!address || bridgeToPolygonNoAmt==''}>
                   {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch to BSC'}
                 </button>
               </div>
