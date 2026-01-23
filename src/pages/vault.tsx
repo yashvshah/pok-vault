@@ -399,10 +399,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center gap-1 text-sm sm:text-base">
-                          <img
-                            src="https://cryptologos.cc/logos/tether-usdt-logo.png?v=040"
-                            className="h-4 w-4"
-                          ></img>
+                          <img src="public/usdt.png" className="h-5 w-5"></img>
                           <span className="text-gray-400">USDT</span>
                         </div>
                       </div>
@@ -453,7 +450,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center gap-2 text-sm sm:text-base">
-                          <span className="text-sm">🏦</span>
+                          <img src="public/pok-usdt.png" className="h-5 w-5" />
                           <span className="text-gray-400">POK-USDT</span>
                         </div>
                       </div>
@@ -503,8 +500,9 @@ const VaultPage = () => {
                         From Vault
                       </label>
                       <div className="gradiant-border">
-                        <div className="box-of-gradiant-border text-sm sm:text-base">
-                          <span className="text-gray-400">🏦 POK-USDT</span>
+                        <div className="box-of-gradiant-border flex items-center gap-1 text-sm sm:text-base">
+                          <img src="public/pok-usdt.png" className="h-5 w-5" />
+                          <span className="text-gray-400">POK-USDT</span>
                         </div>
                       </div>
                     </div>
@@ -557,10 +555,7 @@ const VaultPage = () => {
                       </label>
                       <div className="gradiant-border">
                         <div className="box-of-gradiant-border flex items-center gap-2 text-sm sm:text-base">
-                          <img
-                            src="https://cryptologos.cc/logos/tether-usdt-logo.png?v=040"
-                            className="h-5 w-5"
-                          ></img>
+                          <img src="public/usdt.png" className="h-5 w-5" />
                           <span className="text-gray-400">USDT</span>
                         </div>
                       </div>
