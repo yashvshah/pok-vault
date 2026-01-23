@@ -20,12 +20,12 @@ const Footer = () => {
               Twitter
             </a>
             <a
-              href="https://t.me/roamingRahi"
+              href="https://discord.gg/5C4kjvJHgD"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-400 hover:text-primary transition-colors text-sm font-medium"
             >
-              Telegram
+              Discord
             </a>
           </div>
         </div>
