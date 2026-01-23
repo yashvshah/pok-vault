@@ -309,26 +309,25 @@ const VaultPage = () => {
     return "—";
   };
 
-  const formatTitle = ( type: VaultActivity['type'] ) => {
-    if(type === 'new-outcome-pair') return 'New Outcome Pair Added';
-    if(type === 'removed-outcome-pair') return 'Outcome Pair Removed';
-    if(type === 'paused-outcome-pair') return 'Outcome Pair Paused';
-    if(type === 'profit-loss-reported') return 'Profit/Loss Reported';
-    if(type === 'early-exit') return 'Merge';
-    if(type === 'split-outcome-tokens') return 'Split';
-    if(type === 'deposit') return 'Vault Deposit';
-    if(type === 'withdrawal') return 'Vault Withdrawal';
-  }
+  const formatTitle = (type: VaultActivity["type"]) => {
+    if (type === "new-outcome-pair") return "New Outcome Pair Added";
+    if (type === "removed-outcome-pair") return "Outcome Pair Removed";
+    if (type === "paused-outcome-pair") return "Outcome Pair Paused";
+    if (type === "profit-loss-reported") return "Profit/Loss Reported";
+    if (type === "early-exit") return "Merge";
+    if (type === "split-outcome-tokens") return "Split";
+    if (type === "deposit") return "Vault Deposit";
+    if (type === "withdrawal") return "Vault Withdrawal";
+  };
 
   return (
     <main className="px-4 sm:px-6 md:px-12 lg:px-24 mt-8 md:mt-14">
       <div className="flex flex-col lg:flex-row justify-around items-start lg:items-center gap-8 lg:gap-10">
         {/* LEFT SECTION */}
-        <div className="w-full lg:flex-1">
+        <div>
           <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white leading-tight font-League-Spartan">
             Earn Passive Income From
             <br className="hidden sm:block" />
-            <span className="sm:hidden"> </span>
             Prediction Market Arbitrage
           </h1>
 
@@ -339,7 +338,7 @@ const VaultPage = () => {
 
           <div className="flex flex-col sm:flex-row sm:flex-wrap lg:flex-nowrap justify-between items-stretch sm:items-center w-full border border-primary/40 rounded-xl p-3 sm:p-4 mt-6 sm:mt-8 lg:mt-10 gap-4 sm:gap-0">
             <div className="px-3 sm:px-4 lg:px-6 flex items-center gap-3 sm:gap-4 min-w-0">
-              <div className="border border-primary/70 bg-[#1c0e0e] p-2 rounded-md flex-shrink-0">
+              <div className="border border-primary/70 bg-[#1c0e0e] p-2 rounded-md">
                 <GrMoney className="text-sm sm:text-base" />
               </div>
               <div className="min-w-0">
@@ -347,14 +346,14 @@ const VaultPage = () => {
                 <p className="text-base sm:text-lg lg:text-xl truncate">
                   {vaultTotalAssets
                     ? Number(
-                        formatUnits(vaultTotalAssets, USDT_DECIMALS),
+                        formatUnits(vaultTotalAssets, USDT_DECIMALS)
                       ).toFixed(2) + " USDT"
                     : "0.00"}
                 </p>
               </div>
             </div>
             <div className="px-3 sm:px-4 lg:px-6 sm:border-l border-primary/50 flex items-center gap-3 sm:gap-4 min-w-0">
-              <div className="border border-primary/70 bg-[#1c0e0e] p-2 rounded-md flex-shrink-0">
+              <div className="border border-primary/70 bg-[#1c0e0e] p-2 rounded-md">
                 <FaPercent className="text-sm sm:text-base" />
               </div>
               <div className="min-w-0">
@@ -365,7 +364,7 @@ const VaultPage = () => {
               </div>
             </div>
             <div className="px-3 sm:px-4 lg:px-6 sm:border-l border-primary/50 flex items-center gap-3 sm:gap-4 min-w-0">
-              <div className="border border-primary/70 bg-[#1c0e0e] p-2 rounded-md flex-shrink-0">
+              <div className="border border-primary/70 bg-[#1c0e0e] p-2 rounded-md">
                 <GrMoney className="text-sm sm:text-base" />
               </div>
               <div className="min-w-0">
@@ -381,7 +380,7 @@ const VaultPage = () => {
         </div>
 
         {/* RIGHT SECTION */}
-        <div className="reletive w-full lg:w-auto lg:flex-shrink-0">
+        <div className="reletive w-full lg:w-auto lg:shrink-0">
           <div className="absolute right-4 sm:right-10 lg:right-36 top-34 gradiant-border rounded-xl -z-10 blur-xs hidden md:block">
             <div className="box-of-gradiant-border rounded-xl w-95 h-95 backdrop-blur-xs"></div>
           </div>
@@ -394,7 +393,7 @@ const VaultPage = () => {
                 {/* DEPOSIT */}
                 <div className="space-y-3 sm:space-y-4">
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <span className="flex-1">
+                    <div className="">
                       <label className="font-extralight text-xs text-secondry">
                         From Wallet
                       </label>
@@ -407,23 +406,23 @@ const VaultPage = () => {
                           <span className="text-gray-400">USDT</span>
                         </div>
                       </div>
-                    </span>
-                    <span className="flex-1">
+                    </div>
+                    <div className="flex-1 min-w-0">
                       <label className="font-extralight text-xs text-secondry">
                         Amount
                       </label>
                       <div className="gradiant-border">
-                        <div className="box-of-gradiant-border flex items-center">
+                        <div className="box-of-gradiant-border flex">
                           <input
                             type="number"
                             placeholder="0"
                             value={depositAmount}
                             onChange={(e) => setDepositAmount(e.target.value)}
-                            className="flex-1 focus:outline-none text-sm sm:text-base"
+                            className="focus:outline-none text-sm sm:text-base"
                           />
                           <button
                             onClick={handleMaxClick}
-                            className="px-2 sm:px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded text-xs font-semibold transition-colors"
+                            className="px-2 sm:px-3 py-1 bg-primary/20 hover:bg-primary/30 rounded text-xs font-semibold"
                             disabled={!isConnected || chainId !== bsc.id}
                           >
                             MAX
@@ -434,15 +433,12 @@ const VaultPage = () => {
                         <p className="text-xs text-gray-400 mt-1 truncate">
                           Balance:{" "}
                           {Number(
-                            formatUnits(
-                              USDTBalance?.value || 0n,
-                              USDT_DECIMALS,
-                            ),
+                            formatUnits(USDTBalance?.value || 0n, USDT_DECIMALS)
                           ).toFixed(2)}{" "}
                           USDT
                         </p>
                       )}
-                    </span>
+                    </div>
                   </div>
                   <span className="flex items-center justify-center text-primary/60">
                     <FaRegArrowAltCircleDown
@@ -451,7 +447,7 @@ const VaultPage = () => {
                     />
                   </span>
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <span className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <label className="font-extralight text-xs text-secondry">
                         To Vault
                       </label>
@@ -461,8 +457,8 @@ const VaultPage = () => {
                           <span className="text-gray-400">POK-USDT</span>
                         </div>
                       </div>
-                    </span>
-                    <span className="flex-1">
+                    </div>
+                    <div className="flex-1 min-w-0">
                       <label className="font-extralight text-xs text-secondry">
                         You will receive
                       </label>
@@ -470,16 +466,13 @@ const VaultPage = () => {
                         <div className="box-of-gradiant-border text-gray-400 text-sm sm:text-base truncate">
                           {previewDepositAmount
                             ? Number(
-                                formatUnits(
-                                  previewDepositAmount,
-                                  USDT_DECIMALS,
-                                ),
+                                formatUnits(previewDepositAmount, USDT_DECIMALS)
                               ).toFixed(2)
                             : "0"}{" "}
                           POK-USDT
                         </div>
                       </div>
-                    </span>
+                    </div>
                   </div>
                   <button
                     onClick={handleDepositButtonClick}
@@ -496,27 +489,26 @@ const VaultPage = () => {
                     (!isApproveSuccess && approveHash != undefined)
                       ? "Approving..."
                       : isDepositPending ||
-                          (!isDepositSuccess && depositHash != undefined)
-                        ? "Depositing..."
-                        : getDepositButtonState().text}
+                        (!isDepositSuccess && depositHash != undefined)
+                      ? "Depositing..."
+                      : getDepositButtonState().text}
                   </button>
                 </div>
 
                 {/* WITHDRAW */}
                 <div className="space-y-3 sm:space-y-4">
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <span className="flex-1">
+                    <div className="">
                       <label className="font-extralight text-xs text-secondry">
                         From Vault
                       </label>
                       <div className="gradiant-border">
-                        <div className="box-of-gradiant-border flex items-center gap-2 text-sm sm:text-base">
-                          <span className="text-sm">🏦</span>
-                          <span className="text-gray-400">POK-USDT</span>
+                        <div className="box-of-gradiant-border text-sm sm:text-base">
+                          <span className="text-gray-400">🏦 POK-USDT</span>
                         </div>
                       </div>
-                    </span>
-                    <span className="flex-1">
+                    </div>
+                    <div className="flex-1 min-w-0">
                       <label className="font-extralight text-xs text-secondry">
                         Amount
                       </label>
@@ -527,7 +519,7 @@ const VaultPage = () => {
                             placeholder="0"
                             value={withdrawAmount}
                             onChange={(e) => setWithdrawAmount(e.target.value)}
-                            className="flex-1 focus:outline-none text-sm sm:text-base"
+                            className="w-32 focus:outline-none text-sm sm:text-base"
                           />
                           <button
                             onClick={handleMaxWithdrawClick}
@@ -544,13 +536,13 @@ const VaultPage = () => {
                           {Number(
                             formatUnits(
                               vaultBalance?.value || 0n,
-                              USDT_DECIMALS,
-                            ),
+                              USDT_DECIMALS
+                            )
                           ).toFixed(2)}{" "}
                           POK-USDT
                         </p>
                       )}
-                    </span>
+                    </div>
                   </div>
                   <span className="flex items-center justify-center text-primary/60">
                     <FaRegArrowAltCircleDown
@@ -581,7 +573,7 @@ const VaultPage = () => {
                         <div className="box-of-gradiant-border text-gray-400 text-sm sm:text-base truncate">
                           {previewRedeemAmount
                             ? Number(
-                                formatUnits(previewRedeemAmount, USDT_DECIMALS),
+                                formatUnits(previewRedeemAmount, USDT_DECIMALS)
                               ).toFixed(2)
                             : "0"}{" "}
                           USDT
@@ -614,25 +606,17 @@ const VaultPage = () => {
           <Tabs tabs={[{ label: "ACTIVITY" }, { label: "INFO" }]}>
             {/* table */}
             <div className="overflow-x-auto rounded-xl border border-white/10 bg-black/40 backdrop-blur-md">
-              <table className="w-full text-left text-xs sm:text-sm min-w-[800px]">
+              <table className="w-full text-left text-xs sm:text-sm min-w-200">
                 <thead className="bg-white/5 text-gray-400">
                   <tr>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-[120px]">
-                      Type
-                    </th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-[320px] sm:w-[400px]">
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-30">Type</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-[320px] sm:w-100">
                       Market
                     </th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-[120px]">
-                      Amount
-                    </th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-[100px]">
-                      User
-                    </th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-[100px]">
-                      Tx Hash
-                    </th>
-                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-[120px]">
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-30">Amount</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-25">User</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-25">Tx Hash</th>
+                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-30">
                       Timestamp
                     </th>
                   </tr>
@@ -671,7 +655,7 @@ const VaultPage = () => {
                       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
                       const paginatedActivities = activities.slice(
                         startIndex,
-                        startIndex + ITEMS_PER_PAGE,
+                        startIndex + ITEMS_PER_PAGE
                       );
 
                       return paginatedActivities.map((activity) => (
@@ -769,8 +753,8 @@ const VaultPage = () => {
                         setCurrentPage((p) =>
                           Math.min(
                             Math.ceil(activities.length / ITEMS_PER_PAGE),
-                            p + 1,
-                          ),
+                            p + 1
+                          )
                         )
                       }
                       disabled={
@@ -784,7 +768,7 @@ const VaultPage = () => {
                     <button
                       onClick={() =>
                         setCurrentPage(
-                          Math.ceil(activities.length / ITEMS_PER_PAGE),
+                          Math.ceil(activities.length / ITEMS_PER_PAGE)
                         )
                       }
                       disabled={
