@@ -123,8 +123,6 @@ const ManageMarketsPage: FunctionComponent = () => {
 
   // Read early exit contract parameters if address is valid
   const isValidEarlyExitAddress = earlyExitContractAddress && isAddress(earlyExitContractAddress);
-  console.log("isValidEarlyExitAddress", isValidEarlyExitAddress);
-  console.log("earlyExitContractAddress", earlyExitContractAddress);
 
   const { data: expectedAPY } = useReadContract({
     address: isValidEarlyExitAddress ? (earlyExitContractAddress as `0x${string}`) : undefined,
@@ -387,7 +385,7 @@ const ManageMarketsPage: FunctionComponent = () => {
     if (isAtomicBatchingSupported) {
       const data = encodeFunctionData({
         abi: EarlyExitAmountFactoryBasedOnFixedAPYConfigurableABI,
-        functionName: "createEarlyExitAmountContract",
+        functionName: "createEarlyExitAmountConfigurableContract",
         args,
       });
       
@@ -400,7 +398,7 @@ const ManageMarketsPage: FunctionComponent = () => {
       writeContract({
         address: EARLY_EXIT_FACTORY_ADDRESS,
         abi: EarlyExitAmountFactoryBasedOnFixedAPYConfigurableABI,
-        functionName: "createEarlyExitAmountContract",
+        functionName: "createEarlyExitAmountConfigurableContract",
         args,
       });
     }

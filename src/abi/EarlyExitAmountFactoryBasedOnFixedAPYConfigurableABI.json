@@ -1,7 +1,7 @@
-[
+ [
     {
       "type": "function",
-      "name": "createEarlyExitAmountContract",
+      "name": "createEarlyExitAmountConfigurableContract",
       "inputs": [
         {
           "name": "marketExpiryTime",
@@ -19,14 +19,14 @@
         {
           "name": "",
           "type": "address",
-          "internalType": "contract EarlyExitAmountBasedOnFixedAPY"
+          "internalType": "contract EarlyExitAmountBasedOnFixedAPYConfigurable"
         }
       ],
       "stateMutability": "nonpayable"
     },
     {
       "type": "event",
-      "name": "EarlyExitAmountContractCreated",
+      "name": "EarlyExitAmountConfigurableContractCreated",
       "inputs": [
         {
           "name": "marketExpiryTime",
@@ -49,4 +49,4 @@
       ],
       "anonymous": false
     }
-]
+  ]
