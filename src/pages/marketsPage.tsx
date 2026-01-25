@@ -738,7 +738,14 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
   };
 
   const onMaxClick = () => {
-    onInputChange(usdtBalFormatted);
+    // Calculate max based on vault's outcome token liquidity
+    const vaultBalAFormatted = formatUnits(vaultBalA ?? 0n, pair.decimalsA);
+    const vaultBalBFormatted = formatUnits(vaultBalB ?? 0n, pair.decimalsB);
+    const vaultMaxFromTokens = Math.min(Number(vaultBalAFormatted), Number(vaultBalBFormatted)).toString();
+    
+    // Max is the lesser of user's USDT balance and vault's token liquidity
+    const maxAmount = Math.min(Number(usdtBalFormatted), Number(vaultMaxFromTokens)).toString();
+    onInputChange(maxAmount);
   };
 
   const isPolyA = pair.outcomeTokenA.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase();
