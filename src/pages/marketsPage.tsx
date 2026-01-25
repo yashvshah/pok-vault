@@ -1275,18 +1275,18 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                 key: "merge",
                 label: "Merge",
                 content: (
-                  <div className="space-y-4">
-                    {market.pairs.map((pair, idx) => (
+                    <div className="space-y-4">
+                    {market.pairs.slice(0, 2).map((pair, idx) => (
                       <PairMergeAction 
-                        key={pair.key} 
-                        pair={pair} 
-                        idx={idx} 
-                        amount={amountsByPair[pair.key]} 
-                        onInputChange={(v) => setAmountsByPair(prev => ({ ...prev, [pair.key]: v }))} 
-                        safeInfo={safeInfo} 
+                      key={pair.key} 
+                      pair={pair} 
+                      idx={idx} 
+                      amount={amountsByPair[pair.key]} 
+                      onInputChange={(v) => setAmountsByPair(prev => ({ ...prev, [pair.key]: v }))} 
+                      safeInfo={safeInfo} 
                       />
                     ))}
-                  </div>
+                    </div>
                 ),
               },
               {
@@ -1294,7 +1294,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                 label: "Split",
                 content: (
                   <div className="space-y-4">
-                    {market.pairs.map((pair, idx) => (
+                    {market.pairs.slice(0, 2).map((pair, idx) => (
                       <PairSplitAction 
                         key={pair.key} 
                         pair={pair} 
