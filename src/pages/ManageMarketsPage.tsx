@@ -4,8 +4,8 @@ import { keccak256, encodePacked, isAddress, encodeFunctionData } from "viem";
 import type { Address } from "viem";
 import { bsc } from "wagmi/chains";
 import EarlyExitVaultABI from "../abi/EarlyExitVault.json";
-import EarlyExitAmountBasedOnFixedAPYABI from "../abi/EarlyExitAmountBasedOnFixedAPY.json";
-import EarlyExitAmountFactoryBasedOnFixedAPYABI from "../abi/EarlyExitAmountFactoryBasedOnFixedAPYABI.json";
+import EarlyExitAmountBasedOnFixedAPYConfigurableABI from "../abi/EarlyExitAmountBasedOnFixedAPYConfigurable.json";
+import EarlyExitAmountFactoryBasedOnFixedAPYConfigurableABI from "../abi/EarlyExitAmountFactoryBasedOnFixedAPYConfigurableABI.json";
 import { providerRegistry } from "../services/providers";
 import { getPolymarketBySlug } from "../services/providers/polymarketProvider";
 import {
@@ -123,32 +123,37 @@ const ManageMarketsPage: FunctionComponent = () => {
 
   // Read early exit contract parameters if address is valid
   const isValidEarlyExitAddress = earlyExitContractAddress && isAddress(earlyExitContractAddress);
+  console.log("isValidEarlyExitAddress", isValidEarlyExitAddress);
+  console.log("earlyExitContractAddress", earlyExitContractAddress);
 
   const { data: expectedAPY } = useReadContract({
     address: isValidEarlyExitAddress ? (earlyExitContractAddress as `0x${string}`) : undefined,
-    abi: EarlyExitAmountBasedOnFixedAPYABI,
-    functionName: "EXPECTED_APY",
+    abi: EarlyExitAmountBasedOnFixedAPYConfigurableABI,
+    functionName: "expectedApy",
     query: {
       enabled: !!isValidEarlyExitAddress,
     },
+    chainId: bsc.id,
   }) as { data: bigint | undefined };
 
   const { data: fixedTimeAfterExpiry } = useReadContract({
     address: isValidEarlyExitAddress ? (earlyExitContractAddress as `0x${string}`) : undefined,
-    abi: EarlyExitAmountBasedOnFixedAPYABI,
-    functionName: "FIXED_TIME_AFTER_EXPIRY",
+    abi: EarlyExitAmountBasedOnFixedAPYConfigurableABI,
+    functionName: "fixedTimeAfterExpiry",
     query: {
       enabled: !!isValidEarlyExitAddress,
     },
+    chainId: bsc.id,
   }) as { data: bigint | undefined };
 
   const { data: marketExpiryTime } = useReadContract({
     address: isValidEarlyExitAddress ? (earlyExitContractAddress as `0x${string}`) : undefined,
-    abi: EarlyExitAmountBasedOnFixedAPYABI,
-    functionName: "MARKET_EXPIRY_TIME",
+    abi: EarlyExitAmountBasedOnFixedAPYConfigurableABI,
+    functionName: "marketExpiryTime",
     query: {
       enabled: !!isValidEarlyExitAddress,
     },
+    chainId: bsc.id,
   }) as { data: bigint | undefined };
 
   // Helper functions for formatting
@@ -381,7 +386,7 @@ const ManageMarketsPage: FunctionComponent = () => {
 
     if (isAtomicBatchingSupported) {
       const data = encodeFunctionData({
-        abi: EarlyExitAmountFactoryBasedOnFixedAPYABI,
+        abi: EarlyExitAmountFactoryBasedOnFixedAPYConfigurableABI,
         functionName: "createEarlyExitAmountContract",
         args,
       });
@@ -394,7 +399,7 @@ const ManageMarketsPage: FunctionComponent = () => {
     } else {
       writeContract({
         address: EARLY_EXIT_FACTORY_ADDRESS,
-        abi: EarlyExitAmountFactoryBasedOnFixedAPYABI,
+        abi: EarlyExitAmountFactoryBasedOnFixedAPYConfigurableABI,
         functionName: "createEarlyExitAmountContract",
         args,
       });
