@@ -38,6 +38,8 @@ const VaultPage = () => {
   const VAULT_ADDRESS = "0x5a791CCAB49931861056365eBC072653F3FA0ba0" as const;
   const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955" as const;
 
+  const isAcceptingDeposits = false;
+
   // USDT balance
   const { data: USDTBalance } = useBalance({
     address,
@@ -181,6 +183,9 @@ const VaultPage = () => {
       };
     if (!depositAmount || parseFloat(depositAmount) === 0)
       return { text: "Enter Amount", disabled: true, action: null };
+
+    if (!isAcceptingDeposits)
+      return { text: "Deposit Limit Reached", disabled: true, action: null };
 
     const amount = parseUnits(depositAmount, USDT_DECIMALS);
     const balance = USDTBalance?.value || 0n;
