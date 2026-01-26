@@ -1136,9 +1136,14 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
 
   // Apply filters to markets
   const filteredMarkets = markets.filter(market => {
-    // Search filter
-    if (filters.search && !market.question.toLowerCase().includes(filters.search.toLowerCase())) {
-      return false;
+    // Search filter (Includes both provider questions)    
+    if (filters.search) {
+      const matchesProvider = Array.from(market.providerQuestions.values()).some(
+          (question) => question.toLowerCase().includes(filters.search.toLowerCase())
+      );
+      if (!matchesProvider) {
+        return false;
+      }
     }
     
     // Status filter
