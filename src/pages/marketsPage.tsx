@@ -1066,6 +1066,18 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
     status: "Allowed",
     markets: ["Polymarket (Bridged)", "Opinion"],
   });
+
+  // Static category list
+  const categories = [
+    "Super Bowl",
+    "Oscars",
+    "Best Picture",
+    "Best Actor",
+    "Best Actress",
+    "Best Supporting Actor",
+    "Best Supporting Actress"
+  ];
+
   const { data: markets = [], isLoading, error } = useSupportedMarkets();
   const { address } = useAccount();
 
@@ -1134,6 +1146,11 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
 
   const isOwner = address && ownerAddress && address.toLowerCase() === ownerAddress.toLowerCase();
 
+  // Extract all provider questions from loaded markets for autocomplete
+  const allQuestions = markets.flatMap(market => 
+    Array.from(market.providerQuestions.values())
+  );
+
   // Apply filters to markets
   const filteredMarkets = markets.filter(market => {
     // Search filter (Includes both provider questions)    
@@ -1190,6 +1207,8 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
 
         <MarketFilters
           availableMarkets={["Polymarket (Bridged)", "Opinion"]}
+          allQuestions={allQuestions}
+          categories={categories}
           onChange={(newFilters) => setFilters(newFilters)}
         />
 

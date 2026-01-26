@@ -1,4 +1,6 @@
 import { useState } from "react";
+import MarketAutocomplete from "./MarketAutocomplete";
+import MarketCategories from "./MarketCategories";
 
 /* ================= TYPES ================= */
 
@@ -12,16 +14,20 @@ export interface MarketFilterState {
 
 interface MarketFiltersProps {
   availableMarkets: string[];
+  allQuestions: string[];
   onChange: (filters: MarketFilterState) => void;
   minMarkets?: number; // default = 2
+  categories?: string[];
 }
 
 /* ================= COMPONENT ================= */
 
 export default function MarketFilters({
   availableMarkets,
+  allQuestions,
   onChange,
   minMarkets = 2,
+  categories = [],
 }: MarketFiltersProps) {
   const [filters, setFilters] = useState<MarketFilterState>({
     search: "",
@@ -36,31 +42,35 @@ export default function MarketFilters({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row flex-wrap gap-3 my-4 sm:my-5">
-      {/* ================= SEARCH ================= */}
-      <div className="flex-1 min-w-full sm:min-w-60">
-        <input
-          type="text"
-          placeholder="Search prediction questions..."
+    <div className="my-4 sm:my-5">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-4">
+        {/* ================= SEARCH ================= */}
+        <MarketAutocomplete
+          questions={allQuestions}
           value={filters.search}
-          onChange={(e) => updateFilters({ search: e.target.value })}
-          className="w-full rounded-xl bg-black/40 px-3 sm:px-4 py-2.5 sm:py-3 text-sm text-white placeholder-white/40 outline-none ring-1 ring-white/10 focus:ring-primary"
+          onChange={(value) => updateFilters({ search: value })}
         />
+
+        {/* ================= STATUS ================= */}
+        <select
+          value={filters.status}
+          onChange={(e) =>
+            updateFilters({ status: e.target.value as MarketStatus })
+          }
+          className="w-full sm:w-auto rounded-xl bg-black/40 px-3 py-2.5 sm:py-2 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-primary"
+        >
+          <option value="All">All Status</option>
+          <option value="Allowed">Allowed</option>
+          <option value="Paused">Paused</option>
+          <option value="Removed">Expired/Removed</option>
+        </select>
       </div>
 
-      {/* ================= STATUS ================= */}
-      <select
-        value={filters.status}
-        onChange={(e) =>
-          updateFilters({ status: e.target.value as MarketStatus })
-        }
-        className="w-full sm:w-auto rounded-xl bg-black/40 px-3 py-2.5 sm:py-2 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-primary"
-      >
-        <option value="All">All Status</option>
-        <option value="Allowed">Allowed</option>
-        <option value="Paused">Paused</option>
-        <option value="Removed">Expired/Removed</option>
-      </select>
+      {/* ================= CATEGORIES ================= */}
+      <MarketCategories
+        categories={categories}
+        onCategoryClick={(category) => updateFilters({ search: category })}
+      />
     </div>
   );
 }
