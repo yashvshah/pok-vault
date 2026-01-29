@@ -26,6 +26,7 @@ import { providerRegistry } from "../services/providers";
 import { showBridgeStartedNotification } from "../utils/notifications";
 import { useAtomicBatch } from "../hooks/useAtomicBatch";
 import BatchExecutor from "../components/BatchExecutor";
+import CopyMarketMetadata from "../components/CopyMarketMetadata";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface MarketsPageProps {}
@@ -1380,6 +1381,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
                 markets={marketPlatforms}
                 balances={<TokenBalances market={market} pendingBridges={marketPendingBridges} safeInfo={safeInfo} polygonToBSCGas={polygonToBSCGas} bscToPolygonGas={bscToPolygonGas} />}
                 actionTabs={actionTabs}
+                metadataButton={<CopyMarketMetadata market={market} />}
               />
             );
           })}

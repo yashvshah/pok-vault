@@ -25,6 +25,7 @@ export interface MarketCardProps {
   status: string; // Changed from MarketStatus to string for flexibility
   statusColor?: string; // Optional custom status color
   actionTabs?: ActionTab[]; // actions slot
+  metadataButton?: React.ReactNode; // Optional metadata copy button
 }
 
 const STATUS_STYLES: Record<MarketStatus, string> = {
@@ -41,6 +42,7 @@ export default function MarketCard({
   markets,
   balances,
   actionTabs,
+  metadataButton,
 }: MarketCardProps) {
   const [actionsOpen, setActionsOpen] = useState(false);
   const [balancesOpen, setBalancesOpen] = useState(false);
@@ -102,13 +104,23 @@ export default function MarketCard({
             </div>
           </div>
 
-          {/* Status */}
-          <span
-            className={`rounded-full border px-2 sm:px-3 py-1 text-xs font-medium whitespace-nowrap flex-shrink-0 ${statusClassName}`}
-          >
-            {status}
-          </span>
+          {/* Status & Metadata Button */}
+          <div className="flex gap-2 flex-shrink-0 items-center">
+            {metadataButton && <div className="hidden sm:block">{metadataButton}</div>}
+            <span
+              className={`rounded-full border px-2 sm:px-3 py-1 text-xs font-medium whitespace-nowrap ${statusClassName}`}
+            >
+              {status}
+            </span>
+          </div>
         </div>
+        
+        {/* Metadata Button (mobile) */}
+        {metadataButton && (
+          <div className="sm:hidden px-4 sm:px-5 pb-3">
+            {metadataButton}
+          </div>
+        )}
 
         {/* Balances Header */}
         <div className="border-t border-white/10 px-4 sm:px-5 py-3 sm:py-4">
