@@ -1,6 +1,6 @@
 # POK Vault SDK
 
-TypeScript SDK for estimating merge and split costs for prediction market outcome tokens on POK Vault.
+TypeScript SDK for estimating cross platform merge and split costs for prediction market outcome tokens on [POK Vault](http://pokvault.xyz/).
 
 ## Features
 

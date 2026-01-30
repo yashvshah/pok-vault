@@ -70,7 +70,7 @@ main();
 
 ### What is a Market Key?
 
-A market key uniquely identifies an arbitrage opportunity between Polymarket and Opinion markets.
+A market key uniquely identifies similar markets between different prediction markets
 
 **Format:**
 ```

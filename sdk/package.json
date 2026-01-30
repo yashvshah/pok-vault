@@ -1,6 +1,7 @@
 {
   "name": "@pokvault/sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "private": false,
   "description": "TypeScript SDK for POK Vault - Estimate merge and split costs for prediction market outcome tokens",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
