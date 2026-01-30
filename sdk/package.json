@@ -1,0 +1,52 @@
+{
+  "name": "@pokvault/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for POK Vault - Estimate merge and split costs for prediction market outcome tokens",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "QUICKSTART.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --silent=false",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "pokvault",
+    "prediction-markets",
+    "polymarket",
+    "opinion",
+    "web3",
+    "defi",
+    "erc1155"
+  ],
+  "author": "yashnaman",
+  "license": "MIT",
+  "dependencies": {
+    "graphql": "^16.8.1",
+    "graphql-request": "^6.1.0",
+    "viem": "^2.7.15"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
