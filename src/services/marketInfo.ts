@@ -12,6 +12,7 @@ export interface UnifiedMarketInfo {
   platform: string; // Provider ID (e.g., 'polymarket', 'opinion')
   provider: PredictionMarketProvider;
   marketData: MarketData;
+  tokenAddress: string; // ERC1155 token address
 }
 
 class MarketInfoService {
@@ -33,6 +34,7 @@ class MarketInfoService {
             question: 'Test Event',
             platform: 'polymarket',
             provider,
+            tokenAddress: normalizedAddress,
             marketData: {
               id: 'test',
               question: 'Test Event',
@@ -65,6 +67,7 @@ class MarketInfoService {
         question: marketData.question,
         platform: provider.id,
         provider,
+        tokenAddress: normalizedAddress,
         marketData,
       };
     } catch (error) {
@@ -137,6 +140,7 @@ class MarketInfoService {
               question: 'Test Event',
               platform: 'polymarket',
               provider,
+              tokenAddress: normalizedAddress,
               marketData: {
                 id: '123',
                 question: 'Test Event',
@@ -164,6 +168,7 @@ class MarketInfoService {
           question: result.marketInfo.question || 'Unknown Market',
           platform: provider.id,
           provider,
+          tokenAddress: normalizedAddress,
           marketData: result.marketInfo,
         });
       }

@@ -31,6 +31,8 @@ export interface SupportedMarket {
   providerImages: Map<string, string>;
   // Provider-specific token IDs
   providerTokenIds: Map<string, { yesTokenId: string; noTokenId: string }>;
+  // Provider-specific token addresses (ERC1155)
+  providerTokenAddresses: Map<string, string>;
   // Provider-specific URLs
   providerUrls: Map<string, string>;
   pairs: OutcomeTokenPair[]; // Can have up to 2 pairs (YES A + NO B, NO A + YES B)
@@ -204,6 +206,7 @@ export function useSupportedMarkets() {
             providerQuestions: new Map(),
             providerImages: new Map(),
             providerTokenIds: new Map(),
+            providerTokenAddresses: new Map(),
             providerUrls: new Map(),
             pairs: [],
             overallStatus: 'removed', // Will be updated
@@ -274,6 +277,9 @@ function populateProviderData(market: SupportedMarket, marketInfo: UnifiedMarket
       noTokenId: data.noTokenId,
     });
   }
+  
+  // Set token address
+  market.providerTokenAddresses.set(providerId, marketInfo.tokenAddress);
   
   if (data.url) {
     market.providerUrls.set(providerId, data.url);
