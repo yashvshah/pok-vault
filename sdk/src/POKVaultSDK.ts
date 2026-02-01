@@ -1,5 +1,5 @@
 import type { Address } from 'viem';
-import type { SDKConfig, MarketSearchParams, MarketMetadata, MergeEstimationResult, SplitEstimationResult } from './types';
+import type { SDKConfig, MarketSearchParams, MarketMetadata, MergeEstimationResult, SplitEstimationResult, MiddlewareMarketData } from './types';
 import { SubgraphService, createPairKey } from './services/subgraph';
 import { MiddlewareService } from './services/middleware';
 import { EstimationService } from './services/estimation';
@@ -291,7 +291,7 @@ export class POKVaultSDK {
 
   private populateProviderData(
     market: MarketMetadata,
-    info: { marketInfo: any; providerId: string; tokenAddress: Address }
+    info: { marketInfo: MiddlewareMarketData; providerId: string; tokenAddress: Address }
   ): void {
     const providerId = info.providerId;
     const data = info.marketInfo;

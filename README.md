@@ -1,6 +1,6 @@
 # [POKVault.xyz](https://www.pokvault.xyz/)
 
-A React + TypeScript application for managing and interacting with POKVault on BSC. POKVault is an ERC4626 vault that enables early exits for prediction market arbitragers across Polymarket (Polygon) and Opinion (BSC, bridged via Axelar GMP).
+A React + TypeScript application for managing and interacting with POKVault on BSC. POKVault is an ERC4626 vault that enables early exits for prediction market arbitragers across multiple prediction platforms including Polymarket (Polygon), Opinion (BSC), and Probable (BSC), with cross-chain bridging via Axelar GMP.
 
 ## Features
 
@@ -13,9 +13,12 @@ A React + TypeScript application for managing and interacting with POKVault on B
 ### Markets Page
 - **Supported Markets**: View all active markets enabled for early exit arbitrage (defaults to showing "Allowed" status only)
 - **Market Details**: Display actual market questions, outcome tokens, and status (✅ Active, ⏸️ Paused, 🔴 Expired)
-- **Cross-Market Pairs**: See which Polymarket/Opinion pairs are configured
+- **Multi-Provider Support**: Works with any combination of prediction market providers:
+  - Polymarket (Polygon) × Opinion (BSC) - with bridging
+  - Polymarket (Polygon) × Probable (BSC) - with bridging
+  - Opinion (BSC) × Probable (BSC) - no bridging required
 - **Market Filtering**: Search markets and filter by status (All, Allowed, Paused, Expired)
-- **Token Balances**: View your Polymarket and Opinion token balances with automatic Gnosis Safe detection
+- **Token Balances**: View your token balances across all providers with automatic Gnosis Safe detection
 - **Cross-Chain Bridging**: Bridge Polymarket tokens between Polygon and BSC via Axelar GMP
   - Real-time bridge status tracking with Axelar SDK integration
   - Pending bridge transaction detection and monitoring
@@ -28,10 +31,11 @@ A React + TypeScript application for managing and interacting with POKVault on B
 - **Split & Acquire**: Use USDT to acquire opposite outcome token pairs for arbitrage
   - Automatic USDT allowance checking
   - Approval + split batching for Safe wallets
-- **Gnosis Safe Support**: Automatic detection and support for Polymarket and Opinion Safe wallets
+- **Gnosis Safe Support**: Automatic detection and independent toggle per provider
   - Polymarket Safe (Polygon): Derived from EOA using known factory
   - Opinion Safe (BSC): Fetched from Opinion API user profile endpoint
-  - Toggle between EOA and Safe for transactions
+  - Probable Safe (BSC): Derived from EOA using known factory
+  - Independent toggle for each provider - use EOA or Safe per provider
   - MultiSend batching for atomic multi-step operations
 
 ### Markets Page - Owner Actions (Owner Only)
@@ -67,6 +71,7 @@ When the connected wallet is the vault owner, an additional "Owner Actions" tab 
 - **External APIs**: 
   - Polymarket Gamma API (market data)
   - Opinion API (market data and Safe wallet detection)
+  - Probable API (market data)
   - Axelar GMP Recovery API (bridge status tracking)
   - Axelar Query API (gas fee estimation)
   - Custom middleware for CORS handling
@@ -111,8 +116,11 @@ src/
 │   └── useErc1155Balance.ts          # ERC1155 balance reading
 ├── services/             # External service integrations
 │   ├── ctfExchange.ts                # CTF exchange contract calls
-│   ├── polymarket.ts                 # Polymarket API client
-│   ├── opinion.ts                    # Opinion API client
+│   ├── providers/                    # Prediction market provider implementations
+│   │   ├── index.ts                  # Provider registry
+│   │   ├── polymarketProvider.ts     # Polymarket provider
+│   │   ├── opinionProvider.ts        # Opinion provider
+│   │   └── probableProvider.ts       # Probable provider
 │   └── marketInfo.ts                 # Market info utilities
 ├── utils/                # Utility functions
 │   ├── safe.ts                       # Gnosis Safe address derivation
@@ -125,7 +133,7 @@ src/
 ├── config/               # Configuration files
 │   ├── subgraph.ts                   # GraphQL queries and client
 │   ├── addresses.ts                  # Contract addresses and constants
-│   └── safe.ts                       # Safe factory addresses
+│   └── safe.ts                       # Safe factory addresses (all providers)
 ├── abi/                  # Contract ABIs
 │   ├── EarlyExitVault.json
 │   ├── EarlyExitAmountBasedOnFixedAPY.json
@@ -197,7 +205,7 @@ The app supports multiple networks:
 ### Contract Addresses (see `src/config/addresses.ts`)
 - **Vault Address**: Main ERC4626 vault contract
 - **Early Exit Factory**: Factory for creating early exit amount contracts
-- **Token Addresses**: USDT (BSC), Polymarket ERC1155 (bridged from Polygon), Opinion ERC1155 (BSC)
+- **Token Addresses**: USDT (BSC), Polymarket ERC1155 (bridged from Polygon), Opinion ERC1155 (BSC), Probable ERC1155 (BSC)
 
 ### API Configuration
 The application uses a middleware proxy to avoid CORS issues:
@@ -208,6 +216,7 @@ The application uses a middleware proxy to avoid CORS issues:
 API endpoints:
 - `/api/polymarket/markets/slug/:slug` - Fetch Polymarket market by slug
 - `/api/opinion/market/:id` - Fetch Opinion market by ID
+- `/api/probable/market/:id` - Fetch Probable market by ID
 
 ### Subgraph Configuration
 - **Vault Events**: The Graph protocol endpoint for vault events (deposits, withdrawals, pairs)
@@ -224,18 +233,21 @@ API endpoints:
 
 ### Markets Page Features
 1. **View Markets**: Browse all configured prediction market pairs with filtering and search
-2. **Token Balances**: Automatic display of your ERC1155 token balances across Polygon and BSC
+2. **Token Balances**: Automatic display of your ERC1155 token balances across all providers
 3. **Gnosis Safe Integration**:
    - Polymarket Safe (Polygon): Automatically derived from your EOA
    - Opinion Safe (BSC): Fetched from Opinion API user profile
-   - Toggle between EOA and Safe for each transaction
-4. **Cross-Chain Bridging**: 
+   - Probable Safe (BSC): Automatically derived from your EOA
+   - Independent toggle per provider - choose EOA or Safe for each provider
+   - Safe selection persists for all operations (balances, bridging, merge, split)
+4. **Cross-Chain Bridging** (Polymarket only): 
    - Bridge Polymarket tokens between Polygon and BSC via Axelar GMP
    - Real-time status tracking with color-coded indicators
    - Pending transaction detection across both directions
    - Estimated gas fees displayed before bridging
    - Safe wallets: Automatic batching of gas payment + bridge transfer
    - EOA wallets: Manual gas payment required (shown in UI)
+   - Bridge destination respects the paired BSC provider's safe toggle
 5. **Merge & Exit**: 
    - Arbitragers combine opposite outcome tokens to exit early at a discounted rate
    - Safe wallets: Atomic approval + merge in one transaction
@@ -254,22 +266,23 @@ When connected as vault owner, each market displays an "Owner Actions" tab with:
 4. **Report & Remove**: Atomically report and remove a pair in one transaction
 
 ### Market Management (Owner Only)
-1. **Market Discovery**: Enter Polymarket market slug and Opinion market ID
-2. **Validation**: App fetches and validates market details from both APIs
+1. **Market Discovery**: Select provider pair and enter market identifiers (slug for Polymarket, ID for Opinion/Probable)
+2. **Validation**: App fetches and validates market details from provider APIs
 3. **Contract Creation**: Create early exit amount contracts with:
    - Market expiry timestamp
    - Expected APY (basis points)
    - Fixed time after expiry (hours)
 4. **Token Pair Configuration**: Add opposite outcome token pairs:
-   - YES Polymarket + NO Opinion
-   - NO Polymarket + YES Opinion
+   - YES Provider A + NO Provider B
+   - NO Provider A + YES Provider B
 5. **Monitoring**: View pair status (allowed/paused), early exited amounts, and contract addresses
 
 ### Early Exit Flow
-1. Arbitragers acquire opposite outcome tokens across Polymarket and Opinion
+1. Arbitragers acquire opposite outcome tokens across supported prediction platforms
 2. They redeem these tokens through the vault for discounted USDT
 3. Vault depositors earn yield from the arbitrage profit margins
 4. Early exit amount is calculated based on configured APY and time remaining
+5. Works with any provider pair: Polymarket-Opinion, Polymarket-Probable, or Opinion-Probable
 
 ### Data Fetching
 1. **Subgraph**: Fetches on-chain vault events (deposits, withdrawals, new pairs)
@@ -309,6 +322,8 @@ When connected as vault owner, each market displays an "Owner Actions" tab with:
 - **Gas Estimation**: Real-time gas fee calculation for cross-chain bridges
 - **MultiSend Batching**: Atomic multi-step operations for Safe wallets using Gnosis MultiSendCallOnly
 - **Approval Management**: Smart approval checking and batching for ERC1155 and ERC20 tokens
+- **Provider Abstraction**: Dynamic provider registry supporting any prediction market platform
+- **Per-Provider Safe Control**: Independent EOA/Safe toggle for each supported provider
 
 ## Key Technical Details
 
@@ -353,6 +368,7 @@ All fields are tightly packed using `abi.encodePacked` with no padding between f
 ### Token Decimals
 - **Polymarket ERC1155**: 6 decimals
 - **Opinion ERC1155**: 18 decimals  
+- **Probable ERC1155**: 18 decimals
 - **USDT**: 18 decimals
 - **Early Exited Amounts**: Displayed with 18 decimal formatting
 
@@ -388,9 +404,17 @@ The app interfaces with several contracts:
 - Fetched from Opinion API: `https://proxy.opinion.trade:8443/api/bsc/api/v2/user/{address}/profile?chainId=56`
 - Extracted from `result.multiSignedWalletAddress['56']` in API response
 - More efficient than generic Safe API (single request vs. multiple)
-- **MultiSendCallOnly**: Gnosis Safe MultiSend contract for batching transactions atomically
-- **Axelar Gateway**: Cross-chain messaging gateway for Polygon↔BSC bridges
-- **Axelar Gas Service**: Gas payment service for cross-chain transactions
+
+**Probable Safe (BSC)**:
+- Derived deterministically from EOA using CREATE2
+- Uses known Safe factory and singleton addresses
+- Verified on-chain via `getThreshold()` call
+
+**Safe Toggle Behavior**:
+- Each provider has an independent toggle (EOA vs Safe)
+- Toggle state persists across all operations for that provider
+- Bridge operations use source provider's safe for sending, destination provider's safe for receiving
+- Merge/split operations check both providers' safes in the pair
 
 ### Solidity Struct Mapping
 Smart contracts return structs as arrays. The app maps them to TypeScript interfaces:
@@ -422,7 +446,9 @@ interface OppositeOutcomeTokensInfo {
 - **Depositors**: Earn yield by providing liquidity for arbitragers to exit early
 - **Arbitragers**: Pay a discount (based on APY) to exit positions immediately instead of waiting for market resolution
 - **Discount Calculation**: Based on expected APY and time remaining until market expiry plus fixed time
-- **Cross-Chain**: Polymarket operates on Polygon, Opinion on BSC (bridged via Axelar GMP)
+- **Multi-Provider Support**: Works with Polymarket (Polygon), Opinion (BSC), and Probable (BSC)
+- **Cross-Chain**: Polymarket operates on Polygon and requires bridging to BSC via Axelar GMP
+- **BSC Native**: Opinion and Probable operate directly on BSC (no bridging required)
 
 ### Market Pairing Rules
 - Markets must represent the same real-world event

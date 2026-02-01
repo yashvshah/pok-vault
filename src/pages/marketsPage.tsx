@@ -5,7 +5,7 @@ import { parseUnits, erc1155Abi, formatUnits, encodeAbiParameters, erc20Abi, enc
 import type { Address, Abi } from "viem";
 import EarlyExitVaultAbi from "../abi/EarlyExitVault.json";
 import GnosisSafeAbi from "../abi/GnosisSafe.json";
-import { POLYGON_ERC1155_POLYGON_ADDRESS, POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, OPINION_ERC1155_ADDRESS, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, POLYMARKET_DESTINATION_BRIDGE_BSC_ADDRESS, POLYMARKET_DECIMALS, VAULT_ADDRESS, OPINION_DECIMALS, USDT_ADDRESS, USDT_DECIMALS } from "../config/addresses";
+import { POLYGON_ERC1155_POLYGON_ADDRESS, POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, POLYMARKET_SOURCE_BRIDGE_POLYGON_ADDRESS, POLYMARKET_DESTINATION_BRIDGE_BSC_ADDRESS, POLYMARKET_DECIMALS, VAULT_ADDRESS, USDT_ADDRESS, USDT_DECIMALS } from "../config/addresses";
 import { useErc1155Balance } from "../hooks/useErc1155Balance";
 import { useSafeAddresses } from "../hooks/useSafeAddresses";
 import { useSafeWrite } from "../hooks/useSafeWrite";
@@ -13,6 +13,7 @@ import { usePendingBridgeTransactions } from "../hooks/usePendingBridgeTransacti
 import { useBridgeTransactionStatus, getStatusText, getStatusButtonStyle } from "../hooks/useBridgeTransactionStatus";
 import { useBridgeGasEstimates, type UseBridgeGasEstimateResult } from "../hooks/useBridgeGasEstimate";
 import type { PendingBridgeTransaction } from "../types/vault";
+import type { PredictionMarketProvider } from "../types/predictionMarket";
 import MarketCard from "../components/MarketCard";
 import MarketActionCard from "../components/MarketActionCard";
 import BalanceItem from "../components/BalanceItem";
@@ -27,6 +28,53 @@ import { showBridgeStartedNotification } from "../utils/notifications";
 import { useAtomicBatch } from "../hooks/useAtomicBatch";
 import BatchExecutor from "../components/BatchExecutor";
 import CopyMarketMetadata from "../components/CopyMarketMetadata";
+
+// Helper component to display BSC provider token balances
+function BscProviderBalances({ 
+  providerName,
+  decimals,
+  tokenAddress,
+  tokens,
+  safeOwner 
+}: { 
+  providerId: string;
+  providerName: string;
+  decimals: number;
+  tokenAddress: Address;
+  tokens: { yesTokenId: string; noTokenId: string } | null;
+  safeOwner: Address | null;
+}) {
+  const yesId = tokens?.yesTokenId ? BigInt(tokens.yesTokenId) : 0n;
+  const noId = tokens?.noTokenId ? BigInt(tokens.noTokenId) : 0n;
+  
+  const { data: balYes } = useErc1155Balance({ 
+    tokenAddress, 
+    tokenId: yesId, 
+    chainId: bsc.id, 
+    ownerAddress: safeOwner as `0x${string}` | null | undefined 
+  });
+  
+  const { data: balNo } = useErc1155Balance({ 
+    tokenAddress, 
+    tokenId: noId, 
+    chainId: bsc.id, 
+    ownerAddress: safeOwner as `0x${string}` | null | undefined 
+  });
+  
+  return (
+    <>
+      <BalanceItem 
+        title={`${providerName} YES (BSC)`} 
+        balance={formatUnits(balYes ?? 0n, decimals)} 
+      />
+      <BalanceItem 
+        title={`${providerName} NO (BSC)`} 
+        balance={formatUnits(balNo ?? 0n, decimals)} 
+      />
+    </>
+  );
+}
+
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface MarketsPageProps {}
@@ -66,34 +114,78 @@ function TokenBalances({
     writeBsc
   } = safeInfo;
 
-  // Get Safe addresses for each provider
-  const polymarketSafe = getSafeForProvider('polymarket');
-  const opinionSafe = getSafeForProvider('opinion');
-  const usePolymarketSafe = shouldUseSafeFor('polymarket');
-  const useOpinionSafe = shouldUseSafeFor('opinion');
-
+  // Dynamically get all providers in this market
+  const marketProviders = Array.from(market.providerTokenIds.keys())
+    .map(id => ({ id, provider: providerRegistry.getById(id) }))
+    .filter((item): item is { id: string; provider: PredictionMarketProvider } => item.provider !== null);
+  
+  // Find bridgeable provider (Polymarket) and BSC native providers (Opinion, Probable)
+  const bridgeableProvider = marketProviders.find(p => p.provider.requiresBridging);
+  const bscProviders = marketProviders.filter(p => 
+    !p.provider.requiresBridging && p.provider.operatingChainId === bsc.id
+  );
+  
+  // Get safe addresses and usage flags for each provider in the market
+  const providerSafeInfo = new Map(
+    marketProviders.map(({ id }) => [
+      id,
+      {
+        safe: getSafeForProvider(id),
+        useSafe: shouldUseSafeFor(id)
+      }
+    ])
+  );
+  
   // Check status of pending bridges and filter out completed ones
   const { transactionsWithStatus, isLoading: isStatusLoading } = useBridgeTransactionStatus(pendingBridges);
   
-  // Get token IDs from provider data
-  const polymarketTokens = market.providerTokenIds.get('polymarket');
-  const opinionTokens = market.providerTokenIds.get('opinion');
+  // Get token IDs from bridgeable provider (Polymarket)
+  const bridgeableTokens = bridgeableProvider ? market.providerTokenIds.get(bridgeableProvider.id) : null;
+  const yesIdBridgeable = bridgeableTokens?.yesTokenId ? BigInt(bridgeableTokens.yesTokenId) : 0n;
+  const noIdBridgeable = bridgeableTokens?.noTokenId ? BigInt(bridgeableTokens.noTokenId) : 0n;
+
+  // Determine owner addresses based on safe usage for each chain
+  const bridgeableInfo = bridgeableProvider ? providerSafeInfo.get(bridgeableProvider.id) : null;
+  const bridgeableOwner = (bridgeableInfo?.useSafe && bridgeableInfo.safe) ? bridgeableInfo.safe : null;
+
+  // For bridging: if there's a bridgeable provider, there's exactly one BSC provider in the pair
+  // Use that specific BSC provider's safe for bridge destination/source
+  const bscProviderForBridging = bscProviders.length > 0 ? bscProviders[0] : null;
+  const bscBridgingInfo = bscProviderForBridging ? providerSafeInfo.get(bscProviderForBridging.id) : null;
+  const bscBridgingOwner = (bscBridgingInfo?.useSafe && bscBridgingInfo.safe) ? bscBridgingInfo.safe : null;
+
+  // Read balances for bridgeable provider (Polymarket) on source chain and bridged version
+  const bridgeableSourceAddress = (bridgeableProvider?.provider.bridgeConfig?.sourceTokenAddress ?? ZERO_ADDRESS) as Address;
+  const bridgeableChain = bridgeableProvider?.provider.bridgeConfig?.sourceChainId === polygon.id ? polygon : undefined;
+  const bridgedAddress = (bridgeableProvider?.provider.bridgeConfig?.destinationTokenAddress ?? ZERO_ADDRESS) as Address;
+
+  const { data: balBridgeableYes } = useErc1155Balance({ 
+    tokenAddress: bridgeableSourceAddress, 
+    tokenId: yesIdBridgeable, 
+    chainId: bridgeableChain?.id ?? polygon.id, 
+    ownerAddress: bridgeableOwner as `0x${string}` | null | undefined 
+  });
+  const { data: balBridgeableNo } = useErc1155Balance({ 
+    tokenAddress: bridgeableSourceAddress, 
+    tokenId: noIdBridgeable, 
+    chainId: bridgeableChain?.id ?? polygon.id, 
+    ownerAddress: bridgeableOwner as `0x${string}` | null | undefined 
+  });
   
-  const yesIdPoly = polymarketTokens?.yesTokenId ? BigInt(polymarketTokens.yesTokenId) : 0n;
-  const noIdPoly = polymarketTokens?.noTokenId ? BigInt(polymarketTokens.noTokenId) : 0n;
-  const yesIdOpinion = opinionTokens?.yesTokenId ? BigInt(opinionTokens.yesTokenId) : 0n;
-  const noIdOpinion = opinionTokens?.noTokenId ? BigInt(opinionTokens.noTokenId) : 0n;
-
-  // Determine owner addresses based on safe usage
-  const polyOwner = (usePolymarketSafe ? polymarketSafe : null) as `0x${string}` | null | undefined;
-  const bscOwner = (useOpinionSafe ? opinionSafe : null) as `0x${string}` | null | undefined;
-
-  const { data: balPolyYes } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_POLYGON_ADDRESS, tokenId: yesIdPoly, chainId: polygon.id, ownerAddress: polyOwner });
-  const { data: balPolyNo } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_POLYGON_ADDRESS, tokenId: noIdPoly, chainId: polygon.id, ownerAddress: polyOwner });
-  const { data: balOpinionYes } = useErc1155Balance({ tokenAddress: OPINION_ERC1155_ADDRESS, tokenId: yesIdOpinion, chainId: bsc.id, ownerAddress: bscOwner });
-  const { data: balOpinionNo } = useErc1155Balance({ tokenAddress: OPINION_ERC1155_ADDRESS, tokenId: noIdOpinion, chainId: bsc.id, ownerAddress: bscOwner });
-  const { data: balBridgedYes } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, tokenId: yesIdPoly, chainId: bsc.id, ownerAddress: bscOwner });
-  const { data: balBridgedNo } = useErc1155Balance({ tokenAddress: POLYGON_ERC1155_BRIDGED_BSC_ADDRESS, tokenId: noIdPoly, chainId: bsc.id, ownerAddress: bscOwner });
+  // Read bridged token balances on BSC
+  // Use the specific BSC provider's safe that's paired in this market
+  const { data: balBridgedYes } = useErc1155Balance({ 
+    tokenAddress: bridgedAddress, 
+    tokenId: yesIdBridgeable, 
+    chainId: bsc.id, 
+    ownerAddress: bscBridgingOwner as `0x${string}` | null | undefined 
+  });
+  const { data: balBridgedNo } = useErc1155Balance({ 
+    tokenAddress: bridgedAddress, 
+    tokenId: noIdBridgeable, 
+    chainId: bsc.id, 
+    ownerAddress: bscBridgingOwner as `0x${string}` | null | undefined 
+  });
 
   const [bridgeToBscYesAmt, setBridgeToBscYesAmt] = useState('');
   const [bridgeToBscNoAmt, setBridgeToBscNoAmt] = useState('');
@@ -102,18 +194,27 @@ function TokenBalances({
 
   // Helper to determine outcome type from token ID
   const getOutcomeType = (id: bigint): 'YES' | 'NO' => {
-    return id === yesIdPoly ? 'YES' : 'NO';
+    return id === yesIdBridgeable ? 'YES' : 'NO';
   };
 
   const onBridgeToBsc = async (id: bigint, amtStr: string) => {
-    if (!address) return;
-    const from = (usePolymarketSafe && polymarketSafe ? polymarketSafe : address) as `0x${string}`;
-    const to = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}`;
+    if (!address || !bridgeableProvider || !bscProviderForBridging) return;
+    
+    // Get safe info for the bridgeable provider (Polymarket - source)
+    const bridgeableSafeInfo = providerSafeInfo.get(bridgeableProvider.id);
+    const useBridgeableSafe = bridgeableSafeInfo?.useSafe && bridgeableSafeInfo.safe;
+    
+    // Get safe info for the BSC provider in this pair (Opinion/Probable - destination)
+    const bscSafeInfo = providerSafeInfo.get(bscProviderForBridging.id);
+    const useBscSafe = bscSafeInfo?.useSafe && bscSafeInfo.safe;
+    
+    const from = (useBridgeableSafe ? bridgeableSafeInfo.safe : address) as `0x${string}`;
+    const to = (useBscSafe ? bscSafeInfo.safe : address) as `0x${string}`;
     const value = parseUnits(amtStr || '0', POLYMARKET_DECIMALS);
     const outcomeType = getOutcomeType(id);
     
     // If using Safe, batch gas payment + bridge transfer
-    if (usePolymarketSafe && polymarketSafe) {
+    if (useBridgeableSafe && bridgeableSafeInfo.safe) {
       const gasPaymentAmount = polygonToBSCGas.gasFee?.feeInWei ? BigInt(polygonToBSCGas.gasFee.feeInWei) : 0n;
       console.log("gas payment amount:", gasPaymentAmount);
       
@@ -131,7 +232,7 @@ function TokenBalances({
       
       // Execute batched transaction via Safe
       const txHash = await writeContractAsync({
-        address: polymarketSafe,
+        address: bridgeableSafeInfo.safe,
         abi: GnosisSafeAbi as Abi,
         value: gasPaymentAmount,
         functionName: "execTransaction",
@@ -180,14 +281,23 @@ function TokenBalances({
   };
 
   const onBridgeToPolygon = async (id: bigint, amtStr: string) => {
-    if (!address) return;
-    const from = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}`;
-    const to = (usePolymarketSafe && polymarketSafe ? polymarketSafe : address) as `0x${string}`;
+    if (!address || !bridgeableProvider || !bscProviderForBridging) return;
+    
+    // Get safe info for destination (Polymarket on Polygon)
+    const bridgeableSafeInfo = providerSafeInfo.get(bridgeableProvider.id);
+    const useBridgeableSafe = bridgeableSafeInfo?.useSafe && bridgeableSafeInfo.safe;
+    
+    // Get safe info for source (the BSC provider in this pair - Opinion/Probable)
+    const bscSafeInfo = providerSafeInfo.get(bscProviderForBridging.id);
+    const useBscSafe = bscSafeInfo?.useSafe && bscSafeInfo.safe;
+    
+    const from = (useBscSafe ? bscSafeInfo.safe : address) as `0x${string}`;
+    const to = (useBridgeableSafe ? bridgeableSafeInfo.safe : address) as `0x${string}`;
     const value = parseUnits(amtStr || '0', POLYMARKET_DECIMALS);
     const outcomeType = getOutcomeType(id);
     
     // If using Safe, batch gas payment + bridge transfer
-    if (useOpinionSafe && opinionSafe) {
+    if (useBscSafe && bscSafeInfo.safe) {
       const gasPaymentAmount = bscToPolygonGas.gasFee?.feeInWei ? BigInt(bscToPolygonGas.gasFee.feeInWei) : 0n;
       
       const multiSendParams = createBSCToPolygonBridgeBatch({
@@ -204,7 +314,7 @@ function TokenBalances({
       
       // Execute batched transaction via Safe
       const txHash = await writeContractAsync({
-        address: opinionSafe,
+        address: bscSafeInfo.safe,
         value: gasPaymentAmount,
         abi: GnosisSafeAbi as Abi,
         functionName: "execTransaction",
@@ -255,84 +365,106 @@ function TokenBalances({
   return (
     <div className="text-xs text-white/80 space-y-3 mt-2">
       <div className="grid grid-cols-2 gap-3">
-        <BalanceItem
-          title="Polymarket YES (Polygon)"
-          balance={formatUnits(balPolyYes ?? 0n, POLYMARKET_DECIMALS).toString()}
-          action={(
-            <div className="flex flex-col gap-1">
-              <div className="flex gap-2">
-                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscYesAmt} onChange={e => setBridgeToBscYesAmt(e.target.value)} placeholder="enter amount" />
-                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(yesIdPoly, bridgeToBscYesAmt) : switchChain({ chainId: polygon.id }))} disabled={!address || bridgeToBscYesAmt==''}>
-                  {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch to Polygon'}
-                </button>
-              </div>
-              {polygonToBSCGas.gasFee && (
-                <div className="text-[10px] text-white/50">
-                  Est. gas: ~{Number(polygonToBSCGas.gasFee.feeInEther).toFixed(4)} POL
+        {/* Bridgeable provider balances (if exists) */}
+        {bridgeableProvider && (
+          <>
+            <BalanceItem
+              title={`${bridgeableProvider.provider.name} YES (${bridgeableChain?.name})`}
+              balance={formatUnits(balBridgeableYes ?? 0n, POLYMARKET_DECIMALS).toString()}
+              action={(
+                <div className="flex flex-col gap-1">
+                  <div className="flex gap-2">
+                    <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscYesAmt} onChange={e => setBridgeToBscYesAmt(e.target.value)} placeholder="enter amount" />
+                    <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bridgeableChain?.id ? onBridgeToBsc(yesIdBridgeable, bridgeToBscYesAmt) : switchChain({ chainId: bridgeableChain!.id }))} disabled={!address || bridgeToBscYesAmt==''}>
+                      {currentChainId === bridgeableChain?.id ? 'Bridge to BSC' : `Switch to ${bridgeableChain?.name}`}
+                    </button>
+                  </div>
+                  {polygonToBSCGas.gasFee && (
+                    <div className="text-[10px] text-white/50">
+                      Est. gas: ~{Number(polygonToBSCGas.gasFee.feeInEther).toFixed(4)} POL
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
-        />
-        <BalanceItem
-          title="Polymarket NO (Polygon)"
-          balance={formatUnits(balPolyNo ?? 0n, POLYMARKET_DECIMALS).toString()}
-          action={(
-            <div className="flex flex-col gap-1">
-              <div className="flex gap-2">
-                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscNoAmt} onChange={e => setBridgeToBscNoAmt(e.target.value)} placeholder="enter amount" />
-                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === polygon.id ? onBridgeToBsc(noIdPoly, bridgeToBscNoAmt) : switchChain({ chainId: polygon.id }))} disabled={!address || bridgeToBscNoAmt==''}>
-                  {currentChainId === polygon.id ? 'Bridge to BSC' : 'Switch to Polygon'}
-                </button>
-              </div>
-              {polygonToBSCGas.gasFee && (
-                <div className="text-[10px] text-white/50">
-                  Est. gas: ~{Number(polygonToBSCGas.gasFee.feeInEther).toFixed(4)} POL
+            />
+            <BalanceItem
+              title={`${bridgeableProvider.provider.name} NO (${bridgeableChain?.name})`}
+              balance={formatUnits(balBridgeableNo ?? 0n, POLYMARKET_DECIMALS).toString()}
+              action={(
+                <div className="flex flex-col gap-1">
+                  <div className="flex gap-2">
+                    <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToBscNoAmt} onChange={e => setBridgeToBscNoAmt(e.target.value)} placeholder="enter amount" />
+                    <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bridgeableChain?.id ? onBridgeToBsc(noIdBridgeable, bridgeToBscNoAmt) : switchChain({ chainId: bridgeableChain!.id }))} disabled={!address || bridgeToBscNoAmt==''}>
+                      {currentChainId === bridgeableChain?.id ? 'Bridge to BSC' : `Switch to ${bridgeableChain?.name}`}
+                    </button>
+                  </div>
+                  {polygonToBSCGas.gasFee && (
+                    <div className="text-[10px] text-white/50">
+                      Est. gas: ~{Number(polygonToBSCGas.gasFee.feeInEther).toFixed(4)} POL
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
-        />
-        <BalanceItem 
-          title="Bridged Polymarket YES (BSC)" 
-          balance={formatUnits(balBridgedYes ?? 0n, POLYMARKET_DECIMALS)}
-          action={(
-            <div className="flex flex-col gap-1">
-              <div className="flex gap-2">
-                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonYesAmt} onChange={e => setBridgeToPolygonYesAmt(e.target.value)} placeholder="enter amount" />
-                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(yesIdPoly, bridgeToPolygonYesAmt) : switchChain({ chainId: bsc.id }))} disabled={!address || bridgeToPolygonYesAmt==''}>
-                  {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch to BSC'}
-                </button>
-              </div>
-              {bscToPolygonGas.gasFee && (
-                <div className="text-[10px] text-white/50">
-                  Est. gas: ~{Number(bscToPolygonGas.gasFee.feeInEther).toFixed(4)} BNB
+            />
+            <BalanceItem 
+              title={`Bridged ${bridgeableProvider.provider.name} YES (BSC)`} 
+              balance={formatUnits(balBridgedYes ?? 0n, POLYMARKET_DECIMALS)}
+              action={(
+                <div className="flex flex-col gap-1">
+                  <div className="flex gap-2">
+                    <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonYesAmt} onChange={e => setBridgeToPolygonYesAmt(e.target.value)} placeholder="enter amount" />
+                    <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(yesIdBridgeable, bridgeToPolygonYesAmt) : switchChain({ chainId: bsc.id }))} disabled={!address || bridgeToPolygonYesAmt==''}>
+                      {currentChainId === bsc.id ? `Bridge to ${bridgeableChain?.name}` : 'Switch to BSC'}
+                    </button>
+                  </div>
+                  {bscToPolygonGas.gasFee && (
+                    <div className="text-[10px] text-white/50">
+                      Est. gas: ~{Number(bscToPolygonGas.gasFee.feeInEther).toFixed(4)} BNB
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
-        />
-        <BalanceItem 
-          title="Bridged Polymarket NO (BSC)" 
-          balance={formatUnits(balBridgedNo ?? 0n, POLYMARKET_DECIMALS)}
-          action={(
-            <div className="flex flex-col gap-1">
-              <div className="flex gap-2">
-                <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonNoAmt} onChange={e => setBridgeToPolygonNoAmt(e.target.value)} placeholder="enter amount" />
-                <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(noIdPoly, bridgeToPolygonNoAmt) : switchChain({ chainId: bsc.id }))} disabled={!address || bridgeToPolygonNoAmt==''}>
-                  {currentChainId === bsc.id ? 'Bridge to Polygon' : 'Switch to BSC'}
-                </button>
-              </div>
-              {bscToPolygonGas.gasFee && (
-                <div className="text-[10px] text-white/50">
-                  Est. gas: ~{Number(bscToPolygonGas.gasFee.feeInEther).toFixed(4)} BNB
+            />
+            <BalanceItem 
+              title={`Bridged ${bridgeableProvider.provider.name} NO (BSC)`} 
+              balance={formatUnits(balBridgedNo ?? 0n, POLYMARKET_DECIMALS)}
+              action={(
+                <div className="flex flex-col gap-1">
+                  <div className="flex gap-2">
+                    <input className="w-20 sm:w-24 rounded bg-black/40 px-2 py-1 text-white/80 border border-white/10" value={bridgeToPolygonNoAmt} onChange={e => setBridgeToPolygonNoAmt(e.target.value)} placeholder="enter amount" />
+                    <button className="rounded bg-primary/20 px-2 py-1 border border-primary/40 text-xs" onClick={() => (currentChainId === bsc.id ? onBridgeToPolygon(noIdBridgeable, bridgeToPolygonNoAmt) : switchChain({ chainId: bsc.id }))} disabled={!address || bridgeToPolygonNoAmt==''}>
+                      {currentChainId === bsc.id ? `Bridge to ${bridgeableChain?.name}` : 'Switch to BSC'}
+                    </button>
+                  </div>
+                  {bscToPolygonGas.gasFee && (
+                    <div className="text-[10px] text-white/50">
+                      Est. gas: ~{Number(bscToPolygonGas.gasFee.feeInEther).toFixed(4)} BNB
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
-        />
-        <BalanceItem title="Opinion YES (BSC)" balance={formatUnits(balOpinionYes ?? 0n, OPINION_DECIMALS)} />
-        <BalanceItem title="Opinion NO (BSC)" balance={formatUnits(balOpinionNo ?? 0n, OPINION_DECIMALS)} />
+            />
+          </>
+        )}
+        
+        {/* BSC provider balances - dynamically show all BSC providers in the market */}
+        {bscProviders.map((bscProv) => {
+          const tokens = market.providerTokenIds.get(bscProv.id);
+          const safeInfo = providerSafeInfo.get(bscProv.id);
+          const safeOwner = (safeInfo?.useSafe && safeInfo.safe) ? safeInfo.safe : null;
+          
+          return (
+            <BscProviderBalances
+              key={bscProv.id}
+              providerId={bscProv.id}
+              providerName={bscProv.provider.name}
+              decimals={bscProv.provider.decimals}
+              tokenAddress={bscProv.provider.erc1155Address as Address}
+              tokens={tokens ?? null}
+              safeOwner={safeOwner}
+            />
+          );
+        })}
         
         {/* Dynamic Pending Bridges with Status */}
         {isStatusLoading && pendingBridges.length > 0 && (
@@ -340,19 +472,19 @@ function TokenBalances({
             Checking bridge statuses...
           </div>
         )}
-        {transactionsWithStatus.map((bridge, idx) => {
+        {bridgeableProvider && transactionsWithStatus.map((bridge, idx) => {
           // Get token IDs from provider data to determine if this is a YES or NO token
-          const polymarketTokens = market.providerTokenIds.get('polymarket');
-          const isYes = polymarketTokens && bridge.tokenId === polymarketTokens.yesTokenId;
+          const bridgeableTokens = market.providerTokenIds.get(bridgeableProvider.id);
+          const isYes = bridgeableTokens && bridge.tokenId === bridgeableTokens.yesTokenId;
           const outcomeType = isYes ? 'YES' : 'NO';
-          const directionText = bridge.direction === 'polygon-to-bsc' ? 'Polygon → BSC' : 'BSC → Polygon';
+          const directionText = bridge.direction === 'polygon-to-bsc' ? `${bridgeableChain?.name} → BSC` : `BSC → ${bridgeableChain?.name}`;
           const statusText = getStatusText(bridge.status);
           const buttonStyle = getStatusButtonStyle(bridge.status);
           
           return (
             <BalanceItem 
               key={`${bridge.transactionHash}-${idx}`}
-              title={`Polymarket ${outcomeType} Pending (${directionText})`} 
+              title={`${bridgeableProvider.provider.name} ${outcomeType} Pending (${directionText})`} 
               balance={formatUnits(BigInt(bridge.amount), POLYMARKET_DECIMALS)}
               action={
                 <button 
@@ -368,7 +500,7 @@ function TokenBalances({
         })}
       </div>
       <div className="text-white/50">
-        {(usePolymarketSafe && polymarketSafe) || (useOpinionSafe && opinionSafe) 
+        {providerSafeInfo.size > 0 && Array.from(providerSafeInfo.values()).some(info => info.useSafe && info.safe)
           ? "Note: Safe transactions automatically batch gas payment + bridge transfer"
           : "Note: Bridging requires calling bridge function and then calling complete bridge to pay gas fees"}
       </div>
@@ -389,15 +521,24 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
   const { writeContract } = useWriteContract();
   
   const { getSafeForProvider, shouldUseSafeFor, writeBsc } = safeInfo;
+  
+  // Determine which BSC provider to use for safe
+  // Check both opinion and probable, prefer the one that has a safe
   const opinionSafe = getSafeForProvider('opinion');
+  const probableSafe = getSafeForProvider('probable');
   const useOpinionSafe = shouldUseSafeFor('opinion');
+  const useProbableSafe = shouldUseSafeFor('probable');
+  
+  // Use whichever safe is available and selected (prioritize opinion for backward compatibility)
+  const bscSafe = (useOpinionSafe && opinionSafe) ? opinionSafe : (useProbableSafe && probableSafe) ? probableSafe : null;
+  const useBscSafe = useOpinionSafe || useProbableSafe;
 
   const idA = BigInt(pair.outcomeIdA);
   const idB = BigInt(pair.outcomeIdB);
   
   // Use safe address for balance reads if applicable
-  const bscOwner = (useOpinionSafe ? opinionSafe : null) as `0x${string}` | null | undefined;
-  const ownerAddress = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}` | undefined;
+  const bscOwner = (useBscSafe && bscSafe ? bscSafe : null) as `0x${string}` | null | undefined;
+  const ownerAddress = (useBscSafe && bscSafe ? bscSafe : address) as `0x${string}` | undefined;
   
   const { data: balA } = useErc1155Balance({ tokenAddress: pair.outcomeTokenA as Address, tokenId: idA, chainId: bsc.id, ownerAddress: bscOwner });
   const { data: balB } = useErc1155Balance({ tokenAddress: pair.outcomeTokenB as Address, tokenId: idB, chainId: bsc.id, ownerAddress: bscOwner });
@@ -481,10 +622,10 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
     }
     if (!enough) return;
     
-    const recipient = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}`;
+    const recipient = (useBscSafe && bscSafe ? bscSafe : address) as `0x${string}`;
     
     // If using Safe, batch everything
-    if (useOpinionSafe && opinionSafe) {
+    if (useBscSafe && bscSafe) {
       const multiSendParams = createMergeBatchWithApprovals({
         tokenA: pair.outcomeTokenA as Address,
         tokenB: pair.outcomeTokenB as Address,
@@ -499,7 +640,7 @@ function PairMergeAction({ pair, idx, amount, onInputChange, safeInfo }: {
       const signatures = generateSingleOwnerSignature(address);
       
       await writeContract({
-        address: opinionSafe,
+        address: bscSafe,
         abi: GnosisSafeAbi as Abi,
         functionName: "execTransaction",
         args: [
@@ -619,15 +760,23 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
   const { writeContract } = useWriteContract();
   
   const { getSafeForProvider, shouldUseSafeFor, writeBsc } = safeInfo;
+  
+  // Determine which BSC provider to use for safe
   const opinionSafe = getSafeForProvider('opinion');
+  const probableSafe = getSafeForProvider('probable');
   const useOpinionSafe = shouldUseSafeFor('opinion');
+  const useProbableSafe = shouldUseSafeFor('probable');
+  
+  // Use whichever safe is available and selected
+  const bscSafe = (useOpinionSafe && opinionSafe) ? opinionSafe : (useProbableSafe && probableSafe) ? probableSafe : null;
+  const useBscSafe = useOpinionSafe || useProbableSafe;
 
   const idA = BigInt(pair.outcomeIdA);
   const idB = BigInt(pair.outcomeIdB);
   const amountUsdt = parseUnits(amount || '0', 18);
 
   // Use safe address for USDT balance if applicable
-  const bscOwner = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}` | undefined;
+  const bscOwner = (useBscSafe && bscSafe ? bscSafe : address) as `0x${string}` | undefined;
   const { data: usdtBal } = useBalance({ address: bscOwner, chainId: bsc.id, token: USDT_ADDRESS });
   const enoughUsdt = (usdtBal?.value ?? 0n) >= amountUsdt;
   const usdtBalFormatted = formatUnits(usdtBal?.value ?? 0n, 18);
@@ -680,10 +829,10 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
     }
     if (!enoughUsdt) return;
     
-    const recipient = (useOpinionSafe && opinionSafe ? opinionSafe : address) as `0x${string}`;
+    const recipient = (useBscSafe && bscSafe ? bscSafe : address) as `0x${string}`;
     
     // If using Safe, batch approve + split
-    if (useOpinionSafe && opinionSafe) {
+    if (useBscSafe && bscSafe) {
       const multiSendParams = createSplitBatchWithApproval({
         usdtToken: USDT_ADDRESS,
         amountUsdt,
@@ -698,7 +847,7 @@ function PairSplitAction({ pair, idx, amount, onInputChange, safeInfo }: {
       const signatures = generateSingleOwnerSignature(address);
       
       await writeContract({
-        address: opinionSafe,
+        address: bscSafe,
         abi: GnosisSafeAbi as Abi,
         functionName: "execTransaction",
         args: [
@@ -1092,11 +1241,15 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
     isLoading: isSafeLoading
   } = useSafeAddresses(address);
   
-  // Get Safe addresses for display
-  const polymarketSafe = getSafeForProvider('polymarket');
-  const opinionSafe = getSafeForProvider('opinion');
-  const usePolymarketSafe = shouldUseSafeFor('polymarket');
-  const useOpinionSafe = shouldUseSafeFor('opinion');
+  // Get Safe addresses for all providers dynamically
+  const allProviders = providerRegistry.getAll();
+  const detectedSafes = allProviders
+    .map(provider => ({
+      provider,
+      safeAddress: getSafeForProvider(provider.id),
+      useSafe: shouldUseSafeFor(provider.id),
+    }))
+    .filter(item => item.safeAddress !== null);
   
   // Fetch pending bridges for all addresses (user EOA + safe addresses if they exist)
   const { data: allPendingBridges = [] } = usePendingBridgeTransactions(
@@ -1105,13 +1258,21 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
     isSafeLoading
   );
   
-  // Use safe write hooks
+  // Use safe write hooks - get safe addresses for polygon and bsc chains
+  const polygonSafe = getSafeForProvider('polymarket'); // Only polymarket uses Polygon
+  const usePolygonSafe = shouldUseSafeFor('polymarket');
+  
+  // For BSC, we need to check which provider's safe to use (opinion or probable)
+  // Since multiple providers can be on BSC, we'll use opinion as default for now
+  const bscSafe = getSafeForProvider('opinion'); 
+  const useBscSafe = shouldUseSafeFor('opinion');
+  
   const { write: writePolygon } = useSafeWrite({ 
-    safeAddress: usePolymarketSafe ? polymarketSafe : null, 
+    safeAddress: usePolygonSafe ? polygonSafe : null, 
     chainId: polygon.id 
   });
   const { write: writeBsc } = useSafeWrite({ 
-    safeAddress: useOpinionSafe ? opinionSafe : null, 
+    safeAddress: useBscSafe ? bscSafe : null, 
     chainId: bsc.id 
   });
 
@@ -1235,46 +1396,27 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
         )}
 
         {/* Safe Detection Notices */}
-        {!isLoading && !error && markets.length > 0 && (polymarketSafe || opinionSafe) && (
+        {!isLoading && !error && markets.length > 0 && detectedSafes.length > 0 && (
           <div className="space-y-3 mt-5">
-            {polymarketSafe && (
-              <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-4">
+            {detectedSafes.map(({ provider, safeAddress, useSafe }) => (
+              <div key={provider.id} className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-4">
                 <div className="flex flex-col md:flex-row items-center justify-between">
                   <div>
-                    <div className="font-medium text-blue-400">Polymarket Account (Gnosis Safe) Detected</div>
-                    <div className="text-xs text-white/60 mt-1">Address: {polymarketSafe}</div>
+                    <div className="font-medium text-blue-400">{provider.name} Account (Gnosis Safe) Detected</div>
+                    <div className="text-xs text-white/60 mt-1">Address: {safeAddress}</div>
                     <div className="text-xs text-white/60">
-                      {usePolymarketSafe ? 'Using Safe for transactions' : 'Using EOA for transactions'}
+                      {useSafe ? 'Using Safe for transactions' : 'Using EOA for transactions'}
                     </div>
                   </div>
                   <button
                     className="rounded bg-blue-500/20 px-3 py-1.5 border border-blue-500/40 text-xs hover:bg-blue-500/30"
-                    onClick={() => setUseSafeFor('polymarket', !usePolymarketSafe)}
+                    onClick={() => setUseSafeFor(provider.id, !useSafe)}
                   >
-                    {usePolymarketSafe ? 'Switch to EOA' : 'Switch to Safe'}
+                    {useSafe ? 'Switch to EOA' : 'Switch to Safe'}
                   </button>
                 </div>
               </div>
-            )}
-            {opinionSafe && (
-              <div className="rounded-lg bg-blue-500/10 border border-blue-500/30 p-4">
-                <div className="flex flex-col md:flex-row items-center justify-between">
-                  <div>
-                    <div className="font-medium text-blue-400">Opinion Account (Gnosis Safe) Detected</div>
-                    <div className="text-xs text-white/60 mt-1">Address: {opinionSafe}</div>
-                    <div className="text-xs text-white/60">
-                      {useOpinionSafe ? 'Using Safe for transactions' : 'Using EOA for transactions'}
-                    </div>
-                  </div>
-                  <button
-                    className="rounded bg-blue-500/20 px-3 py-1.5 border border-blue-500/40 text-xs hover:bg-blue-500/30"
-                    onClick={() => setUseSafeFor('opinion', !useOpinionSafe)}
-                  >
-                    {useOpinionSafe ? 'Switch to EOA' : 'Switch to Safe'}
-                  </button>
-                </div>
-              </div>
-            )}
+            ))}
           </div>
         )}
 
