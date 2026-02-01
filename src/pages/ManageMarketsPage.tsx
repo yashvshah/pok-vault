@@ -8,16 +8,12 @@ import EarlyExitVaultABI from "../abi/EarlyExitVault.json";
 import EarlyExitAmountBasedOnFixedAPYConfigurableABI from "../abi/EarlyExitAmountBasedOnFixedAPYConfigurable.json";
 import EarlyExitAmountFactoryBasedOnFixedAPYConfigurableABI from "../abi/EarlyExitAmountFactoryBasedOnFixedAPYConfigurableABI.json";
 import { providerRegistry } from "../services/providers";
-import { getPolymarketBySlug } from "../services/providers/polymarketProvider";
 import ProviderPairSelector from "../components/ProviderPairSelector";
 import { generateProviderPairs } from "../utils/providerPairs";
+import { fetchProviderMarket, type ProviderMarketInfo } from "../utils/providerMarketFetch";
 import {
   VAULT_ADDRESS,
   EARLY_EXIT_FACTORY_ADDRESS,
-  POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
-  OPINION_ERC1155_ADDRESS,
-  POLYMARKET_DECIMALS,
-  OPINION_DECIMALS,
 } from "../config/addresses";
 import { useAtomicBatch } from "../hooks/useAtomicBatch";
 import BatchExecutor from "../components/BatchExecutor";
@@ -32,31 +28,10 @@ interface OppositeOutcomeTokensInfo {
 }
 
 interface MarketInputData {
-  polymarketId: string;
-  opinionId: string;
-  polymarketInfo?: {
-    question: string;
-    yesTokenId: string;
-    noTokenId: string;
-    image?: string;
-    endDate?: string;
-  };
-  opinionInfo?: {
-    question: string;
-    yesTokenId: string;
-    noTokenId: string;
-    thumbnailUrl?: string;
-    parentThumbnailUrl?: string; // Store parent thumbnail for categorical markets
-    childMarkets?: Array<{
-      marketId: number;
-      marketTitle: string;
-      status: number;
-      yesTokenId: string;
-      noTokenId: string;
-    }>;
-    selectedChildMarketId?: number;
-    isCategorical?: boolean;
-  };
+  provider1Id: string;
+  provider2Id: string;
+  provider1Info?: ProviderMarketInfo;
+  provider2Info?: ProviderMarketInfo;
 }
 
 const ManageMarketsPage: FunctionComponent = () => {
@@ -77,8 +52,13 @@ const ManageMarketsPage: FunctionComponent = () => {
     navigate(`/manage-markets/${pairId}`);
   };
   
-  const [polymarketId, setPolymarketId] = useState("");
-  const [opinionId, setOpinionId] = useState("");
+  // Parse selected provider pair to get individual providers
+  const [provider1Id, provider2Id] = selectedProviderPair.split('-');
+  const provider1 = providerRegistry.getById(provider1Id);
+  const provider2 = providerRegistry.getById(provider2Id);
+  
+  const [inputValue1, setInputValue1] = useState("");
+  const [inputValue2, setInputValue2] = useState("");
   const [fetchedMarket, setFetchedMarket] = useState<MarketInputData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [earlyExitContractAddress, setEarlyExitContractAddress] = useState("");
@@ -101,28 +81,29 @@ const ManageMarketsPage: FunctionComponent = () => {
     clearCalls,
   } = useAtomicBatch(bsc.id);
 
-  // Handler for selecting a child market
-  const handleSelectChildMarket = (childMarketId: number) => {
-    if (!fetchedMarket?.opinionInfo?.childMarkets) return;
+  // Handler for selecting a child market (for providers that support it)
+  const handleSelectChildMarket = (providerKey: 'provider1Info' | 'provider2Info', childMarketId: number) => {
+    if (!fetchedMarket) return;
     
-    const selectedChild = fetchedMarket.opinionInfo.childMarkets.find(
+    const providerInfo = fetchedMarket[providerKey];
+    if (!providerInfo?.childMarkets) return;
+    
+    const selectedChild = providerInfo.childMarkets.find(
       (child) => child.marketId === childMarketId
     );
     
     if (!selectedChild) return;
     
     // Combine parent title + child title for the question
-    const combinedQuestion = `${fetchedMarket.opinionInfo.question} - ${selectedChild.marketTitle}`;
+    const combinedQuestion = `${providerInfo.question} - ${selectedChild.marketTitle}`;
     
     // Use parent thumbnail if this is a categorical market
-    const thumbnailToUse = fetchedMarket.opinionInfo.parentThumbnailUrl || fetchedMarket.opinionInfo.thumbnailUrl;
+    const thumbnailToUse = providerInfo.parentThumbnailUrl || providerInfo.thumbnailUrl;
     
     setFetchedMarket({
       ...fetchedMarket,
-      // Update opinionId to use child's marketId for categorical markets
-      opinionId: fetchedMarket.opinionInfo.isCategorical ? String(childMarketId) : fetchedMarket.opinionId,
-      opinionInfo: {
-        ...fetchedMarket.opinionInfo,
+      [providerKey]: {
+        ...providerInfo,
         question: combinedQuestion,
         yesTokenId: selectedChild.yesTokenId,
         noTokenId: selectedChild.noTokenId,
@@ -217,14 +198,14 @@ const ManageMarketsPage: FunctionComponent = () => {
     }
   };
 
-  // Calculate hash for YES Poly + NO Opinion pair
-  const yesPolyNoOpinionHash = fetchedMarket?.polymarketInfo?.yesTokenId && fetchedMarket?.opinionInfo?.noTokenId
+  // Calculate hash for YES Provider1 + NO Provider2 pair
+  const yesP1NoP2Hash = fetchedMarket?.provider1Info?.yesTokenId && fetchedMarket?.provider2Info?.noTokenId && provider1 && provider2
     ? (() => {
         const [[addr1, id1], [addr2, id2]] = getSortedTokenPair(
-          POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
-          fetchedMarket.polymarketInfo.yesTokenId,
-          OPINION_ERC1155_ADDRESS,
-          fetchedMarket.opinionInfo.noTokenId
+          provider1.erc1155Address,
+          fetchedMarket.provider1Info.yesTokenId,
+          provider2.erc1155Address,
+          fetchedMarket.provider2Info.noTokenId
         );
         return keccak256(
           encodePacked(
@@ -235,14 +216,14 @@ const ManageMarketsPage: FunctionComponent = () => {
       })()
     : undefined;
 
-  // Calculate hash for NO Poly + YES Opinion pair
-  const noPolyYesOpinionHash = fetchedMarket?.polymarketInfo?.noTokenId && fetchedMarket?.opinionInfo?.yesTokenId
+  // Calculate hash for NO Provider1 + YES Provider2 pair
+  const noP1YesP2Hash = fetchedMarket?.provider1Info?.noTokenId && fetchedMarket?.provider2Info?.yesTokenId && provider1 && provider2
     ? (() => {
         const [[addr1, id1], [addr2, id2]] = getSortedTokenPair(
-          POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
-          fetchedMarket.polymarketInfo.noTokenId,
-          OPINION_ERC1155_ADDRESS,
-          fetchedMarket.opinionInfo.yesTokenId
+          provider1.erc1155Address,
+          fetchedMarket.provider1Info.noTokenId,
+          provider2.erc1155Address,
+          fetchedMarket.provider2Info.yesTokenId
         );
         return keccak256(
           encodePacked(
@@ -253,133 +234,73 @@ const ManageMarketsPage: FunctionComponent = () => {
       })()
     : undefined;
 
-  // Read contract data for YES Poly + NO Opinion
-  const { data: yesPolyNoOpinionRawData } = useReadContract({
+  // Read contract data for YES P1 + NO P2
+  const { data: yesP1NoP2RawData } = useReadContract({
     address: VAULT_ADDRESS,
     abi: EarlyExitVaultABI,
     functionName: "allowedOppositeOutcomeTokensInfo",
-    args: yesPolyNoOpinionHash ? [yesPolyNoOpinionHash] : undefined,
+    args: yesP1NoP2Hash ? [yesP1NoP2Hash] : undefined,
     query: {
-      enabled: !!yesPolyNoOpinionHash,
+      enabled: !!yesP1NoP2Hash,
     },
   }) as { data: readonly [boolean, boolean, number, number, string, bigint] | undefined };
 
   // Map array response to structured object
-  const yesPolyNoOpinionInfo: OppositeOutcomeTokensInfo | undefined = yesPolyNoOpinionRawData
+  const yesP1NoP2Info: OppositeOutcomeTokensInfo | undefined = yesP1NoP2RawData
     ? {
-        isAllowed: yesPolyNoOpinionRawData[0],
-        isPaused: yesPolyNoOpinionRawData[1],
-        decimalsA: yesPolyNoOpinionRawData[2],
-        decimalsB: yesPolyNoOpinionRawData[3],
-        earlyExitAmountContract: yesPolyNoOpinionRawData[4],
-        earlyExitedAmount: yesPolyNoOpinionRawData[5],
+        isAllowed: yesP1NoP2RawData[0],
+        isPaused: yesP1NoP2RawData[1],
+        decimalsA: yesP1NoP2RawData[2],
+        decimalsB: yesP1NoP2RawData[3],
+        earlyExitAmountContract: yesP1NoP2RawData[4],
+        earlyExitedAmount: yesP1NoP2RawData[5],
       }
     : undefined;
 
-  // Read contract data for NO Poly + YES Opinion
-  const { data: noPolyYesOpinionRawData } = useReadContract({
+  // Read contract data for NO P1 + YES P2
+  const { data: noP1YesP2RawData } = useReadContract({
     address: VAULT_ADDRESS,
     abi: EarlyExitVaultABI,
     functionName: "allowedOppositeOutcomeTokensInfo",
-    args: noPolyYesOpinionHash ? [noPolyYesOpinionHash] : undefined,
+    args: noP1YesP2Hash ? [noP1YesP2Hash] : undefined,
     query: {
-      enabled: !!noPolyYesOpinionHash,
+      enabled: !!noP1YesP2Hash,
     },
   }) as { data: readonly [boolean, boolean, number, number, string, bigint] | undefined };
 
   // Map array response to structured object
-  const noPolyYesOpinionInfo: OppositeOutcomeTokensInfo | undefined = noPolyYesOpinionRawData
+  const noP1YesP2Info: OppositeOutcomeTokensInfo | undefined = noP1YesP2RawData
     ? {
-        isAllowed: noPolyYesOpinionRawData[0],
-        isPaused: noPolyYesOpinionRawData[1],
-        decimalsA: noPolyYesOpinionRawData[2],
-        decimalsB: noPolyYesOpinionRawData[3],
-        earlyExitAmountContract: noPolyYesOpinionRawData[4],
-        earlyExitedAmount: noPolyYesOpinionRawData[5],
+        isAllowed: noP1YesP2RawData[0],
+        isPaused: noP1YesP2RawData[1],
+        decimalsA: noP1YesP2RawData[2],
+        decimalsB: noP1YesP2RawData[3],
+        earlyExitAmountContract: noP1YesP2RawData[4],
+        earlyExitedAmount: noP1YesP2RawData[5],
       }
     : undefined;
-
-  const fetchPolymarketInfo = async (slug: string) => {
-    try {
-      const market = await getPolymarketBySlug(slug);
-      
-      if (!market) {
-        throw new Error("Failed to fetch Polymarket market data");
-      }
-
-      return {
-        question: market.question,
-        yesTokenId: market.yesTokenId,
-        noTokenId: market.noTokenId,
-        image: market.thumbnailUrl,
-        endDate: market.endDate,
-      };
-    } catch (error) {
-      console.error("Error fetching Polymarket info:", error);
-      throw error;
-    }
-  };
-
-  const fetchOpinionInfo = async (marketId: string) => {
-    try {
-      const opinionProvider = providerRegistry.getById('opinion');
-      if (!opinionProvider) {
-        throw new Error("Opinion provider not registered");
-      }
-      
-      const opinionData = await opinionProvider.getMarketById(marketId);
-      
-      if (!opinionData) {
-        throw new Error("Failed to fetch Opinion market data");
-      }
-
-      // Access rawData for Opinion-specific fields
-      const rawData = opinionData.rawData as {
-        childMarkets?: Array<{
-          marketId: number;
-          marketTitle: string;
-          status: number;
-          yesTokenId: string;
-          noTokenId: string;
-        }>;
-        parentThumbnailUrl?: string;
-        isCategorical?: boolean;
-      } | undefined;
-
-      const hasChildMarkets = rawData?.childMarkets && rawData.childMarkets.length > 0;
-
-      return {
-        question: opinionData.question,
-        yesTokenId: opinionData.yesTokenId,
-        noTokenId: opinionData.noTokenId,
-        thumbnailUrl: opinionData.thumbnailUrl,
-        parentThumbnailUrl: rawData?.parentThumbnailUrl,
-        isCategorical: rawData?.isCategorical,
-        childMarkets: hasChildMarkets ? rawData?.childMarkets : undefined,
-      };
-    } catch (error) {
-      console.error("Error fetching Opinion info:", error);
-      throw error;
-    }
-  };
 
   const handleFetchMarkets = async () => {
-    if (!polymarketId || !opinionId) {
+    if (!inputValue1 || !inputValue2 || !provider1 || !provider2) {
       return;
     }
 
     setIsLoading(true);
     try {
-      const [polyInfo, opinionInfo] = await Promise.all([
-        fetchPolymarketInfo(polymarketId),
-        fetchOpinionInfo(opinionId),
+      const [provider1Info, provider2Info] = await Promise.all([
+        fetchProviderMarket(provider1, inputValue1),
+        fetchProviderMarket(provider2, inputValue2),
       ]);
 
+      if (!provider1Info || !provider2Info) {
+        throw new Error("Failed to fetch market data");
+      }
+
       setFetchedMarket({
-        polymarketId,
-        opinionId,
-        polymarketInfo: polyInfo,
-        opinionInfo: opinionInfo,
+        provider1Id: provider1.id,
+        provider2Id: provider2.id,
+        provider1Info,
+        provider2Info,
       });
     } catch (error) {
       console.error("Error fetching market info:", error);
@@ -424,19 +345,19 @@ const ManageMarketsPage: FunctionComponent = () => {
     }
   };
 
-  const handleAllowYesPolyNoOpinion = () => {
-    if (!fetchedMarket || !earlyExitContractAddress) return;
+  const handleAllowYesP1NoP2 = () => {
+    if (!fetchedMarket || !earlyExitContractAddress || !provider1 || !provider2) return;
     
     const [[addr1, id1], [addr2, id2]] = getSortedTokenPair(
-      POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
-      fetchedMarket.polymarketInfo!.yesTokenId,
-      OPINION_ERC1155_ADDRESS,
-      fetchedMarket.opinionInfo!.noTokenId
+      provider1.erc1155Address,
+      fetchedMarket.provider1Info!.yesTokenId,
+      provider2.erc1155Address,
+      fetchedMarket.provider2Info!.noTokenId
     );
 
     // Determine decimals based on which token is first after sorting
-    const decimals1 = addr1.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
-    const decimals2 = addr2.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
+    const decimals1 = addr1.toLowerCase() === provider1.erc1155Address.toLowerCase() ? provider1.decimals : provider2.decimals;
+    const decimals2 = addr2.toLowerCase() === provider1.erc1155Address.toLowerCase() ? provider1.decimals : provider2.decimals;
 
     const args = [
       addr1,
@@ -458,7 +379,7 @@ const ManageMarketsPage: FunctionComponent = () => {
       addCall({
         to: VAULT_ADDRESS as Address,
         data: data as `0x${string}`,
-        description: `Allow YES Poly + NO Opinion`,
+        description: `Allow YES ${provider1.name} + NO ${provider2.name}`,
       });
     } else {
       writeContract({
@@ -470,19 +391,19 @@ const ManageMarketsPage: FunctionComponent = () => {
     }
   };
 
-  const handleAllowNoPolyYesOpinion = () => {
-    if (!fetchedMarket || !earlyExitContractAddress) return;
+  const handleAllowNoP1YesP2 = () => {
+    if (!fetchedMarket || !earlyExitContractAddress || !provider1 || !provider2) return;
     
     const [[addr1, id1], [addr2, id2]] = getSortedTokenPair(
-      POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
-      fetchedMarket.polymarketInfo!.noTokenId,
-      OPINION_ERC1155_ADDRESS,
-      fetchedMarket.opinionInfo!.yesTokenId
+      provider1.erc1155Address,
+      fetchedMarket.provider1Info!.noTokenId,
+      provider2.erc1155Address,
+      fetchedMarket.provider2Info!.yesTokenId
     );
 
     // Determine decimals based on which token is first after sorting
-    const decimals1 = addr1.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
-    const decimals2 = addr2.toLowerCase() === POLYGON_ERC1155_BRIDGED_BSC_ADDRESS.toLowerCase() ? POLYMARKET_DECIMALS : OPINION_DECIMALS;
+    const decimals1 = addr1.toLowerCase() === provider1.erc1155Address.toLowerCase() ? provider1.decimals : provider2.decimals;
+    const decimals2 = addr2.toLowerCase() === provider1.erc1155Address.toLowerCase() ? provider1.decimals : provider2.decimals;
 
     const args = [
       addr1,
@@ -504,7 +425,7 @@ const ManageMarketsPage: FunctionComponent = () => {
       addCall({
         to: VAULT_ADDRESS as Address,
         data: data as `0x${string}`,
-        description: `Allow NO Poly + YES Opinion`,
+        description: `Allow NO ${provider1.name} + YES ${provider2.name}`,
       });
     } else {
       writeContract({
@@ -538,26 +459,26 @@ const ManageMarketsPage: FunctionComponent = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-white/80 mb-2">
-                Polymarket Market Slug
+                {provider1?.name || 'Provider 1'} {provider1?.inputType === 'slug' ? 'Market Slug' : 'Market ID'}
               </label>
               <input
                 type="text"
-                value={polymarketId}
-                onChange={(e) => setPolymarketId(e.target.value)}
-                placeholder="e.g., fed-decreases-interest-rates-by-50-bps"
+                value={inputValue1}
+                onChange={(e) => setInputValue1(e.target.value)}
+                placeholder={provider1?.inputPlaceholder || 'Enter market identifier'}
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-black/30 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-primary"
               />
             </div>
             
             <div>
               <label className="block text-sm font-medium text-white/80 mb-2">
-                Opinion Market ID
+                {provider2?.name || 'Provider 2'} {provider2?.inputType === 'slug' ? 'Market Slug' : 'Market ID'}
               </label>
               <input
                 type="text"
-                value={opinionId}
-                onChange={(e) => setOpinionId(e.target.value)}
-                placeholder="Enter Opinion market ID"
+                value={inputValue2}
+                onChange={(e) => setInputValue2(e.target.value)}
+                placeholder={provider2?.inputPlaceholder || 'Enter market identifier'}
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-black/30 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:border-primary"
               />
             </div>
@@ -565,7 +486,7 @@ const ManageMarketsPage: FunctionComponent = () => {
 
           <button
             onClick={handleFetchMarkets}
-            disabled={!polymarketId || !opinionId || isLoading}
+            disabled={!inputValue1 || !inputValue2 || isLoading}
             className="w-full py-3 rounded-lg bg-primary hover:bg-primary/80 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-medium transition-colors"
           >
             {isLoading ? "Fetching Market Info..." : "Fetch Market Info"}
@@ -577,57 +498,37 @@ const ManageMarketsPage: FunctionComponent = () => {
               <h3 className="text-lg sm:text-xl font-semibold mb-4">Market Information</h3>
               
               <div className="space-y-4 mb-6">
+                {/* Provider 1 Market Info */}
                 <div>
                   <div className="flex items-start gap-4 mb-3">
-                    {fetchedMarket.polymarketInfo?.image && (
+                    {fetchedMarket.provider1Info?.thumbnailUrl && (
                       <img 
-                        src={fetchedMarket.polymarketInfo.image} 
-                        alt="Polymarket" 
+                        src={fetchedMarket.provider1Info.thumbnailUrl} 
+                        alt={provider1?.name} 
                         className="w-16 h-16 rounded-lg object-cover"
                       />
                     )}
                     <div className="flex-1">
-                      <h4 className="text-sm font-medium text-primary mb-2">Polymarket</h4>
-                      <p className="text-white/80 mb-1">{fetchedMarket.polymarketInfo?.question}</p>
+                      <h4 className="text-sm font-medium text-primary mb-2">{provider1?.name || 'Provider 1'}</h4>
+                      <p className="text-white/80 mb-1">{fetchedMarket.provider1Info?.question}</p>
                     </div>
                   </div>
                   <div className="text-sm text-white/60 space-y-1">
-                    {fetchedMarket.polymarketInfo?.endDate && (
-                      <p className="text-white/70 mb-2">
-                        <span className="font-semibold">End Date:</span> {new Date(fetchedMarket.polymarketInfo.endDate).toLocaleString()}
-                      </p>
-                    )}
-                    <p className="font-mono break-all">YES Token ID: {fetchedMarket.polymarketInfo?.yesTokenId}</p>
-                    <p className="font-mono break-all">NO Token ID: {fetchedMarket.polymarketInfo?.noTokenId}</p>
-                  </div>
-                </div>
-
-                <div className="border-t border-white/10 pt-4">
-                  <div className="flex items-start gap-4 mb-3">
-                    {fetchedMarket.opinionInfo?.thumbnailUrl && (
-                      <img 
-                        src={fetchedMarket.opinionInfo.thumbnailUrl} 
-                        alt="Opinion" 
-                        className="w-16 h-16 rounded-lg object-cover"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <h4 className="text-sm font-medium text-purple-400 mb-2">Opinion</h4>
-                      <p className="text-white/80 mb-1">{fetchedMarket.opinionInfo?.question}</p>
-                    </div>
+                    <p className="font-mono break-all">YES Token ID: {fetchedMarket.provider1Info?.yesTokenId}</p>
+                    <p className="font-mono break-all">NO Token ID: {fetchedMarket.provider1Info?.noTokenId}</p>
                   </div>
 
-                  {/* Child Markets Selection */}
-                  {fetchedMarket.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId && (
-                    <div className="mb-4 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+                  {/* Child Markets Selection for Provider 1 */}
+                  {provider1?.supportsChildMarkets && fetchedMarket.provider1Info?.childMarkets && fetchedMarket.provider1Info.childMarkets.length > 0 && !fetchedMarket.provider1Info.selectedChildMarketId && (
+                    <div className="mt-4 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
                       <p className="text-yellow-400 text-sm font-medium mb-3">
                         ⚠️ This is a categorical market. Please select a submarket:
                       </p>
                       <div className="space-y-2 max-h-60 overflow-y-auto">
-                        {fetchedMarket.opinionInfo.childMarkets.map((child) => (
+                        {fetchedMarket.provider1Info.childMarkets.map((child) => (
                           <button
                             key={child.marketId}
-                            onClick={() => handleSelectChildMarket(child.marketId)}
+                            onClick={() => handleSelectChildMarket('provider1Info', child.marketId)}
                             className="w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-black/30 hover:bg-black/50 border border-white/10 hover:border-primary/50 transition-all"
                           >
                             <div className="flex justify-between items-start">
@@ -645,15 +546,66 @@ const ManageMarketsPage: FunctionComponent = () => {
                     </div>
                   )}
 
-                  {fetchedMarket.opinionInfo?.selectedChildMarketId && (
+                  {provider1?.supportsChildMarkets && fetchedMarket.provider1Info?.selectedChildMarketId && (
+                    <div className="mt-3 p-2 rounded bg-green-500/10 border border-green-500/30">
+                      <p className="text-green-400 text-xs">✓ Submarket selected (ID: {fetchedMarket.provider1Info.selectedChildMarketId})</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Provider 2 Market Info */}
+                <div className="border-t border-white/10 pt-4">
+                  <div className="flex items-start gap-4 mb-3">
+                    {fetchedMarket.provider2Info?.thumbnailUrl && (
+                      <img 
+                        src={fetchedMarket.provider2Info.thumbnailUrl} 
+                        alt={provider2?.name} 
+                        className="w-16 h-16 rounded-lg object-cover"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-purple-400 mb-2">{provider2?.name || 'Provider 2'}</h4>
+                      <p className="text-white/80 mb-1">{fetchedMarket.provider2Info?.question}</p>
+                    </div>
+                  </div>
+
+                  {/* Child Markets Selection for Provider 2 */}
+                  {provider2?.supportsChildMarkets && fetchedMarket.provider2Info?.childMarkets && fetchedMarket.provider2Info.childMarkets.length > 0 && !fetchedMarket.provider2Info.selectedChildMarketId && (
+                    <div className="mb-4 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+                      <p className="text-yellow-400 text-sm font-medium mb-3">
+                        ⚠️ This is a categorical market. Please select a submarket:
+                      </p>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {fetchedMarket.provider2Info.childMarkets.map((child) => (
+                          <button
+                            key={child.marketId}
+                            onClick={() => handleSelectChildMarket('provider2Info', child.marketId)}
+                            className="w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg bg-black/30 hover:bg-black/50 border border-white/10 hover:border-primary/50 transition-all"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <p className="text-white font-medium">{child.marketTitle}</p>
+                                <p className="text-xs text-white/50 mt-1">Market ID: {child.marketId}</p>
+                              </div>
+                              <span className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-400">
+                                {child.status === 2 ? 'Active' : 'Created'}
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {provider2?.supportsChildMarkets && fetchedMarket.provider2Info?.selectedChildMarketId && (
                     <div className="mb-3 p-2 rounded bg-green-500/10 border border-green-500/30">
-                      <p className="text-green-400 text-xs">✓ Submarket selected (ID: {fetchedMarket.opinionInfo.selectedChildMarketId})</p>
+                      <p className="text-green-400 text-xs">✓ Submarket selected (ID: {fetchedMarket.provider2Info.selectedChildMarketId})</p>
                     </div>
                   )}
 
                   <div className="text-sm text-white/60 space-y-1">
-                    <p className="font-mono break-all">YES Token ID: {fetchedMarket.opinionInfo?.yesTokenId}</p>
-                    <p className="font-mono break-all">NO Token ID: {fetchedMarket.opinionInfo?.noTokenId}</p>
+                    <p className="font-mono break-all">YES Token ID: {fetchedMarket.provider2Info?.yesTokenId}</p>
+                    <p className="font-mono break-all">NO Token ID: {fetchedMarket.provider2Info?.noTokenId}</p>
                   </div>
                 </div>
               </div>
@@ -756,76 +708,93 @@ const ManageMarketsPage: FunctionComponent = () => {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <button
-                      onClick={handleAllowYesPolyNoOpinion}
-                      disabled={yesPolyNoOpinionInfo?.isAllowed || !earlyExitContractAddress || (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId)}
-                      className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                        yesPolyNoOpinionInfo?.isAllowed || !earlyExitContractAddress || (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId)
-                          ? "bg-gray-600 cursor-not-allowed"
-                          : "bg-green-600 hover:bg-green-700"
-                      } text-white`}
-                    >
-                      {!isOwner ? "Not Allowed if you are not the owner" : (yesPolyNoOpinionInfo?.isAllowed ? "✓ Already Allowed" : (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId) ? "Select submarket first" : "Allow YES Poly + NO Opinion")}
-                    </button>
-                    {yesPolyNoOpinionInfo?.isAllowed && (
-                      <div className="mt-3 p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-sm text-white/80 space-y-1">
-                        <p className="text-green-400 font-medium mb-2">Pair Information:</p>
-                        <p><span className="text-white/60">Is Allowed:</span> {yesPolyNoOpinionInfo.isAllowed ? "✅ Yes" : "❌ No"}</p>
-                        <p><span className="text-white/60">Is Paused:</span> {yesPolyNoOpinionInfo.isPaused ? "⏸️ Yes" : "✅ No"}</p>
-                        <p><span className="text-white/60">Early Exited Amount:</span> {formatEarlyExitedAmount(yesPolyNoOpinionInfo.earlyExitedAmount)}</p>
-                        <p className="font-mono break-all text-xs"><span className="text-white/60">Exit Contract:</span> {yesPolyNoOpinionInfo.earlyExitAmountContract}</p>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* NO Poly + YES Opinion Button */}
-                  <div>
-                    <button
-                      onClick={handleAllowNoPolyYesOpinion}
-                      disabled={noPolyYesOpinionInfo?.isAllowed || !earlyExitContractAddress || (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId)}
-                      className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                        noPolyYesOpinionInfo?.isAllowed || !earlyExitContractAddress || (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId)
-                          ? "bg-gray-600 cursor-not-allowed"
-                          : "bg-blue-600 hover:bg-blue-700"
-                      } text-white`}
-                    >
-                      {!isOwner ? "Not Allowed if you are not the owner" : (noPolyYesOpinionInfo?.isAllowed ? "✓ Already Allowed" : (fetchedMarket?.opinionInfo?.childMarkets && fetchedMarket.opinionInfo.childMarkets.length > 0 && !fetchedMarket.opinionInfo.selectedChildMarketId) ? "Select submarket first" : "Allow NO Poly + YES Opinion")}
-                    </button>
-                    {noPolyYesOpinionInfo?.isAllowed && (
-                      <div className="mt-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-sm text-white/80 space-y-1">
-                        <p className="text-blue-400 font-medium mb-2">Pair Information:</p>
-                        <p><span className="text-white/60">Is Allowed:</span> {noPolyYesOpinionInfo.isAllowed ? "✅ Yes" : "❌ No"}</p>
-                        <p><span className="text-white/60">Is Paused:</span> {noPolyYesOpinionInfo.isPaused ? "⏸️ Yes" : "✅ No"}</p>
-                        <p><span className="text-white/60">Early Exited Amount:</span> {formatEarlyExitedAmount(noPolyYesOpinionInfo.earlyExitedAmount)}</p>
-                        <p className="font-mono break-all text-xs"><span className="text-white/60">Exit Contract:</span> {noPolyYesOpinionInfo.earlyExitAmountContract}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
+                  {/* Action Buttons */}
+                  {/* Helper function for checking if child market needs selection */}
+                  {(() => {
+                    const needsChildMarketSelection = (providerInfo: ProviderMarketInfo | undefined, provider: typeof provider1 | typeof provider2) => {
+                      return provider?.supportsChildMarkets && providerInfo?.childMarkets && providerInfo.childMarkets.length > 0 && !providerInfo.selectedChildMarketId;
+                    };
+
+                    const p1NeedsSelection = needsChildMarketSelection(fetchedMarket.provider1Info, provider1);
+                    const p2NeedsSelection = needsChildMarketSelection(fetchedMarket.provider2Info, provider2);
+                    const anyNeedsSelection = p1NeedsSelection || p2NeedsSelection;
+
+                    return (
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {/* YES Provider1 + NO Provider2 Button */}
+                          <div>
+                            <button
+                              onClick={handleAllowYesP1NoP2}
+                              disabled={yesP1NoP2Info?.isAllowed || !earlyExitContractAddress || anyNeedsSelection}
+                              className={`w-full py-3 rounded-lg font-medium transition-colors ${
+                                yesP1NoP2Info?.isAllowed || !earlyExitContractAddress || anyNeedsSelection
+                                  ? "bg-gray-600 cursor-not-allowed"
+                                  : "bg-green-600 hover:bg-green-700"
+                              } text-white`}
+                            >
+                              {!isOwner ? "Not Allowed if you are not the owner" : (yesP1NoP2Info?.isAllowed ? "✓ Already Allowed" : anyNeedsSelection ? "Select submarket first" : `Allow YES ${provider1?.name} + NO ${provider2?.name}`)}
+                            </button>
+                            {yesP1NoP2Info?.isAllowed && (
+                              <div className="mt-3 p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-sm text-white/80 space-y-1">
+                                <p className="text-green-400 font-medium mb-2">Pair Information:</p>
+                                <p><span className="text-white/60">Is Allowed:</span> {yesP1NoP2Info.isAllowed ? "✅ Yes" : "❌ No"}</p>
+                                <p><span className="text-white/60">Is Paused:</span> {yesP1NoP2Info.isPaused ? "⏸️ Yes" : "✅ No"}</p>
+                                <p><span className="text-white/60">Early Exited Amount:</span> {formatEarlyExitedAmount(yesP1NoP2Info.earlyExitedAmount)}</p>
+                                <p className="font-mono break-all text-xs"><span className="text-white/60">Exit Contract:</span> {yesP1NoP2Info.earlyExitAmountContract}</p>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* NO Provider1 + YES Provider2 Button */}
+                          <div>
+                            <button
+                              onClick={handleAllowNoP1YesP2}
+                              disabled={noP1YesP2Info?.isAllowed || !earlyExitContractAddress || anyNeedsSelection}
+                              className={`w-full py-3 rounded-lg font-medium transition-colors ${
+                                noP1YesP2Info?.isAllowed || !earlyExitContractAddress || anyNeedsSelection
+                                  ? "bg-gray-600 cursor-not-allowed"
+                                  : "bg-blue-600 hover:bg-blue-700"
+                              } text-white`}
+                            >
+                              {!isOwner ? "Not Allowed if you are not the owner" : (noP1YesP2Info?.isAllowed ? "✓ Already Allowed" : anyNeedsSelection ? "Select submarket first" : `Allow NO ${provider1?.name} + YES ${provider2?.name}`)}
+                            </button>
+                            {noP1YesP2Info?.isAllowed && (
+                              <div className="mt-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-sm text-white/80 space-y-1">
+                                <p className="text-blue-400 font-medium mb-2">Pair Information:</p>
+                                <p><span className="text-white/60">Is Allowed:</span> {noP1YesP2Info.isAllowed ? "✅ Yes" : "❌ No"}</p>
+                                <p><span className="text-white/60">Is Paused:</span> {noP1YesP2Info.isPaused ? "⏸️ Yes" : "✅ No"}</p>
+                                <p><span className="text-white/60">Early Exited Amount:</span> {formatEarlyExitedAmount(noP1YesP2Info.earlyExitedAmount)}</p>
+                                <p className="font-mono break-all text-xs"><span className="text-white/60">Exit Contract:</span> {noP1YesP2Info.earlyExitAmountContract}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </>
               )}
 
-              {(yesPolyNoOpinionInfo?.isAllowed || noPolyYesOpinionInfo?.isAllowed) && (
+              {(yesP1NoP2Info?.isAllowed || noP1YesP2Info?.isAllowed) && (
                 <div className="space-y-4">
-                  {yesPolyNoOpinionInfo?.isAllowed && (
+                  {yesP1NoP2Info?.isAllowed && (
                     <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/30 text-sm text-white/80 space-y-1">
-                      <p className="text-green-400 font-medium mb-2">YES Poly + NO Opinion - Pair Information:</p>
-                      <p><span className="text-white/60">Is Allowed:</span> {yesPolyNoOpinionInfo.isAllowed ? "✅ Yes" : "❌ No"}</p>
-                      <p><span className="text-white/60">Is Paused:</span> {yesPolyNoOpinionInfo.isPaused ? "⏸️ Yes" : "✅ No"}</p>
-                      <p><span className="text-white/60">Early Exited Amount:</span> {formatEarlyExitedAmount(yesPolyNoOpinionInfo.earlyExitedAmount)}</p>
-                      <p className="font-mono break-all text-xs"><span className="text-white/60">Exit Contract:</span> {yesPolyNoOpinionInfo.earlyExitAmountContract}</p>
+                      <p className="text-green-400 font-medium mb-2">YES {provider1?.name} + NO {provider2?.name} - Pair Information:</p>
+                      <p><span className="text-white/60">Is Allowed:</span> {yesP1NoP2Info.isAllowed ? "✅ Yes" : "❌ No"}</p>
+                      <p><span className="text-white/60">Is Paused:</span> {yesP1NoP2Info.isPaused ? "⏸️ Yes" : "✅ No"}</p>
+                      <p><span className="text-white/60">Early Exited Amount:</span> {formatEarlyExitedAmount(yesP1NoP2Info.earlyExitedAmount)}</p>
+                      <p className="font-mono break-all text-xs"><span className="text-white/60">Exit Contract:</span> {yesP1NoP2Info.earlyExitAmountContract}</p>
                     </div>
                   )}
                   
-                  {noPolyYesOpinionInfo?.isAllowed && (
+                  {noP1YesP2Info?.isAllowed && (
                     <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-sm text-white/80 space-y-1">
-                      <p className="text-blue-400 font-medium mb-2">NO Poly + YES Opinion - Pair Information:</p>
-                      <p><span className="text-white/60">Is Allowed:</span> {noPolyYesOpinionInfo.isAllowed ? "✅ Yes" : "❌ No"}</p>
-                      <p><span className="text-white/60">Is Paused:</span> {noPolyYesOpinionInfo.isPaused ? "⏸️ Yes" : "✅ No"}</p>
-                      <p><span className="text-white/60">Early Exited Amount:</span> {formatEarlyExitedAmount(noPolyYesOpinionInfo.earlyExitedAmount)}</p>
-                      <p className="font-mono break-all text-xs"><span className="text-white/60">Exit Contract:</span> {noPolyYesOpinionInfo.earlyExitAmountContract}</p>
+                      <p className="text-blue-400 font-medium mb-2">NO {provider1?.name} + YES {provider2?.name} - Pair Information:</p>
+                      <p><span className="text-white/60">Is Allowed:</span> {noP1YesP2Info.isAllowed ? "✅ Yes" : "❌ No"}</p>
+                      <p><span className="text-white/60">Is Paused:</span> {noP1YesP2Info.isPaused ? "⏸️ Yes" : "✅ No"}</p>
+                      <p><span className="text-white/60">Early Exited Amount:</span> {formatEarlyExitedAmount(noP1YesP2Info.earlyExitedAmount)}</p>
+                      <p className="font-mono break-all text-xs"><span className="text-white/60">Exit Contract:</span> {noP1YesP2Info.earlyExitAmountContract}</p>
                     </div>
                   )}
                 </div>

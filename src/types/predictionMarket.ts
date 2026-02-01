@@ -77,6 +77,15 @@ export interface PredictionMarketProvider {
   bridgeConfig?: BridgeConfig;
   /** Safe wallet configuration (optional) */
   safeConfig?: SafeConfig;
+  /** When market info will be fetch using topic id in case of opinion, we need to get the specific
+   * child market. This is because just from the UI there is no good way to get the market id of the child market in case of opinion and fetch the data
+   * In case on polymarket, we use the child market slug and in case of probable we use the market id so there is no need to for child markets selectors
+   */
+  supportsChildMarkets?: boolean;
+  /** Input type for fetching markets ('slug' or 'id') */
+  inputType?: 'slug' | 'id';
+  /** Placeholder text for the input field */
+  inputPlaceholder?: string;
   
   /**
    * Fetch market data by market ID

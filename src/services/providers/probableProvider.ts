@@ -58,11 +58,14 @@ export const probableProvider: NativePredictionMarketProvider = {
     type: 'derive',
     factoryAddress: PROBABLE_SAFE_FACTORY_ADDRESS,
   },
+  supportsChildMarkets: false,
+  inputType: 'id',
+  inputPlaceholder: 'Enter Probable specific market ID',
 
   async getMarketById(marketId: string): Promise<MarketData | null> {
     try {
       const response = await fetch(
-        `${MIDDLEWARE_BASE_URL}/probable/market/${marketId}`
+        `${MIDDLEWARE_BASE_URL}/probable/public/api/v1/markets/${marketId}`
       );
 
       if (!response.ok) {
@@ -79,12 +82,12 @@ export const probableProvider: NativePredictionMarketProvider = {
 
       const rawMarket: ProbableApiMarket = {
         id: marketData.id || marketId,
-        question: marketData.question || marketData.title || '',
-        thumbnailUrl: marketData.thumbnailUrl || marketData.image,
-        yesTokenId: marketData.yesTokenId || '',
-        noTokenId: marketData.noTokenId || '',
+        question: marketData.question || '',
+        thumbnailUrl: marketData.icon,
+        yesTokenId: marketData.tokens.find((token: { outcome: string , token_id: string }) => token.outcome === 'Yes')?.token_id || '',
+        noTokenId: marketData.tokens.find((token: { outcome: string , token_id: string }) => token.outcome === 'No')?.token_id || '',
         endDate: marketData.endDate,
-        status: marketData.status || 'active',
+        status: marketData.resolved ? 'resolved' : marketData.closed ? 'closed' : 'active',
       };
 
       return transformToMarketData(rawMarket);
@@ -94,6 +97,8 @@ export const probableProvider: NativePredictionMarketProvider = {
     }
   },
 
+  //TODO: This does not work and also we do not use it anywhere either. 
+  // this is used in useMarketInfo and we neveer use it because we always use the useMarketInfos hook that fetches market infos from the middleware based on the outcome token ids.
   async getMarketByOutcomeToken(outcomeTokenId: string): Promise<MarketData | null> {
     try {
       const response = await fetch(

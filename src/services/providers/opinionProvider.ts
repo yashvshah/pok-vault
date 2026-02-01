@@ -106,6 +106,9 @@ export const opinionProvider: NativePredictionMarketProvider = {
     type: 'api',
     fetchSafeAddress: fetchOpinionSafeAddress,
   },
+  supportsChildMarkets: true,
+  inputType: 'id',
+  inputPlaceholder: 'Enter Opinion market ID',
 
   async getMarketById(marketId: string): Promise<MarketData | null> {
     try {

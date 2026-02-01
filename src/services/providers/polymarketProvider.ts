@@ -117,6 +117,9 @@ export const polymarketProvider: BridgeablePredictionMarketProvider = {
     type: 'derive',
     factoryAddress: POLYMARKET_SAFE_FACTORY_ADDRESS,
   },
+  supportsChildMarkets: false,
+  inputType: 'slug',
+  inputPlaceholder: 'e.g., fed-decreases-interest-rates-by-50-bps',
 
   async getMarketById(marketId: string): Promise<MarketData | null> {
     // Polymarket uses slug-based lookup, not direct ID
