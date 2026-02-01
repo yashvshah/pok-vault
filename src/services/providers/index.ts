@@ -2,6 +2,7 @@ import type { Address } from 'viem';
 import type { PredictionMarketProvider } from '../../types/predictionMarket';
 import { polymarketProvider } from './polymarketProvider';
 import { opinionProvider } from './opinionProvider';
+import { probableProvider } from './probableProvider';
 import { 
   POLYGON_ERC1155_BRIDGED_BSC_ADDRESS,
   POLYGON_ERC1155_BRIDGED_BSC_OLD_BUGGY_ADDRESS,
@@ -21,6 +22,7 @@ class ProviderRegistry {
     // Register default providers
     this.register(polymarketProvider);
     this.register(opinionProvider);
+    this.register(probableProvider);
   }
 
   /**
@@ -90,6 +92,7 @@ export const providerRegistry = new ProviderRegistry();
 // Convenience exports
 export { polymarketProvider } from './polymarketProvider';
 export { opinionProvider } from './opinionProvider';
+export { probableProvider } from './probableProvider';
 
 // Re-export types
 export type { 

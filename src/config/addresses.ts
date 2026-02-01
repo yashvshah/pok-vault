@@ -8,6 +8,7 @@ export const POLYGON_ERC1155_BRIDGED_BSC_ADDRESS = "0x77b0052a346b22ea1f3112e3fc
 export const POLYGON_ERC1155_BRIDGED_BSC_OLD_BUGGY_ADDRESS = "0xB42D95Bd05713eD14369fC1a1e4fAF107b27c464" as const;
 export const POLYGON_ERC1155_POLYGON_ADDRESS = "0x4d97dcd97ec945f40cf65f87097ace5ea0476045" as const; 
 export const OPINION_ERC1155_ADDRESS = "0xAD1a38cEc043e70E83a3eC30443dB285ED10D774" as const;
+export const PROBABLE_ERC1155_ADDRESS = "0x364d05055614B506e2b9A287E4ac34167204cA83" as const;
 
 //Bride Addresses
 //send the Polymarket tokens to source bride address to bridge from Polygon to BSC
@@ -31,6 +32,7 @@ export const MULTI_SEND_CALL_ONLY_POLYGON_ADDRESS = "0x40A2aCCbd92BCA938b02010E1
 // Token decimals
 export const POLYMARKET_DECIMALS = 6;
 export const OPINION_DECIMALS = 18;
+export const PROBABLE_DECIMALS = 18;
 export const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955" as const;
 export const USDT_DECIMALS = 18;
 // Middleware server URL

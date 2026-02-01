@@ -28,7 +28,9 @@ function App() {
         <Route path="/" element={<Navigate to="/vault" />} />
         <Route path="/vault" element={<VaultPage />} />
         <Route path="/markets" element={<MarketsPage />} />
+        <Route path="/markets/:providerPair" element={<MarketsPage />} />
         <Route path="/manage-markets" element={<ManageMarketsPage />} />
+        <Route path="/manage-markets/:providerPair" element={<ManageMarketsPage />} />
       </Routes>
 
       <Footer />

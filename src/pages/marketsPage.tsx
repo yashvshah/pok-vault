@@ -1,5 +1,6 @@
 import { useState, type FunctionComponent } from "react";
 import { useAccount, useChainId, useSwitchChain, useReadContract, useBalance, useWriteContract, useReadContracts } from "wagmi";
+import { useParams, useNavigate } from "react-router-dom";
 import { polygon, bsc } from "wagmi/chains";
 import { parseUnits, erc1155Abi, formatUnits, encodeAbiParameters, erc20Abi, encodeFunctionData } from "viem";
 import type { Address, Abi } from "viem";
@@ -17,6 +18,8 @@ import MarketCard from "../components/MarketCard";
 import MarketActionCard from "../components/MarketActionCard";
 import BalanceItem from "../components/BalanceItem";
 import MarketFilters, { type MarketFilterState } from "../components/MarketFilters";
+import ProviderPairSelector from "../components/ProviderPairSelector";
+import { generateProviderPairs } from "../utils/providerPairs";
 import { useSupportedMarkets, type MarketStatus, type SupportedMarket } from "../hooks/useSupportedMarkets";
 import { createPolygonToBSCBridgeBatch, createBSCToPolygonBridgeBatch } from "../utils/bridgeBatch";
 import { createMergeBatchWithApprovals, createSplitBatchWithApproval } from "../utils/mergeSplitBatch";
@@ -1060,6 +1063,23 @@ function OwnerActionsForPair({
 }
 
 const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
+  const { providerPair: urlProviderPair } = useParams<{ providerPair?: string }>();
+  const navigate = useNavigate();
+  
+  // Get all available provider pairs
+  const availablePairs = generateProviderPairs();
+  const defaultPair = availablePairs[0]?.id || '';
+  
+  // Use URL param or default to first pair
+  const selectedProviderPair = urlProviderPair && availablePairs.some(p => p.id === urlProviderPair)
+    ? urlProviderPair
+    : defaultPair;
+  
+  // Handle provider pair change
+  const handleProviderPairChange = (pairId: string) => {
+    navigate(`/markets/${pairId}`);
+  };
+  
   // Store amounts per pair key
   const [amountsByPair, setAmountsByPair] = useState<Record<string, string>>({});
   const [filters, setFilters] = useState<MarketFilterState>({
@@ -1201,10 +1221,18 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
   return (
     <>
       <div className="md:mx-30 mx-10 mb-10">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-League-Spartan mt-6 sm:mt-8 md:mt-10">Supported Markets</h1>
-        <p className="text-gray-400 mt-5 max-w-lg">
-          We provide cross platform merge and split functionalities for Opposite outcomes. You can use the Merge or Split functionality for following markets. 
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-6 sm:mt-8 md:mt-10">
+          <div>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-League-Spartan">Supported Markets</h1>
+            <p className="text-gray-400 mt-2 max-w-lg">
+              We provide cross platform merge and split functionalities for Opposite outcomes. You can use the Merge or Split functionality for following markets. 
+            </p>
+          </div>
+          <ProviderPairSelector 
+            selectedPair={selectedProviderPair}
+            onPairChange={handleProviderPairChange}
+          />
+        </div>
 
         <MarketFilters
           availableMarkets={["Polymarket (Bridged)", "Opinion"]}

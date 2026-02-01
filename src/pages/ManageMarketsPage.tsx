@@ -1,5 +1,6 @@
 import { useState, type FunctionComponent } from "react";
 import { useReadContract, useWriteContract, useAccount } from "wagmi";
+import { useParams, useNavigate } from "react-router-dom";
 import { keccak256, encodePacked, isAddress, encodeFunctionData } from "viem";
 import type { Address } from "viem";
 import { bsc } from "wagmi/chains";
@@ -8,6 +9,8 @@ import EarlyExitAmountBasedOnFixedAPYConfigurableABI from "../abi/EarlyExitAmoun
 import EarlyExitAmountFactoryBasedOnFixedAPYConfigurableABI from "../abi/EarlyExitAmountFactoryBasedOnFixedAPYConfigurableABI.json";
 import { providerRegistry } from "../services/providers";
 import { getPolymarketBySlug } from "../services/providers/polymarketProvider";
+import ProviderPairSelector from "../components/ProviderPairSelector";
+import { generateProviderPairs } from "../utils/providerPairs";
 import {
   VAULT_ADDRESS,
   EARLY_EXIT_FACTORY_ADDRESS,
@@ -57,6 +60,23 @@ interface MarketInputData {
 }
 
 const ManageMarketsPage: FunctionComponent = () => {
+  const { providerPair: urlProviderPair } = useParams<{ providerPair?: string }>();
+  const navigate = useNavigate();
+  
+  // Get all available provider pairs
+  const availablePairs = generateProviderPairs();
+  const defaultPair = availablePairs[0]?.id || '';
+  
+  // Use URL param or default to first pair
+  const selectedProviderPair = urlProviderPair && availablePairs.some(p => p.id === urlProviderPair)
+    ? urlProviderPair
+    : defaultPair;
+  
+  // Handle provider pair change
+  const handleProviderPairChange = (pairId: string) => {
+    navigate(`/manage-markets/${pairId}`);
+  };
+  
   const [polymarketId, setPolymarketId] = useState("");
   const [opinionId, setOpinionId] = useState("");
   const [fetchedMarket, setFetchedMarket] = useState<MarketInputData | null>(null);
@@ -498,10 +518,18 @@ const ManageMarketsPage: FunctionComponent = () => {
 
   return (
     <div className="mx-30 mb-10">
-      <h1 className="text-3xl sm:text-4xl md:text-5xl font-League-Spartan mt-6 sm:mt-8 md:mt-10">Manage Markets</h1>
-      <p className="text-gray-400 mt-5 max-w-lg">
-        Add new market pairs or view existing supported markets for early exit arbitrage.
-      </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-6 sm:mt-8 md:mt-10">
+        <div>
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-League-Spartan">Manage Markets</h1>
+          <p className="text-gray-400 mt-2 max-w-lg">
+            Add new market pairs or view existing supported markets for early exit arbitrage.
+          </p>
+        </div>
+        <ProviderPairSelector 
+          selectedPair={selectedProviderPair}
+          onPairChange={handleProviderPairChange}
+        />
+      </div>
 
       <div className="mt-6 sm:mt-8 md:mt-10 p-4 sm:p-5 md:p-6 gradiant-border">
         <div className="box-of-gradiant-border">
