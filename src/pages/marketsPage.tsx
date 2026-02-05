@@ -1363,8 +1363,18 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
     <>
       <div className="md:mx-30 mx-10 mb-10">
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-League-Spartan mt-6 sm:mt-8 md:mt-10">Supported Markets</h1>
-        <p className="text-gray-400 mt-5 max-w-lg">
-          We provide cross platform merge and split functionalities for Opposite outcomes. You can use the Merge or Split functionality for following markets. 
+        <p className="text-gray-400 mt-5">
+      We provide cross platform merge and split functionalities for opposite
+      outcomes for following markets.
+      You can use the{" "}
+          <a
+            href="https://www.npmjs.com/package/@pokvault/sdk?activeTab=readme"
+            target="_blank"
+            className="underline underline-offset-2 hover:text-secondary-200"
+          >
+            PokVault SDK
+          </a>{" "}
+          to discover supported markets and estimate merge & split costs programmatically.
         </p>
 
         <MarketFilters

@@ -37,3 +37,5 @@ export const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955" as cons
 export const USDT_DECIMALS = 18;
 // Middleware server URL
 export const MIDDLEWARE_BASE_URL = 'https://api.pokvault.xyz/api' as const;
+// export const MIDDLEWARE_BASE_URL = 'http://localhost:3001/api' as const;
+
