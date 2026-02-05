@@ -1372,7 +1372,7 @@ const MarketsPage: FunctionComponent<MarketsPageProps> = () => {
             target="_blank"
             className="underline underline-offset-2 hover:text-secondary-200"
           >
-            PokVault SDK
+            POKVault SDK
           </a>{" "}
           to discover supported markets and estimate merge & split costs programmatically.
         </p>
